@@ -1,26 +1,354 @@
+/**
+ * @fileoverview Global styles for Black Gold mining platform
+ * Theme: Coal/Industrial aesthetic with ember particle effects
+ */
+
 @import "tailwindcss";
 
+/* ============================================
+   CSS Custom Properties (Theme Variables)
+   ============================================ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Core colors */
+  --coal-950: #0a0a0a;
+  --coal-900: #121212;
+  --coal-800: #1a1a1a;
+  --coal-700: #2a2a2a;
+  --coal-600: #3a3a3a;
+  --coal-500: #4a4a4a;
+  
+  /* Accent colors */
+  --ember: #f97316;
+  --ember-glow: rgba(249, 115, 22, 0.4);
+  --gold: #fbbf24;
+  --gold-glow: rgba(251, 191, 36, 0.4);
+  
+  /* Background */
+  --background: #0a0a0a;
+  --foreground: #ededed;
+  
+  /* Font families */
+  --font-display: 'Bebas Neue', Impact, sans-serif;
+  --font-heading: 'Oswald', Impact, sans-serif;
+  --font-mono: 'JetBrains Mono', Consolas, monospace;
+  --font-body: system-ui, -apple-system, sans-serif;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-body);
+  --font-mono: var(--font-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ============================================
+   Base Styles
+   ============================================ */
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-body);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Industrial background pattern */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: 
+    /* Subtle diagonal lines */
+    repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 10px,
+      rgba(255, 255, 255, 0.01) 10px,
+      rgba(255, 255, 255, 0.01) 20px
+    ),
+    /* Radial vignette */
+    radial-gradient(
+      ellipse at center,
+      transparent 0%,
+      rgba(0, 0, 0, 0.4) 100%
+    ),
+    /* Base gradient */
+    linear-gradient(
+      180deg,
+      #0a0a0a 0%,
+      #121212 50%,
+      #0a0a0a 100%
+    );
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* ============================================
+   Typography
+   ============================================ */
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.font-heading {
+  font-family: var(--font-heading);
+  letter-spacing: 0.02em;
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+  font-feature-settings: 'liga' 0;
+}
+
+/* ============================================
+   Ember Particle Effects
+   ============================================ */
+.ember-particle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--ember);
+  box-shadow: 
+    0 0 6px var(--ember),
+    0 0 12px var(--ember-glow);
+  animation: ember-rise 3s ease-out infinite;
+  pointer-events: none;
+}
+
+@keyframes ember-rise {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-100px) scale(0.3);
+  }
+}
+
+/* Ember glow effect for elements */
+.ember-glow {
+  box-shadow: 
+    0 0 10px var(--ember-glow),
+    0 0 20px var(--ember-glow),
+    inset 0 0 5px var(--ember-glow);
+}
+
+.gold-glow {
+  box-shadow: 
+    0 0 10px var(--gold-glow),
+    0 0 20px var(--gold-glow);
+}
+
+/* ============================================
+   Coal/Industrial UI Components
+   ============================================ */
+
+/* Industrial panel */
+.coal-panel {
+  background: linear-gradient(180deg, var(--coal-800) 0%, var(--coal-900) 100%);
+  border: 1px solid var(--coal-600);
+  border-radius: 4px;
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    inset 0 -2px 10px rgba(0, 0, 0, 0.5),
+    0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+/* Beveled industrial border */
+.industrial-border {
+  border: 2px solid transparent;
+  border-image: linear-gradient(
+    180deg,
+    var(--coal-500) 0%,
+    var(--coal-700) 50%,
+    var(--coal-900) 100%
+  ) 1;
+}
+
+/* Progress bar with ember fill */
+.progress-ember {
+  background: var(--coal-900);
+  border: 1px solid var(--coal-600);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progress-ember-fill {
+  background: linear-gradient(90deg, var(--ember) 0%, #fb923c 50%, var(--gold) 100%);
+  height: 100%;
+  border-radius: 1px;
+  box-shadow: 
+    0 0 10px var(--ember-glow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  transition: width 0.3s ease-out;
+}
+
+/* Mining button */
+.btn-mine {
+  background: linear-gradient(180deg, var(--coal-600) 0%, var(--coal-800) 100%);
+  border: 2px solid var(--coal-500);
+  color: var(--foreground);
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  letter-spacing: 0.1em;
+  padding: 1rem 2rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-mine:hover:not(:disabled) {
+  border-color: var(--ember);
+  box-shadow: 
+    0 0 20px var(--ember-glow),
+    inset 0 0 20px var(--ember-glow);
+}
+
+.btn-mine:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.btn-mine:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-mine.mining {
+  border-color: var(--ember);
+  animation: pulse-mining 1s ease-in-out infinite;
+}
+
+@keyframes pulse-mining {
+  0%, 100% {
+    box-shadow: 
+      0 0 10px var(--ember-glow),
+      inset 0 0 10px var(--ember-glow);
+  }
+  50% {
+    box-shadow: 
+      0 0 30px var(--ember-glow),
+      inset 0 0 20px var(--ember-glow);
+  }
+}
+
+/* Stat display */
+.stat-value {
+  font-family: var(--font-mono);
+  color: var(--gold);
+  text-shadow: 0 0 10px var(--gold-glow);
+}
+
+.stat-label {
+  font-family: var(--font-heading);
+  color: var(--coal-500);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 0.75rem;
+}
+
+/* ============================================
+   Scrollbar Styling
+   ============================================ */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--coal-900);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--coal-600);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--coal-500);
+}
+
+/* ============================================
+   Selection Styling
+   ============================================ */
+::selection {
+  background: var(--ember);
+  color: var(--coal-950);
+}
+
+/* ============================================
+   Animation Utilities
+   ============================================ */
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.4s ease-out forwards;
+}
+
+.animate-stagger-1 { animation-delay: 0.1s; }
+.animate-stagger-2 { animation-delay: 0.2s; }
+.animate-stagger-3 { animation-delay: 0.3s; }
+.animate-stagger-4 { animation-delay: 0.4s; }
+.animate-stagger-5 { animation-delay: 0.5s; }
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Shimmer effect for loading states */
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--coal-800) 0%,
+    var(--coal-700) 50%,
+    var(--coal-800) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ============================================
+   Responsive Utilities
+   ============================================ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
