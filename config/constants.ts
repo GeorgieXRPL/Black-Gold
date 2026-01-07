@@ -1,19 +1,26 @@
 /**
  * @fileoverview Configuration constants for Black Gold mining platform
+ * Supports both mainnet and devnet environments via SOLANA_NETWORK env var
  */
+
+/** Network environment - 'mainnet' or 'devnet' */
+export const NETWORK = (process.env.SOLANA_NETWORK || 'mainnet') as 'mainnet' | 'devnet';
+
+/** Whether running in development/test mode */
+export const IS_DEVNET = NETWORK === 'devnet';
 
 /** Token configuration - UPDATE AFTER LAUNCH */
 export const TOKEN_CONFIG = {
   /** Token mint address (SPL token) */
-  MINT_ADDRESS: process.env.TOKEN_MINT_ADDRESS || 'TBD',
+  MINT_ADDRESS: process.env.TOKEN_MINT_ADDRESS || (IS_DEVNET ? 'DEVNET_TEST_TOKEN' : 'TBD'),
   /** Token decimals */
   DECIMALS: 9,
   /** Total supply */
   TOTAL_SUPPLY: 1_000_000_000,
   /** Token symbol */
-  SYMBOL: 'COAL',
+  SYMBOL: IS_DEVNET ? 'tCOAL' : 'COAL',
   /** Token name */
-  NAME: 'Black Gold',
+  NAME: IS_DEVNET ? 'Test Black Gold' : 'Black Gold',
 } as const;
 
 /** Wallet configuration */
@@ -24,16 +31,32 @@ export const WALLET_CONFIG = {
   CREATOR_WALLET: process.env.CREATOR_WALLET_ADDRESS || 'TBD',
 } as const;
 
+/** RPC endpoints by network */
+const RPC_ENDPOINTS = {
+  mainnet: 'https://api.mainnet-beta.solana.com',
+  devnet: 'https://api.devnet.solana.com',
+} as const;
+
+/** Helius RPC endpoints by network */
+const HELIUS_ENDPOINTS = {
+  mainnet: 'https://mainnet.helius-rpc.com',
+  devnet: 'https://devnet.helius-rpc.com',
+} as const;
+
 /** Solana RPC configuration */
 export const RPC_CONFIG = {
+  /** Current network */
+  NETWORK,
+  /** Is devnet */
+  IS_DEVNET,
   /** Main RPC endpoint */
-  ENDPOINT: process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com',
+  ENDPOINT: process.env.SOLANA_RPC_URL || RPC_ENDPOINTS[NETWORK],
   /** Helius API key for holder verification */
   HELIUS_API_KEY: process.env.HELIUS_API_KEY || '',
-  /** Helius RPC endpoint */
+  /** Helius RPC endpoint (network-aware) */
   HELIUS_RPC: process.env.HELIUS_API_KEY 
-    ? `https://mainnet.helius-rpc.com/?api-key=${process.env.HELIUS_API_KEY}`
-    : 'https://api.mainnet-beta.solana.com',
+    ? `${HELIUS_ENDPOINTS[NETWORK]}/?api-key=${process.env.HELIUS_API_KEY}`
+    : RPC_ENDPOINTS[NETWORK],
 } as const;
 
 /** Mining pool configuration */

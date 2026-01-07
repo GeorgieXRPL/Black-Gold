@@ -220,6 +220,12 @@ export default function Home() {
                 <span className="text-coal-300"> GOLD</span>
               </h1>
               <span className="text-xs text-coal-500 bg-coal-800 px-2 py-1 rounded">v2.0</span>
+              {/* Network indicator - show when on devnet */}
+              {process.env.NEXT_PUBLIC_SOLANA_NETWORK === 'devnet' && (
+                <span className="text-xs text-yellow-400 bg-yellow-900/50 border border-yellow-700 px-2 py-1 rounded animate-pulse">
+                  DEVNET
+                </span>
+              )}
             </div>
             
             <div className="flex items-center gap-4 md:gap-6">
