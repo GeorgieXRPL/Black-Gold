@@ -189,14 +189,27 @@ export function WalletEntry({ onWalletChange, compact = false }: WalletEntryProp
           </button>
         )}
         
-        {/* Address input modal - centered with solid black background */}
+        {/* Address input modal - uses inline styles for reliable centering */}
         <AnimatePresence>
           {showAddressInput && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 flex items-center justify-center bg-black"
+              style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                width: '100vw',
+                height: '100vh',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: '#000',
+                zIndex: 9999,
+              }}
               onClick={() => setShowAddressInput(false)}
             >
               <motion.div
