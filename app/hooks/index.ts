@@ -6,3 +6,4 @@ export { useMining, type MiningStatus } from './useMining';
 export { useWebSocket, type ConnectionStatus } from './useWebSocket';
 export { useWallet, usePrivyConfigured, type WalletState, type WalletActions, type UseWalletReturn } from './useWallet';
 export { useHolderVerification } from './useHolderVerification';
+export { useStaking, type StakeResult, type StakingState, type UseStakingReturn } from './useStaking';

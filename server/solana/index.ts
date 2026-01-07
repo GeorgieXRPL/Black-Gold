@@ -44,3 +44,16 @@ export {
 } from './buyback';
 
 export type { BuybackResult } from './buyback';
+
+// Staking service
+export {
+  buildStakeTransaction,
+  buildUnstakeTransaction,
+  verifyStakeTransaction,
+  getUserStakeInfo,
+  getStakingStatus,
+  isQuarryAvailable,
+  getQuarryConfig,
+} from './staking';
+
+export type { StakingResult, UserStakeInfo, QuarryConfig } from './staking';
