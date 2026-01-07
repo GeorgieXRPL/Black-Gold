@@ -536,14 +536,14 @@ export default function Globe({ mineStats, selectedMine, onMineSelect, userHomeM
         </Canvas>
       </Suspense>
       
-      {/* Resource legend */}
-      <div className="absolute bottom-4 left-4 bg-coal-900/80 backdrop-blur-sm border border-coal-700 rounded-lg p-3">
-        <div className="text-xs text-coal-400 mb-2 font-semibold">RESOURCES</div>
-        <div className="space-y-1">
+      {/* Resource legend - top left for mobile visibility */}
+      <div className="absolute top-3 left-3 bg-coal-900/80 backdrop-blur-sm border border-coal-700 rounded-lg p-2">
+        <div className="text-[10px] text-coal-400 mb-1 font-semibold uppercase tracking-wide">Resources</div>
+        <div className="flex flex-wrap gap-2">
           {(['coal', 'gold', 'oil', 'silver'] as ResourceType[]).map((resource) => (
-            <div key={resource} className="flex items-center gap-2 text-xs">
+            <div key={resource} className="flex items-center gap-1 text-[10px]">
               <div 
-                className="w-3 h-3 rounded-full"
+                className="w-2 h-2 rounded-full"
                 style={{ backgroundColor: RESOURCE_COLORS[resource].glow }}
               />
               <span className="capitalize text-coal-300">{resource}</span>
@@ -552,8 +552,8 @@ export default function Globe({ mineStats, selectedMine, onMineSelect, userHomeM
         </div>
       </div>
 
-      {/* Controls hint */}
-      <div className="absolute bottom-4 right-4 text-xs text-coal-500">
+      {/* Controls hint - hidden on mobile */}
+      <div className="absolute bottom-3 right-3 text-[10px] text-coal-500 hidden sm:block">
         Drag to rotate • Scroll to zoom • Click mine to select
       </div>
     </div>
