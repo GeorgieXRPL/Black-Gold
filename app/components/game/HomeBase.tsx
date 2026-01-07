@@ -51,10 +51,10 @@ export default function HomeBase({
 }: HomeBaseProps) {
   if (!mine) {
     return (
-      <div className="bg-coal-900/90 backdrop-blur-sm border border-coal-700 rounded-xl p-6 text-center">
-        <div className="text-6xl mb-4">🏠</div>
-        <h2 className="text-xl font-bold text-white mb-2">No Home Base Set</h2>
-        <p className="text-coal-400 mb-4">
+      <div className="bg-coal-900/90 backdrop-blur-sm border border-coal-700 rounded-xl p-6 text-center h-full flex flex-col justify-center min-h-[200px]">
+        <div className="text-5xl mb-3">🏠</div>
+        <h2 className="text-lg font-bold text-white mb-2">No Home Base Set</h2>
+        <p className="text-coal-400 text-sm">
           Select a mine on the globe and set it as your home base to start mining!
         </p>
       </div>

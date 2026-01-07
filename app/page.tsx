@@ -226,31 +226,13 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Main content */}
-      <div className="relative z-10 max-w-7xl mx-auto px-4 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          
-          {/* Left column - Home Base & Raid Feed */}
-          <div className="space-y-6">
-            <HomeBase
-              mine={homeMine}
-              stats={homeMineStats}
-              userStake={userStakeAtHome}
-              hashrate={hashrate}
-              loyaltyDays={loyaltyDays}
-              activeExpedition={null}
-              cooldowns={{ expeditionCooldown: null, homeBaseCooldown: null }}
-              onMiningToggle={handleStartMining}
-              onViewMine={() => homeMineId && setSelectedMineId(homeMineId)}
-              isMining={isMining}
-            />
-            
-            <RaidFeed events={raidEvents} maxEvents={10} />
-          </div>
-
-          {/* Center - Globe */}
-          <div className="lg:col-span-1 h-[500px] lg:h-auto">
-            <div className="bg-coal-900/50 backdrop-blur-sm border border-coal-700 rounded-xl overflow-hidden h-full min-h-[500px]">
+      {/* Main content - Globe Hero + Bottom Panels */}
+      <div className="relative z-10">
+        
+        {/* HERO: Globe Section - Full Width */}
+        <div className="w-full px-4 py-4">
+          <div className="max-w-5xl mx-auto">
+            <div className="bg-coal-900/50 backdrop-blur-sm border border-coal-700 rounded-2xl overflow-hidden h-[55vh] min-h-[400px] max-h-[600px]">
               <Globe
                 mineStats={mineStats}
                 selectedMine={selectedMineId}
@@ -258,55 +240,79 @@ export default function Home() {
                 userHomeMine={homeMineId}
               />
             </div>
+            
+            {/* Quick Resource Selector - Below Globe */}
+            <div className="flex justify-center gap-2 mt-4">
+              {(['coal', 'gold', 'oil', 'silver'] as ResourceType[]).map((resource) => (
+                <button
+                  key={resource}
+                  onClick={() => {
+                    const mine = MINES.find(m => m.resource === resource);
+                    if (mine) setSelectedMineId(mine.id);
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 bg-coal-800/80 hover:bg-coal-700 border border-coal-700 rounded-full transition-colors"
+                >
+                  <div 
+                    className="w-3 h-3 rounded-full"
+                    style={{ backgroundColor: RESOURCE_COLORS[resource].glow }}
+                  />
+                  <span className="text-sm text-coal-300 capitalize hidden sm:inline">{resource}</span>
+                </button>
+              ))}
+            </div>
           </div>
+        </div>
 
-          {/* Right column - Selected Mine Details */}
-          <div>
-            {selectedMine ? (
-              <MineDetails
-                mine={selectedMine}
-                stats={selectedMineStats}
-                userStake={userStakeAtSelected}
-                isHome={selectedMineId === homeMineId}
-                onSetHome={handleSetHome}
-                onStartMining={handleStartMining}
-                onStake={() => setShowStakingPanel(true)}
-                onRaid={handleOpenRaid}
-                isMining={isMining && selectedMineId === homeMineId}
-                canRaid={selectedMineId !== homeMineId && !!homeMineId}
+        {/* Bottom Panels - 3 Column Grid */}
+        <div className="max-w-7xl mx-auto px-4 py-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            
+            {/* Panel 1: Home Base */}
+            <div className="order-2 md:order-1">
+              <HomeBase
+                mine={homeMine}
+                stats={homeMineStats}
+                userStake={userStakeAtHome}
+                hashrate={hashrate}
+                loyaltyDays={loyaltyDays}
+                activeExpedition={null}
+                cooldowns={{ expeditionCooldown: null, homeBaseCooldown: null }}
+                onMiningToggle={handleStartMining}
+                onViewMine={() => homeMineId && setSelectedMineId(homeMineId)}
+                isMining={isMining}
               />
-            ) : (
-              <div className="bg-coal-900/90 backdrop-blur-sm border border-coal-700 rounded-xl p-8 text-center">
-                <div className="text-6xl mb-4">🌍</div>
-                <h2 className="text-xl font-bold text-white mb-2">Select a Mine</h2>
-                <p className="text-coal-400">
-                  Click on any mine marker on the globe to view details and start mining!
-                </p>
-                
-                {/* Quick resource filter */}
-                <div className="mt-6">
-                  <div className="text-xs text-coal-500 uppercase mb-3">Quick Select</div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {(['coal', 'gold', 'oil', 'silver'] as ResourceType[]).map((resource) => (
-                      <button
-                        key={resource}
-                        onClick={() => {
-                          const mine = MINES.find(m => m.resource === resource);
-                          if (mine) setSelectedMineId(mine.id);
-                        }}
-                        className="flex items-center gap-2 px-3 py-2 bg-coal-800 hover:bg-coal-700 rounded-lg transition-colors"
-                      >
-                        <div 
-                          className="w-3 h-3 rounded-full"
-                          style={{ backgroundColor: RESOURCE_COLORS[resource].glow }}
-                        />
-                        <span className="text-sm text-coal-300 capitalize">{resource}</span>
-                      </button>
-                    ))}
-                  </div>
+            </div>
+
+            {/* Panel 2: Selected Mine Details */}
+            <div className="order-1 md:order-2">
+              {selectedMine ? (
+                <MineDetails
+                  mine={selectedMine}
+                  stats={selectedMineStats}
+                  userStake={userStakeAtSelected}
+                  isHome={selectedMineId === homeMineId}
+                  onSetHome={handleSetHome}
+                  onStartMining={handleStartMining}
+                  onStake={() => setShowStakingPanel(true)}
+                  onRaid={handleOpenRaid}
+                  isMining={isMining && selectedMineId === homeMineId}
+                  canRaid={selectedMineId !== homeMineId && !!homeMineId}
+                />
+              ) : (
+                <div className="bg-coal-900/90 backdrop-blur-sm border border-coal-700 rounded-xl p-6 text-center h-full flex flex-col justify-center">
+                  <div className="text-5xl mb-3">⛏️</div>
+                  <h2 className="text-lg font-bold text-white mb-2">Select a Mine</h2>
+                  <p className="text-coal-400 text-sm">
+                    Click on any mine marker on the globe above to view details and start mining!
+                  </p>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
+
+            {/* Panel 3: Live Activity Feed */}
+            <div className="order-3">
+              <RaidFeed events={raidEvents} maxEvents={8} />
+            </div>
           </div>
         </div>
       </div>

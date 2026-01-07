@@ -44,13 +44,14 @@ function truncateAddress(address: string): string {
 }
 
 function EventIcon({ type, resource }: { type: RaidEvent['type']; resource?: ResourceType }) {
+  const iconClass = "text-base leading-none";
   switch (type) {
     case 'raid_started':
-      return <span className="text-2xl">⚔️</span>;
+      return <span className={iconClass}>⚔️</span>;
     case 'raid_won':
-      return <span className="text-2xl">🏆</span>;
+      return <span className={iconClass}>🏆</span>;
     case 'raid_lost':
-      return <span className="text-2xl">🛡️</span>;
+      return <span className={iconClass}>🛡️</span>;
     case 'discovery_found': {
       const emojis: Record<ResourceType, string> = {
         coal: '⛏️',
@@ -58,16 +59,16 @@ function EventIcon({ type, resource }: { type: RaidEvent['type']; resource?: Res
         oil: '🛢️',
         silver: '🥈',
       };
-      return <span className="text-2xl">{resource ? emojis[resource] : '⛏️'}</span>;
+      return <span className={iconClass}>{resource ? emojis[resource] : '⛏️'}</span>;
     }
     case 'jackpot':
-      return <span className="text-2xl">🎰</span>;
+      return <span className={iconClass}>🎰</span>;
     case 'vault_payout':
-      return <span className="text-2xl">📊</span>;
+      return <span className={iconClass}>📊</span>;
     case 'spoils_distributed':
-      return <span className="text-2xl">💰</span>;
+      return <span className={iconClass}>💰</span>;
     default:
-      return <span className="text-2xl">📢</span>;
+      return <span className={iconClass}>📢</span>;
   }
 }
 
@@ -167,33 +168,38 @@ export default function RaidFeed({ events, maxEvents = 10 }: RaidFeedProps) {
   }, [events, maxEvents]);
 
   return (
-    <div className="bg-coal-900/90 backdrop-blur-sm border border-coal-700 rounded-xl overflow-hidden">
-      <div className="p-4 border-b border-coal-700">
-        <h3 className="text-lg font-bold text-white flex items-center gap-2">
+    <div className="bg-coal-900/90 backdrop-blur-sm border border-coal-700 rounded-xl overflow-hidden h-full flex flex-col">
+      <div className="p-3 border-b border-coal-700 flex-shrink-0">
+        <h3 className="text-base font-bold text-white flex items-center gap-2">
           <span>📡</span> Live Activity
+          {sortedEvents.length > 0 && (
+            <span className="text-xs text-coal-500 bg-coal-800 px-2 py-0.5 rounded-full">
+              {sortedEvents.length}
+            </span>
+          )}
         </h3>
       </div>
 
-      <div className="max-h-80 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto min-h-[150px] max-h-[300px]">
         {sortedEvents.length === 0 ? (
-          <div className="p-8 text-center text-coal-500">
+          <div className="p-6 text-center text-coal-500 h-full flex flex-col justify-center">
             <div className="text-4xl mb-2">🌍</div>
-            <div>No activity yet...</div>
-            <div className="text-sm">Start mining to see events!</div>
+            <div className="text-sm">No activity yet...</div>
+            <div className="text-xs">Start mining to see events!</div>
           </div>
         ) : (
           <div className="divide-y divide-coal-800">
             {sortedEvents.map((event) => (
               <div 
                 key={event.id}
-                className="p-3 hover:bg-coal-800/50 transition-colors flex items-start gap-3"
+                className="p-2.5 hover:bg-coal-800/50 transition-colors flex items-start gap-2"
               >
-                <div className="flex-shrink-0 mt-0.5">
+                <div className="flex-shrink-0 mt-0.5 text-lg">
                   <EventIcon type={event.type} resource={event.targetResource} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <EventMessage event={event} />
-                  <div className="text-xs text-coal-500 mt-1">
+                  <div className="text-xs text-coal-500 mt-0.5">
                     {formatTimeAgo(event.timestamp)}
                   </div>
                 </div>
@@ -204,7 +210,9 @@ export default function RaidFeed({ events, maxEvents = 10 }: RaidFeedProps) {
       </div>
 
       {/* Gradient fade at bottom */}
-      <div className="h-4 bg-gradient-to-t from-coal-900 to-transparent" />
+      {sortedEvents.length > 0 && (
+        <div className="h-3 bg-gradient-to-t from-coal-900 to-transparent flex-shrink-0" />
+      )}
     </div>
   );
 }
