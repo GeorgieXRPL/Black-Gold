@@ -1,8 +1,8 @@
-# Black Gold v2.1 ⛏️🌍
+# Black Gold v2.5 ⛏️🌍
 
 > Interactive Mining Globe - CPU Mining Platform for COAL Token on Solana
 
-Black Gold v2.1 transforms crypto mining into a **territorial strategy game**. Choose from 20 real-world mines, stake tokens to boost your power, form syndicates with allies, and raid other mines to steal their rewards.
+Black Gold v2.5 transforms crypto mining into a **territorial strategy game**. Choose from 20 real-world mines, stake tokens to boost your power, form syndicates with allies, and raid other mines to steal their rewards.
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Solana](https://img.shields.io/badge/Solana-black?logo=solana)
@@ -11,8 +11,16 @@ Black Gold v2.1 transforms crypto mining into a **territorial strategy game**. C
 
 ---
 
-## 🆕 What's New in v2.1
+## 🆕 What's New in v2.5
 
+- **🔐 Dual Wallet Mode** - Address-only mining OR full Privy wallet connect
+- **⚡ Quarry Staking** - On-chain staking with instant unstaking
+- **🛡️ Unstake Queue** - Protects against mid-raid unstake exploits
+- **🌐 Devnet Support** - Full devnet testing environment
+- **📊 Reward Orchestrator** - Complete buyback → distribution flow
+- **🔒 SSR-Safe Architecture** - Clean Vercel builds, no wallet errors
+
+### Previous (v2.1)
 - **🌍 3D Interactive Globe** - Beautiful Three.js globe with 20 mine locations
 - **⚔️ PvP Raiding** - Launch expeditions to steal from other mines
 - **💰 Staking System** - Stake tokens for up to 3x hashrate boost

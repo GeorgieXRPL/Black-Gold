@@ -1,10 +1,10 @@
-# Black Gold v2.4 - Codebase Index
+# Black Gold v2.5 - Codebase Index
 
 > Complete file-by-file documentation for the Black Gold Interactive Mining Globe platform
 
 **Last Updated**: January 7, 2026  
-**Version**: 2.4 (Dual Wallet Mode + Staking Integration)  
-**Total Files**: 65+ TypeScript/TSX files
+**Version**: 2.5 (SSR-Safe Wallet Architecture)  
+**Total Files**: 68+ TypeScript/TSX files
 
 ---
 
@@ -118,8 +118,15 @@ black-gold/
 
 | File | Lines | Exports | Purpose |
 |------|-------|---------|---------|
-| `PrivyProvider.tsx` | ~55 | `PrivyProvider` | Privy wallet authentication wrapper |
-| `index.ts` | ~5 | Re-exports | Barrel export |
+| `WalletProvider.tsx` | ~80 | `WalletProvider`, `useWalletContext` | **NEW** SSR-safe wallet context provider |
+| `PrivyProvider.tsx` | ~82 | `PrivyProvider` | Privy wallet auth (dynamic import, client-only) |
+| `index.ts` | ~8 | Re-exports | Barrel export |
+
+**SSR-Safe Architecture (v2.5):**
+- `WalletProvider` wraps the app and provides safe defaults during SSR
+- `PrivyProvider` dynamically imports Privy libraries only on client side
+- `useWallet` hook consumes WalletContext, never calls Privy hooks directly
+- Prevents "connectors is null" build errors
 
 ### Hooks (`app/hooks/`)
 
@@ -128,8 +135,8 @@ black-gold/
 | `useGameSocket.ts` | ~250 | `useGameSocket` | v2 WebSocket hook for multi-mine game server |
 | `useWebSocket.ts` | ~150 | `useWebSocket` | v1 WebSocket connection |
 | `useMining.ts` | ~130 | `useMining` | Mining state management, Web Workers |
-| `useWallet.ts` | ~115 | `useWallet`, `usePrivyConfigured` | Unified wallet state with Privy |
-| `useStaking.ts` | ~140 | `useStaking` | **NEW** On-chain staking hook with Quarry integration |
+| `useWallet.ts` | ~60 | `useWallet`, `usePrivyConfigured` | SSR-safe wallet state via WalletContext |
+| `useStaking.ts` | ~140 | `useStaking` | On-chain staking hook with Quarry integration |
 | `useHolderVerification.ts` | ~80 | `useHolderVerification` | Holder verification API hook |
 | `index.ts` | ~12 | Re-exports | Barrel export for all hooks |
 
