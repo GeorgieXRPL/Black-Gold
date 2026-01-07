@@ -46,11 +46,11 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${bebasNeue.variable} ${oswald.variable} ${jetbrainsMono.variable}`}>
       <body className="antialiased">
-        <WalletProvider>
-          <PrivyProvider>
+        <PrivyProvider>
+          <WalletProvider>
             {children}
-          </PrivyProvider>
-        </WalletProvider>
+          </WalletProvider>
+        </PrivyProvider>
       </body>
     </html>
   );

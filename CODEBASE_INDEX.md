@@ -1,9 +1,9 @@
-# Black Gold v2.5 - Codebase Index
+# Black Gold v2.6 - Codebase Index
 
 > Complete file-by-file documentation for the Black Gold Interactive Mining Globe platform
 
 **Last Updated**: January 7, 2026  
-**Version**: 2.5 (SSR-Safe Wallet Architecture)  
+**Version**: 2.6 (Privy Wallet Integration + Resource Styling)  
 **Total Files**: 68+ TypeScript/TSX files
 
 ---
@@ -84,11 +84,13 @@ black-gold/
 | `Globe.tsx` | ~350 | `Globe` (default) | 3D interactive globe with TopoJSON continent outlines, ember glow effects, and mine pins |
 | `index.ts` | ~5 | Re-export | Barrel export |
 
-**Globe Features (v2.2):**
+**Globe Features (v2.6):**
 - Uses TopoJSON (`world-110m.json`) for accurate country borders
 - Multi-layered ember-colored continent edges (outer glow → core → hot highlight)
 - Falls back to `continents.json` if TopoJSON fails
 - Dark ocean background with subtle grid lines
+- **Resource-specific 3D mine pins**: Coal (cubes with ember glow), Gold (faceted icosahedron with shimmer), Oil (smooth spheres with blue sheen), Silver (polished metallic icosahedron)
+- Resource legend with unique CSS styling per resource type
 
 ### Game Components (`app/components/game/`)
 
@@ -118,15 +120,24 @@ black-gold/
 
 | File | Lines | Exports | Purpose |
 |------|-------|---------|---------|
-| `WalletProvider.tsx` | ~80 | `WalletProvider`, `useWalletContext` | **NEW** SSR-safe wallet context provider |
-| `PrivyProvider.tsx` | ~82 | `PrivyProvider` | Privy wallet auth (dynamic import, client-only) |
+| `WalletProvider.tsx` | ~250 | `WalletProvider`, `useWalletContext` | SSR-safe wallet context with Privy hooks bridge |
+| `PrivyProvider.tsx` | ~82 | `PrivyProvider` | Privy wallet auth wrapper (dynamic import, client-only) |
 | `index.ts` | ~8 | Re-exports | Barrel export |
 
-**SSR-Safe Architecture (v2.5):**
-- `WalletProvider` wraps the app and provides safe defaults during SSR
-- `PrivyProvider` dynamically imports Privy libraries only on client side
+**Provider Order (in layout.tsx):**
+```
+PrivyProvider        ← Outer: Provides Privy context
+  └─ WalletProvider  ← Inner: Uses Privy hooks, exposes wallet state
+       └─ App        ← Can use useWallet() anywhere
+```
+
+**SSR-Safe Wallet Architecture (v2.6):**
+- `PrivyProvider` wraps `WalletProvider` (order matters!)
+- `WalletProvider` uses a dynamic `PrivyHooksBridge` component to safely call Privy hooks
+- Privy hooks are imported dynamically inside the bridge component after client mount
 - `useWallet` hook consumes WalletContext, never calls Privy hooks directly
-- Prevents "connectors is null" build errors
+- Prevents "connectors is null" and SSR build errors
+- Connect button triggers Privy login modal when clicked
 
 ### Hooks (`app/hooks/`)
 
