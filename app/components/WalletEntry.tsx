@@ -189,21 +189,21 @@ export function WalletEntry({ onWalletChange, compact = false }: WalletEntryProp
           </button>
         )}
         
-        {/* Address input modal */}
+        {/* Address input modal - positioned lower to avoid mobile address bar */}
         <AnimatePresence>
           {showAddressInput && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+              className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm pb-8 sm:pb-0 pt-20"
               onClick={() => setShowAddressInput(false)}
             >
               <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.9, opacity: 0 }}
-                className="bg-coal-900 border border-coal-700 rounded-xl p-6 max-w-md w-full mx-4"
+                initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                className="bg-coal-900 border border-coal-700 rounded-xl p-6 max-w-md w-full mx-4 mb-safe"
                 onClick={(e) => e.stopPropagation()}
               >
                 <h3 className="text-lg font-bold text-white mb-2">Enter Wallet Address</h3>
@@ -221,6 +221,7 @@ export function WalletEntry({ onWalletChange, compact = false }: WalletEntryProp
                   placeholder="Enter Solana wallet address..."
                   className="w-full px-4 py-3 bg-coal-800 border border-coal-600 rounded-lg text-white font-mono text-sm focus:outline-none focus:border-ember-500 transition-colors"
                   onKeyDown={(e) => e.key === 'Enter' && handleAddressSubmit()}
+                  autoFocus
                 />
                 
                 {addressError && (
