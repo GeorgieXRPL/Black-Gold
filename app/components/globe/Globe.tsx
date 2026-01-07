@@ -152,10 +152,8 @@ function MinePin({ mine, stats, isSelected, isHome, onClick }: MinePinProps) {
   );
 }
 
-/** Earth sphere with dark ocean */
+/** Earth sphere with dark ocean (no individual rotation - parent group rotates) */
 function Earth() {
-  const meshRef = useRef<THREE.Mesh>(null);
-  
   // Create gradient material for dark ocean
   const earthMaterial = useMemo(() => {
     return new THREE.MeshStandardMaterial({
@@ -165,15 +163,8 @@ function Earth() {
     });
   }, []);
 
-  // Slow rotation
-  useFrame(() => {
-    if (meshRef.current) {
-      meshRef.current.rotation.y += 0.0003;
-    }
-  });
-
   return (
-    <mesh ref={meshRef} material={earthMaterial}>
+    <mesh material={earthMaterial}>
       <sphereGeometry args={[2, 64, 64]} />
     </mesh>
   );
@@ -182,7 +173,6 @@ function Earth() {
 /** Glowing continent outlines using TopoJSON world data */
 function ContinentOutlines() {
   const [continentLines, setContinentLines] = useState<[number, number, number][][]>([]);
-  const groupRef = useRef<THREE.Group>(null);
 
   // Load TopoJSON world data and extract country borders
   useEffect(() => {
@@ -297,17 +287,12 @@ function ContinentOutlines() {
     loadWorldData();
   }, []);
 
-  // Slow rotation synced with Earth
-  useFrame(() => {
-    if (groupRef.current) {
-      groupRef.current.rotation.y += 0.0003;
-    }
-  });
+  // No individual rotation - parent group rotates all elements together
 
   if (continentLines.length === 0) return null;
 
   return (
-    <group ref={groupRef}>
+    <group>
       {/* Outer glow layer - softest, widest */}
       {continentLines.map((points, i) => (
         <Line
@@ -392,8 +377,6 @@ function Atmosphere() {
 
 /** Subtle grid lines on globe */
 function GlobeGrid() {
-  const groupRef = useRef<THREE.Group>(null);
-  
   // Create latitude lines as point arrays
   const latLines = useMemo(() => {
     const lines: [number, number, number][][] = [];
@@ -422,15 +405,10 @@ function GlobeGrid() {
     return lines;
   }, []);
 
-  // Sync rotation with Earth
-  useFrame(() => {
-    if (groupRef.current) {
-      groupRef.current.rotation.y += 0.0003;
-    }
-  });
+  // No individual rotation - parent group rotates all elements together
 
   return (
-    <group ref={groupRef}>
+    <group>
       {latLines.map((points, i) => (
         <Line
           key={`lat-${i}`}
@@ -455,14 +433,44 @@ function GlobeGrid() {
   );
 }
 
-/** Main globe scene */
-function GlobeScene({ mineStats, selectedMine, onMineSelect, userHomeMine }: GlobeProps) {
-  const { camera } = useThree();
+/** Rotating globe group - contains all elements that should rotate together */
+function RotatingGlobe({ mineStats, selectedMine, onMineSelect, userHomeMine }: GlobeProps) {
+  const groupRef = useRef<THREE.Group>(null);
 
   const handleMineClick = useCallback((mineId: string) => {
     onMineSelect(mineId);
   }, [onMineSelect]);
 
+  // Single rotation for the entire globe (Earth + Outlines + Grid + Pins)
+  useFrame(() => {
+    if (groupRef.current) {
+      groupRef.current.rotation.y += 0.0003;
+    }
+  });
+
+  return (
+    <group ref={groupRef}>
+      <Earth />
+      <ContinentOutlines />
+      <Atmosphere />
+      <GlobeGrid />
+      
+      {MINES.map((mine) => (
+        <MinePin
+          key={mine.id}
+          mine={mine}
+          stats={mineStats.get(mine.id)}
+          isSelected={selectedMine === mine.id}
+          isHome={userHomeMine === mine.id}
+          onClick={() => handleMineClick(mine.id)}
+        />
+      ))}
+    </group>
+  );
+}
+
+/** Main globe scene */
+function GlobeScene({ mineStats, selectedMine, onMineSelect, userHomeMine }: GlobeProps) {
   return (
     <>
       <ambientLight intensity={0.3} />
@@ -479,21 +487,12 @@ function GlobeScene({ mineStats, selectedMine, onMineSelect, userHomeMine }: Glo
         speed={0.3}
       />
       
-      <Earth />
-      <ContinentOutlines />
-      <Atmosphere />
-      <GlobeGrid />
-      
-      {MINES.map((mine) => (
-        <MinePin
-          key={mine.id}
-          mine={mine}
-          stats={mineStats.get(mine.id)}
-          isSelected={selectedMine === mine.id}
-          isHome={userHomeMine === mine.id}
-          onClick={() => handleMineClick(mine.id)}
-        />
-      ))}
+      <RotatingGlobe
+        mineStats={mineStats}
+        selectedMine={selectedMine}
+        onMineSelect={onMineSelect}
+        userHomeMine={userHomeMine}
+      />
       
       <OrbitControls 
         enablePan={false}
