@@ -90,3 +90,15 @@ export {
   getSyndicateRaidsManager,
   resetSyndicateRaidsManager,
 } from './syndicate-raids';
+
+// Reward Orchestrator
+export {
+  initRewardOrchestrator,
+  handleNewDiscovery,
+  handleDefenderSpoils,
+  getOrchestratorStats,
+  getMineVaultStats,
+  forceHourlyDistribution,
+  isProductionReady,
+  REWARD_CONFIG,
+} from './reward-orchestrator';
