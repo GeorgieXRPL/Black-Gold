@@ -5,6 +5,7 @@
 import type { Metadata } from 'next';
 import { Bebas_Neue, Oswald, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
+import { PrivyProvider } from './providers/PrivyProvider';
 
 const bebasNeue = Bebas_Neue({
   weight: '400',
@@ -44,7 +45,9 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${bebasNeue.variable} ${oswald.variable} ${jetbrainsMono.variable}`}>
       <body className="antialiased">
-        {children}
+        <PrivyProvider>
+          {children}
+        </PrivyProvider>
       </body>
     </html>
   );

@@ -9,6 +9,14 @@ import dynamic from 'next/dynamic';
 import { MINES, getMineById, MineStats, ResourceType, RESOURCE_COLORS } from './lib/mines';
 import { HomeBase, MineDetails, StakingPanel, ExpeditionPanel, RaidFeed } from './components/game';
 import { EmberParticles } from './components';
+import { 
+  MOCK_EVENTS, 
+  DEMO_USER, 
+  generateMockMineStats, 
+  simulateHashrate,
+  USE_MOCK_DATA,
+  logMockDataWarning 
+} from '../fixtures';
 
 // Dynamic import for Globe to avoid SSR issues with Three.js
 const Globe = dynamic(() => import('./components/globe/Globe'), {
@@ -23,31 +31,33 @@ const Globe = dynamic(() => import('./components/globe/Globe'), {
   ),
 });
 
-// Mock raid events for demo
-const MOCK_EVENTS = [
-  { id: '1', type: 'discovery_found' as const, targetMine: 'Appalachian Basin', targetResource: 'coal' as ResourceType, winner: 'Abc1...xyz9', discoveryName: 'Seam', finderShare: 70, vaultShare: 30, timestamp: new Date(Date.now() - 120000) },
-  { id: '2', type: 'raid_started' as const, sourceMine: 'Witwatersrand', targetMine: 'Grasberg', sourceResource: 'gold' as ResourceType, targetResource: 'gold' as ResourceType, timestamp: new Date(Date.now() - 300000) },
-  { id: '3', type: 'raid_lost' as const, sourceMine: 'Permian Basin', targetMine: 'Ghawar Field', sourceResource: 'oil' as ResourceType, targetResource: 'oil' as ResourceType, spoilsAmount: 45, burnedAmount: 405, timestamp: new Date(Date.now() - 600000) },
-  { id: '4', type: 'jackpot' as const, targetMine: 'Super Pit', targetResource: 'gold' as ResourceType, timestamp: new Date(Date.now() - 900000) },
-  { id: '5', type: 'vault_payout' as const, targetMine: 'Appalachian Basin', targetResource: 'coal' as ResourceType, reward: 150, timestamp: new Date(Date.now() - 1200000) },
-];
-
 export default function Home() {
-  // State
+  // Log mock data usage in development
+  useEffect(() => {
+    logMockDataWarning('Home Page');
+  }, []);
+
+  // State - Use demo defaults in mock mode, empty in production
   const [selectedMineId, setSelectedMineId] = useState<string | null>(null);
-  const [homeMineId, setHomeMineId] = useState<string | null>('coal-appalachian'); // Demo default
+  const [homeMineId, setHomeMineId] = useState<string | null>(
+    USE_MOCK_DATA ? DEMO_USER.homeMineId : null
+  );
   const [mineStats, setMineStats] = useState<Map<string, MineStats>>(new Map());
   const [isMining, setIsMining] = useState(false);
   const [hashrate, setHashrate] = useState(0);
-  const [userStakes, setUserStakes] = useState<Map<string, number>>(new Map([
-    ['coal-appalachian', 250], // Demo stake
-  ]));
-  const [walletBalance, setWalletBalance] = useState(10000); // Demo balance
-  const [loyaltyDays, setLoyaltyDays] = useState(3);
+  const [userStakes, setUserStakes] = useState<Map<string, number>>(
+    USE_MOCK_DATA ? new Map(DEMO_USER.stakes) : new Map()
+  );
+  const [walletBalance, setWalletBalance] = useState(
+    USE_MOCK_DATA ? DEMO_USER.walletBalance : 0
+  );
+  const [loyaltyDays, setLoyaltyDays] = useState(
+    USE_MOCK_DATA ? DEMO_USER.loyaltyDays : 0
+  );
   const [showStakingPanel, setShowStakingPanel] = useState(false);
   const [showExpeditionPanel, setShowExpeditionPanel] = useState(false);
   const [expeditionTarget, setExpeditionTarget] = useState<string | null>(null);
-  const [raidEvents, setRaidEvents] = useState(MOCK_EVENTS);
+  const [raidEvents, setRaidEvents] = useState(USE_MOCK_DATA ? MOCK_EVENTS : []);
 
   // Derived values
   const selectedMine = useMemo(() => 
@@ -70,37 +80,28 @@ export default function Home() {
     [homeMineId, mineStats]
   );
 
-  // Initialize demo mine stats
+  // Initialize mine stats - use mock data in dev, real WebSocket data in production
   useEffect(() => {
-    const stats = new Map<string, MineStats>();
-    MINES.forEach(mine => {
-      stats.set(mine.id, {
-        mineId: mine.id,
-        minerCount: Math.floor(Math.random() * 50) + 5,
-        hashrate: Math.floor(Math.random() * 500000) + 100000,
-        totalStake: Math.floor(Math.random() * 100000) + 10000,
-        discoveriesFound: Math.floor(Math.random() * 500) + 50,
-        difficulty: Math.floor(Math.random() * 1000) + 100,
-        lastDiscoveryTime: new Date(Date.now() - Math.random() * 600000).toISOString(),
-        hasDefenseBuff: Math.random() > 0.8,
-        hasAttackDebuff: Math.random() > 0.9,
-        activeRaidCount: Math.random() > 0.85 ? 1 : 0,
-        vaultBalance: Math.floor(Math.random() * 500) + 50,
-      });
-    });
-    setMineStats(stats);
+    if (USE_MOCK_DATA) {
+      // Use mock stats for development/demo
+      setMineStats(generateMockMineStats());
+    } else {
+      // In production, stats come from WebSocket connection
+      // TODO: Connect to game server WebSocket for real stats
+    }
   }, []);
 
   // Simulate hashrate when mining
   useEffect(() => {
     if (isMining) {
       const interval = setInterval(() => {
-        setHashrate(prev => {
-          // Simulate fluctuating hashrate
-          const base = 150000;
-          const variance = Math.random() * 20000 - 10000;
-          return base + variance;
-        });
+        if (USE_MOCK_DATA) {
+          // Use simulated hashrate in mock mode
+          setHashrate(simulateHashrate(150000));
+        } else {
+          // In production, hashrate comes from Web Worker
+          // TODO: Get real hashrate from mining Web Worker
+        }
       }, 1000);
       return () => clearInterval(interval);
     } else {
@@ -124,8 +125,13 @@ export default function Home() {
     setIsMining(prev => !prev);
   }, []);
 
-  const handleStake = useCallback((amount: number) => {
+  const handleStake = useCallback((amount: number, signature: string) => {
     if (!selectedMineId) return;
+    
+    // Log signature for server verification (in production, send to server)
+    console.log('[Stake] Amount:', amount, 'Signature:', signature.slice(0, 20) + '...');
+    
+    // TODO: In production, verify signature on server before updating state
     setUserStakes(prev => {
       const newStakes = new Map(prev);
       const current = newStakes.get(selectedMineId) || 0;
@@ -136,8 +142,13 @@ export default function Home() {
     setShowStakingPanel(false);
   }, [selectedMineId]);
 
-  const handleUnstake = useCallback((amount: number) => {
+  const handleUnstake = useCallback((amount: number, signature: string) => {
     if (!selectedMineId) return;
+    
+    // Log signature for server verification (in production, send to server)
+    console.log('[Unstake] Amount:', amount, 'Signature:', signature.slice(0, 20) + '...');
+    
+    // TODO: In production, verify signature on server before updating state
     setUserStakes(prev => {
       const newStakes = new Map(prev);
       const current = newStakes.get(selectedMineId) || 0;
