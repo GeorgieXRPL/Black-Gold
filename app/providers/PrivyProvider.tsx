@@ -5,6 +5,7 @@
 
 'use client';
 
+import { useMemo } from 'react';
 import { PrivyProvider as PrivyProviderLib } from '@privy-io/react-auth';
 import { toSolanaWalletConnectors } from '@privy-io/react-auth/solana';
 
@@ -12,18 +13,26 @@ interface PrivyProviderProps {
   children: React.ReactNode;
 }
 
-// Solana wallet connectors for Privy
-const solanaConnectors = toSolanaWalletConnectors({
-  // Enable popular Solana wallets with auto-connect
-  shouldAutoConnect: true,
-});
-
 /**
  * Privy authentication provider component
  * Configures Privy for Solana wallet authentication
  */
 export function PrivyProvider({ children }: PrivyProviderProps) {
   const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
+
+  // Initialize Solana connectors only on client-side
+  // This prevents SSR/build errors from wallet connectors accessing browser APIs
+  const solanaConnectors = useMemo(() => {
+    if (typeof window === 'undefined') return undefined;
+    try {
+      return toSolanaWalletConnectors({
+        shouldAutoConnect: true,
+      });
+    } catch (error) {
+      console.warn('[Privy] Failed to initialize Solana connectors:', error);
+      return undefined;
+    }
+  }, []);
 
   // Fallback for development if no app ID configured
   if (!appId) {
@@ -46,12 +55,14 @@ export function PrivyProvider({ children }: PrivyProviderProps) {
         },
         // Login methods - prioritize wallet connection
         loginMethods: ['wallet'],
-        // External wallet connectors for Solana
-        externalWallets: {
-          solana: {
-            connectors: solanaConnectors,
+        // External wallet connectors for Solana (only if available)
+        ...(solanaConnectors && {
+          externalWallets: {
+            solana: {
+              connectors: solanaConnectors,
+            },
           },
-        },
+        }),
       }}
     >
       {children}
