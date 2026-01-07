@@ -1,71 +1,81 @@
 /**
  * @fileoverview Privy authentication provider for Black Gold
  * Wraps the app with Privy for wallet connection and authentication
+ * 
+ * Uses dynamic import to prevent SSR issues with wallet connectors
  */
 
 'use client';
 
-import { useMemo } from 'react';
-import { PrivyProvider as PrivyProviderLib } from '@privy-io/react-auth';
-import { toSolanaWalletConnectors } from '@privy-io/react-auth/solana';
+import { useEffect, useState, ReactNode } from 'react';
 
 interface PrivyProviderProps {
-  children: React.ReactNode;
+  children: ReactNode;
 }
 
 /**
  * Privy authentication provider component
- * Configures Privy for Solana wallet authentication
+ * Loads Privy dynamically on the client side only to prevent SSR errors
  */
 export function PrivyProvider({ children }: PrivyProviderProps) {
+  const [PrivyWrapper, setPrivyWrapper] = useState<React.ComponentType<{ children: ReactNode }> | null>(null);
   const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
 
-  // Initialize Solana connectors only on client-side
-  // This prevents SSR/build errors from wallet connectors accessing browser APIs
-  const solanaConnectors = useMemo(() => {
-    if (typeof window === 'undefined') return undefined;
-    try {
-      return toSolanaWalletConnectors({
-        shouldAutoConnect: true,
-      });
-    } catch (error) {
-      console.warn('[Privy] Failed to initialize Solana connectors:', error);
-      return undefined;
+  useEffect(() => {
+    // Only load Privy on the client side when app ID is configured
+    if (!appId) {
+      console.warn('[Privy] NEXT_PUBLIC_PRIVY_APP_ID not set - wallet features disabled');
+      return;
     }
-  }, []);
 
-  // Fallback for development if no app ID configured
-  if (!appId) {
-    console.warn('[Privy] NEXT_PUBLIC_PRIVY_APP_ID not set - wallet features disabled');
+    // Dynamically import Privy to avoid SSR issues
+    const loadPrivy = async () => {
+      try {
+        const { PrivyProvider: PrivyProviderLib } = await import('@privy-io/react-auth');
+        const { toSolanaWalletConnectors } = await import('@privy-io/react-auth/solana');
+
+        // Create Solana connectors
+        const solanaConnectors = toSolanaWalletConnectors({
+          shouldAutoConnect: true,
+        });
+
+        // Create wrapper component with Privy config
+        const Wrapper = ({ children }: { children: ReactNode }) => (
+          <PrivyProviderLib
+            appId={appId}
+            config={{
+              appearance: {
+                theme: 'dark',
+                accentColor: '#F59E0B',
+                logo: '/globe.svg',
+                showWalletLoginFirst: true,
+                walletChainType: 'solana-only',
+              },
+              loginMethods: ['wallet'],
+              externalWallets: {
+                solana: {
+                  connectors: solanaConnectors,
+                },
+              },
+            }}
+          >
+            {children}
+          </PrivyProviderLib>
+        );
+
+        setPrivyWrapper(() => Wrapper);
+      } catch (error) {
+        console.error('[Privy] Failed to load:', error);
+      }
+    };
+
+    loadPrivy();
+  }, [appId]);
+
+  // If no app ID or Privy not loaded yet, just render children
+  if (!appId || !PrivyWrapper) {
     return <>{children}</>;
   }
 
-  return (
-    <PrivyProviderLib
-      appId={appId}
-      config={{
-        // Appearance configuration matching Black Gold theme
-        appearance: {
-          theme: 'dark',
-          accentColor: '#F59E0B', // Gold/amber accent
-          logo: '/globe.svg',
-          showWalletLoginFirst: true,
-          // Show only Solana wallets since Black Gold is Solana-based
-          walletChainType: 'solana-only',
-        },
-        // Login methods - prioritize wallet connection
-        loginMethods: ['wallet'],
-        // External wallet connectors for Solana (only if available)
-        ...(solanaConnectors && {
-          externalWallets: {
-            solana: {
-              connectors: solanaConnectors,
-            },
-          },
-        }),
-      }}
-    >
-      {children}
-    </PrivyProviderLib>
-  );
+  return <PrivyWrapper>{children}</PrivyWrapper>;
 }
