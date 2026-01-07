@@ -7,7 +7,7 @@
 
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useWallet, usePrivyConfigured } from '../hooks/useWallet';
 
@@ -74,6 +74,33 @@ export function WalletEntry({ onWalletChange, compact = false }: WalletEntryProp
     canStake: mode === 'full-connect',
     canRaid: mode === 'full-connect',
   };
+
+  // Sync wallet state with parent when Privy connection changes
+  useEffect(() => {
+    // Only sync when we have a Privy wallet connection or disconnection
+    if (wallet.isConnected && wallet.walletAddress) {
+      console.log('[WalletEntry] Privy wallet connected:', wallet.walletAddress);
+      onWalletChange?.({
+        mode: 'full-connect',
+        walletAddress: wallet.walletAddress,
+        displayAddress: wallet.displayAddress,
+        isConnected: true,
+        canStake: true,
+        canRaid: true,
+      });
+    } else if (!wallet.isConnected && !manualAddress && mode === 'full-connect') {
+      // Wallet disconnected from Privy
+      console.log('[WalletEntry] Privy wallet disconnected');
+      onWalletChange?.({
+        mode: 'disconnected',
+        walletAddress: null,
+        displayAddress: null,
+        isConnected: false,
+        canStake: false,
+        canRaid: false,
+      });
+    }
+  }, [wallet.isConnected, wallet.walletAddress, wallet.displayAddress, manualAddress, mode, onWalletChange]);
 
   /**
    * Handle manual address submission
