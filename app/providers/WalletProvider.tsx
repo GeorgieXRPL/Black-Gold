@@ -7,7 +7,7 @@
 
 'use client';
 
-import { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 // Define the wallet context shape
 export interface WalletContextValue {
@@ -46,85 +46,6 @@ interface WalletProviderProps {
 }
 
 /**
- * Inner component that uses Privy hooks
- * This is rendered only when we're on the client and Privy is loaded
- */
-function PrivyWalletBridge({ children, setContextValue }: { 
-  children: ReactNode; 
-  setContextValue: (value: WalletContextValue) => void;
-}) {
-  const [privyHooks, setPrivyHooks] = useState<{
-    usePrivy: any;
-    useLogin: any;
-    useLogout: any;
-    useSolanaWallets: any;
-  } | null>(null);
-
-  // Dynamically load Privy hooks
-  useEffect(() => {
-    const loadHooks = async () => {
-      try {
-        const privyAuth = await import('@privy-io/react-auth');
-        const privySolana = await import('@privy-io/react-auth/solana');
-        
-        setPrivyHooks({
-          usePrivy: privyAuth.usePrivy,
-          useLogin: privyAuth.useLogin,
-          useLogout: privyAuth.useLogout,
-          useSolanaWallets: privySolana.useSolanaWallets,
-        });
-      } catch (error) {
-        console.error('[Wallet] Failed to load Privy hooks:', error);
-      }
-    };
-    
-    loadHooks();
-  }, []);
-
-  // Use Privy hooks once loaded
-  useEffect(() => {
-    if (!privyHooks) return;
-    
-    // We need to create a component that actually calls the hooks
-    // Since hooks can't be called conditionally, we use this pattern
-  }, [privyHooks]);
-
-  return <>{children}</>;
-}
-
-/**
- * Component that actually uses Privy hooks
- */
-function PrivyHooksConsumer({ onUpdate }: { onUpdate: (value: WalletContextValue) => void }) {
-  // These hooks will only work if we're inside PrivyProvider
-  // We import them dynamically to avoid SSR issues
-  const [hooks, setHooks] = useState<any>(null);
-  const [walletState, setWalletState] = useState<{
-    ready: boolean;
-    authenticated: boolean;
-    walletAddress: string | null;
-  }>({ ready: false, authenticated: false, walletAddress: null });
-
-  useEffect(() => {
-    const loadAndUseHooks = async () => {
-      try {
-        const { usePrivy, useLogin, useLogout } = await import('@privy-io/react-auth');
-        const { useSolanaWallets } = await import('@privy-io/react-auth/solana');
-        setHooks({ usePrivy, useLogin, useLogout, useSolanaWallets });
-      } catch (e) {
-        console.error('[Wallet] Privy import failed:', e);
-      }
-    };
-    loadAndUseHooks();
-  }, []);
-
-  // This won't work because hooks need to be called at the top level
-  // We need a different approach...
-  
-  return null;
-}
-
-/**
  * Wallet Provider component
  * Wraps children with wallet context and handles Privy integration
  */
@@ -132,20 +53,13 @@ export function WalletProvider({ children }: WalletProviderProps) {
   const [contextValue, setContextValue] = useState<WalletContextValue>(defaultContext);
   const [isClient, setIsClient] = useState(false);
   const [privyLoaded, setPrivyLoaded] = useState(false);
-  const [privyState, setPrivyState] = useState<{
-    ready: boolean;
-    authenticated: boolean;
-    login: () => void;
-    logout: () => Promise<void>;
-    wallets: any[];
-  } | null>(null);
 
   // Mark as client-side
   useEffect(() => {
     setIsClient(true);
   }, []);
 
-  // Try to use Privy hooks after mounting
+  // Check if Privy should be loaded
   useEffect(() => {
     if (!isClient) return;
     
@@ -159,26 +73,7 @@ export function WalletProvider({ children }: WalletProviderProps) {
       return;
     }
 
-    // Poll for Privy to be ready (since we can't use hooks directly here)
-    // This is a workaround - ideally we'd use a proper hook
-    const checkPrivy = async () => {
-      try {
-        // Import the hooks
-        const { usePrivy, useLogin, useLogout } = await import('@privy-io/react-auth');
-        const { useSolanaWallets } = await import('@privy-io/react-auth/solana');
-        
-        setPrivyLoaded(true);
-        
-        // Note: We can't actually call these hooks here because this is not a component
-        // The hooks need to be called from within a React component function body
-        // This is a limitation of React hooks
-        
-      } catch (error) {
-        console.error('[Wallet] Failed to import Privy:', error);
-      }
-    };
-
-    checkPrivy();
+    setPrivyLoaded(true);
   }, [isClient]);
 
   return (
@@ -204,8 +99,6 @@ function PrivyHooksBridge({
   children: ReactNode; 
   setContextValue: (value: WalletContextValue) => void;
 }) {
-  // Import hooks at module level is not possible due to SSR
-  // So we use a state-based approach
   const [HooksComponent, setHooksComponent] = useState<React.ComponentType<{
     children: ReactNode;
     setContextValue: (value: WalletContextValue) => void;
@@ -214,21 +107,24 @@ function PrivyHooksBridge({
   useEffect(() => {
     const createHooksComponent = async () => {
       try {
+        // Import only the core Privy hooks (avoid solana-specific imports that may not exist)
         const { usePrivy, useLogin, useLogout } = await import('@privy-io/react-auth');
-        const { useSolanaWallets } = await import('@privy-io/react-auth/solana');
 
         // Create a component that uses the hooks
         const HooksUser = ({ children, setContextValue }: {
           children: ReactNode;
           setContextValue: (value: WalletContextValue) => void;
         }) => {
-          const { ready, authenticated } = usePrivy();
+          const { ready, authenticated, user } = usePrivy();
           const { login } = useLogin();
           const { logout } = useLogout();
-          const { wallets } = useSolanaWallets();
 
-          const solanaWallet = wallets?.[0] || null;
-          const walletAddress = solanaWallet?.address || null;
+          // Get wallet from user object - Privy stores linked wallets here
+          const linkedWallet = user?.linkedAccounts?.find(
+            (account: any) => account.type === 'wallet' && account.chainType === 'solana'
+          ) as { address?: string } | undefined;
+          
+          const walletAddress = linkedWallet?.address || null;
           const displayAddress = walletAddress 
             ? `${walletAddress.slice(0, 4)}...${walletAddress.slice(-4)}`
             : null;
@@ -250,20 +146,12 @@ function PrivyHooksBridge({
                 await logout();
               },
               signMessage: async (message: string) => {
-                if (!solanaWallet) return null;
-                try {
-                  // Privy wallet signing
-                  const encoder = new TextEncoder();
-                  const messageBytes = encoder.encode(message);
-                  const signature = await solanaWallet.signMessage(messageBytes);
-                  return Buffer.from(signature).toString('base64');
-                } catch (error) {
-                  console.error('[Wallet] Sign message failed:', error);
-                  return null;
-                }
+                // For now, return null - message signing requires additional setup
+                console.warn('[Wallet] Message signing not yet implemented');
+                return null;
               },
             });
-          }, [ready, authenticated, walletAddress, displayAddress, login, logout, solanaWallet, setContextValue]);
+          }, [ready, authenticated, walletAddress, displayAddress, login, logout, setContextValue]);
 
           return <>{children}</>;
         };
