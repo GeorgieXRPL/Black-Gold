@@ -7,17 +7,20 @@
 import { useMemo } from 'react';
 import { Mine, MineStats, RESOURCE_COLORS, RESOURCE_MECHANICS, formatDiscoveryTime, ResourceType } from '../../lib/mines';
 
+type WalletMode = 'disconnected' | 'address-only' | 'full-connect';
+
 interface MineDetailsProps {
   mine: Mine;
   stats: MineStats | undefined;
   userStake: number;
   isHome: boolean;
   onSetHome: () => void;
-  onStartMining: () => void;
-  onStake: () => void;
-  onRaid: () => void;
+  onStartMining?: () => void;
+  onStake?: () => void;
+  onRaid?: () => void;
   isMining: boolean;
   canRaid: boolean;
+  walletMode?: WalletMode;
 }
 
 export default function MineDetails({
@@ -31,6 +34,7 @@ export default function MineDetails({
   onRaid,
   isMining,
   canRaid,
+  walletMode = 'disconnected',
 }: MineDetailsProps) {
   const mechanics = RESOURCE_MECHANICS[mine.resource];
   const colors = RESOURCE_COLORS[mine.resource];
@@ -134,19 +138,47 @@ export default function MineDetails({
                 {userStake.toLocaleString()} COAL
               </div>
             </div>
-            <button
-              onClick={onStake}
-              className="px-4 py-2 bg-ember-600 hover:bg-ember-500 text-white rounded-lg font-semibold transition-colors"
-            >
-              {userStake > 0 ? 'Manage Stake' : 'Stake'}
-            </button>
+            {onStake ? (
+              <button
+                onClick={onStake}
+                className="px-4 py-2 bg-ember-600 hover:bg-ember-500 text-white rounded-lg font-semibold transition-colors"
+              >
+                {userStake > 0 ? 'Manage Stake' : 'Stake'}
+              </button>
+            ) : (
+              <span className="text-xs text-coal-500 bg-coal-700 px-2 py-1 rounded">
+                Connect wallet to stake
+              </span>
+            )}
           </div>
         </div>
       </div>
 
+      {/* Wallet mode notice for address-only users */}
+      {walletMode === 'address-only' && (
+        <div className="px-4 pb-4">
+          <div className="bg-yellow-900/20 border border-yellow-700/50 rounded-lg p-3 text-center">
+            <p className="text-yellow-400 text-xs">
+              💡 Connect your wallet for staking & raids
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Disconnected notice */}
+      {walletMode === 'disconnected' && (
+        <div className="px-4 pb-4">
+          <div className="bg-coal-800/50 border border-coal-700 rounded-lg p-3 text-center">
+            <p className="text-coal-400 text-xs">
+              🔗 Connect wallet or enter address to start mining
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Actions */}
       <div className="p-4 border-t border-coal-700 space-y-3">
-        {!isHome && (
+        {!isHome && walletMode !== 'disconnected' && (
           <button
             onClick={onSetHome}
             className="w-full py-3 bg-green-600 hover:bg-green-500 text-white rounded-lg font-bold transition-colors"
@@ -155,19 +187,24 @@ export default function MineDetails({
           </button>
         )}
         
-        <button
-          onClick={onStartMining}
-          disabled={isMining}
-          className={`w-full py-3 rounded-lg font-bold transition-colors ${
-            isMining 
-              ? 'bg-red-600 hover:bg-red-500 text-white' 
-              : 'bg-ember-600 hover:bg-ember-500 text-white'
-          }`}
-        >
-          {isMining ? '⛏️ Stop Mining' : '⛏️ Start Mining'}
-        </button>
+        {onStartMining ? (
+          <button
+            onClick={onStartMining}
+            className={`w-full py-3 rounded-lg font-bold transition-colors ${
+              isMining 
+                ? 'bg-red-600 hover:bg-red-500 text-white' 
+                : 'bg-ember-600 hover:bg-ember-500 text-white'
+            }`}
+          >
+            {isMining ? '⛏️ Stop Mining' : '⛏️ Start Mining'}
+          </button>
+        ) : (
+          <div className="w-full py-3 bg-coal-700 text-coal-400 rounded-lg font-bold text-center">
+            Connect wallet to mine
+          </div>
+        )}
 
-        {!isHome && canRaid && (
+        {!isHome && canRaid && onRaid && (
           <button
             onClick={onRaid}
             className="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-lg font-bold transition-colors"

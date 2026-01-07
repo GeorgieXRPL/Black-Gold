@@ -8,7 +8,7 @@ import { useState, useCallback, useMemo, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { MINES, getMineById, MineStats, ResourceType, RESOURCE_COLORS } from './lib/mines';
 import { HomeBase, MineDetails, StakingPanel, ExpeditionPanel, RaidFeed } from './components/game';
-import { EmberParticles } from './components';
+import { EmberParticles, WalletEntry, WalletEntryState } from './components';
 import { 
   MOCK_EVENTS, 
   DEMO_USER, 
@@ -58,6 +58,23 @@ export default function Home() {
   const [showExpeditionPanel, setShowExpeditionPanel] = useState(false);
   const [expeditionTarget, setExpeditionTarget] = useState<string | null>(null);
   const [raidEvents, setRaidEvents] = useState(USE_MOCK_DATA ? MOCK_EVENTS : []);
+  const [walletState, setWalletState] = useState<WalletEntryState>({
+    mode: 'disconnected',
+    walletAddress: null,
+    displayAddress: null,
+    isConnected: false,
+    canStake: false,
+    canRaid: false,
+  });
+
+  // Handle wallet state changes
+  const handleWalletChange = useCallback((state: WalletEntryState) => {
+    setWalletState(state);
+    // Reset mining when disconnecting
+    if (!state.isConnected && isMining) {
+      setIsMining(false);
+    }
+  }, [isMining]);
 
   // Derived values
   const selectedMine = useMemo(() => 
@@ -205,12 +222,14 @@ export default function Home() {
               <span className="text-xs text-coal-500 bg-coal-800 px-2 py-1 rounded">v2.0</span>
             </div>
             
-            <div className="flex items-center gap-6">
-              {/* Wallet balance */}
-              <div className="flex items-center gap-2">
-                <span className="text-coal-400 text-sm">Balance:</span>
-                <span className="text-ember-400 font-bold">{walletBalance.toLocaleString()} COAL</span>
-              </div>
+            <div className="flex items-center gap-4 md:gap-6">
+              {/* Wallet balance - only show when connected */}
+              {walletState.isConnected && (
+                <div className="hidden sm:flex items-center gap-2">
+                  <span className="text-coal-400 text-sm">Balance:</span>
+                  <span className="text-ember-400 font-bold">{walletBalance.toLocaleString()} COAL</span>
+                </div>
+              )}
               
               {/* Mining status */}
               {isMining && (
@@ -221,6 +240,9 @@ export default function Home() {
                   </span>
                 </div>
               )}
+              
+              {/* Wallet Entry */}
+              <WalletEntry compact onWalletChange={handleWalletChange} />
             </div>
           </div>
         </div>
@@ -292,11 +314,12 @@ export default function Home() {
                   userStake={userStakeAtSelected}
                   isHome={selectedMineId === homeMineId}
                   onSetHome={handleSetHome}
-                  onStartMining={handleStartMining}
-                  onStake={() => setShowStakingPanel(true)}
-                  onRaid={handleOpenRaid}
+                  onStartMining={walletState.isConnected ? handleStartMining : undefined}
+                  onStake={walletState.canStake ? () => setShowStakingPanel(true) : undefined}
+                  onRaid={walletState.canRaid ? handleOpenRaid : undefined}
                   isMining={isMining && selectedMineId === homeMineId}
-                  canRaid={selectedMineId !== homeMineId && !!homeMineId}
+                  canRaid={walletState.canRaid && selectedMineId !== homeMineId && !!homeMineId}
+                  walletMode={walletState.mode}
                 />
               ) : (
                 <div className="bg-coal-900/90 backdrop-blur-sm border border-coal-700 rounded-xl p-6 text-center h-full flex flex-col justify-center">
