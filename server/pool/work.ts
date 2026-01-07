@@ -16,10 +16,10 @@ export interface WorkTracker {
   workByWallet: Map<string, Set<string>>;
   /** Next nonce range start */
   nextNonceStart: number;
-  /** Current barrel number */
-  barrelNumber: number;
-  /** Current barrel header */
-  barrelHeader: string;
+  /** Current discovery number */
+  discoveryNumber: number;
+  /** Current discovery header */
+  discoveryHeader: string;
 }
 
 /**
@@ -30,28 +30,28 @@ export function createWorkTracker(): WorkTracker {
     activeWork: new Map(),
     workByWallet: new Map(),
     nextNonceStart: 0,
-    barrelNumber: 0,
-    barrelHeader: generateBarrelHeader(null, 0),
+    discoveryNumber: 0,
+    discoveryHeader: generateDiscoveryHeader(null, 0),
   };
 }
 
 /**
- * Generate a new barrel header
- * Includes previous barrel hash, timestamp, and random data
- * @param previousHash - Hash of previous barrel (null for genesis)
- * @param barrelNumber - Current barrel number
- * @returns New barrel header string
+ * Generate a new discovery header
+ * Includes previous discovery hash, timestamp, and random data
+ * @param previousHash - Hash of previous discovery (null for genesis)
+ * @param discoveryNumber - Current discovery number
+ * @returns New discovery header string
  */
-export function generateBarrelHeader(
+export function generateDiscoveryHeader(
   previousHash: string | null,
-  barrelNumber: number
+  discoveryNumber: number
 ): string {
   const timestamp = Date.now();
   const random = randomBytes(16).toString('hex');
   const prevHash = previousHash || '0'.repeat(64);
   
   // Combine components into header
-  const header = `COAL:${barrelNumber}:${prevHash}:${timestamp}:${random}`;
+  const header = `COAL:${discoveryNumber}:${prevHash}:${timestamp}:${random}`;
   
   // Hash the header to get a consistent length
   return createHash('sha256').update(header).digest('hex');
@@ -75,12 +75,13 @@ export function generateWork(
   
   const work: WorkUnit = {
     id: workId,
-    barrelHeader: tracker.barrelHeader,
+    discoveryHeader: tracker.discoveryHeader,
     target,
     nonceStart,
     nonceEnd,
     timestamp: Date.now(),
-    barrelNumber: tracker.barrelNumber,
+    discoveryNumber: tracker.discoveryNumber,
+    mineId: 'default', // Should be set by caller
   };
   
   // Update tracker
@@ -135,9 +136,9 @@ export function validateWork(
     return null;
   }
   
-  // Check if work is for current barrel
-  if (work.barrelNumber !== tracker.barrelNumber) {
-    console.log(`[Work] Work ${workId} is for old barrel`);
+  // Check if work is for current discovery
+  if (work.discoveryNumber !== tracker.discoveryNumber) {
+    console.log(`[Work] Work ${workId} is for old discovery`);
     return null;
   }
   
@@ -183,29 +184,32 @@ export function invalidateWork(
 }
 
 /**
- * Start a new barrel (after previous one was found)
+ * Start a new discovery (after previous one was found)
  * Invalidates all existing work and generates new header
  * @param tracker - Work tracker state
- * @param previousHash - Hash of the found barrel
+ * @param previousHash - Hash of the found discovery
  * @returns Updated tracker
  */
-export function startNewBarrel(
+export function startNewDiscovery(
   tracker: WorkTracker,
   previousHash: string
 ): WorkTracker {
-  const newBarrelNumber = tracker.barrelNumber + 1;
-  const newHeader = generateBarrelHeader(previousHash, newBarrelNumber);
+  const newDiscoveryNumber = tracker.discoveryNumber + 1;
+  const newHeader = generateDiscoveryHeader(previousHash, newDiscoveryNumber);
   
-  console.log(`[Work] Starting barrel #${newBarrelNumber}`);
+  console.log(`[Work] Starting discovery #${newDiscoveryNumber}`);
   
   return {
     activeWork: new Map(),
     workByWallet: new Map(),
     nextNonceStart: 0,
-    barrelNumber: newBarrelNumber,
-    barrelHeader: newHeader,
+    discoveryNumber: newDiscoveryNumber,
+    discoveryHeader: newHeader,
   };
 }
+
+/** @deprecated Use startNewDiscovery instead */
+export const startNewBarrel = startNewDiscovery;
 
 /**
  * Clean up expired work units

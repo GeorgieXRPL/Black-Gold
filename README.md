@@ -1,23 +1,74 @@
-# Black Gold ⛏️
+# Black Gold v2.1 ⛏️🌍
 
-> CPU Mining Platform for COAL Token on Solana
+> Interactive Mining Globe - CPU Mining Platform for COAL Token on Solana
 
-Black Gold is the first **holder-gated Proof-of-Work** mining platform on Pump.fun. Hold COAL tokens to mine. No wallet connection required - just paste your address and start drilling.
+Black Gold v2.1 transforms crypto mining into a **territorial strategy game**. Choose from 20 real-world mines, stake tokens to boost your power, form syndicates with allies, and raid other mines to steal their rewards.
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Solana](https://img.shields.io/badge/Solana-black?logo=solana)
 ![Next.js](https://img.shields.io/badge/Next.js-black?logo=next.js)
+![Three.js](https://img.shields.io/badge/Three.js-black?logo=three.js)
+
+---
+
+## 🆕 What's New in v2.1
+
+- **🌍 3D Interactive Globe** - Beautiful Three.js globe with 20 mine locations
+- **⚔️ PvP Raiding** - Launch expeditions to steal from other mines
+- **💰 Staking System** - Stake tokens for up to 3x hashrate boost
+- **🏠 Home Base** - Choose your primary mine and earn loyalty bonuses
+- **🎰 Unique Mechanics** - Each resource type has special abilities
+- **🏛️ Syndicates** - Form alliances with up to 20 members for coordinated raids
+- **💎 Dual Rewards** - 70% instant to finder, 30% pooled for hourly distribution
+- **🔥 Defender Spoils** - Failed raiders lose their bets (10% to defenders, 90% burned)
 
 ---
 
 ## Features
 
+### Core Mining
 - **🔒 Holder-Gated Mining** - Must hold COAL tokens to participate
-- **📉 Dynamic Requirements** - Required holdings decrease as market cap grows
-- **⚡ CPU Mining** - Mine using your browser, no special hardware needed
+- **⚡ CPU Mining** - Mine using your browser, no special hardware
 - **🎯 Dynamic Difficulty** - Adjusts to maintain consistent barrel times
 - **💰 Instant Rewards** - COAL sent directly to your wallet
-- **🔄 Auto Buyback** - Creator rewards automatically buy back tokens
+
+### Game Mechanics
+- **🗺️ 20 Real Mines** - Coal, Gold, Oil, and Silver across 15 countries
+- **📊 Stake Tiers** - Base → Bronze → Silver → Gold → Diamond
+- **⚔️ Raid System** - Attack other mines with optional betting
+- **🛡️ Defense Buffs** - Immunity and boosts for successful defenders
+
+---
+
+## Mine Locations
+
+### Coal Mines (5 min Coal Seams, steady rewards)
+- Appalachian Basin, USA
+- Shanxi Province, China
+- Hunter Valley, Australia
+- Silesia, Poland
+- Kuzbass, Russia
+
+### Gold Mines (20 min Gold Nuggets, jackpot chance)
+- Witwatersrand, South Africa
+- Carlin Trend, Nevada, USA
+- Super Pit, Australia
+- Grasberg, Indonesia
+- Muruntau, Uzbekistan
+
+### Oil Fields (10 min Oil Gushers, group bonuses)
+- Ghawar Field, Saudi Arabia
+- Permian Basin, Texas, USA
+- **Orinoco Belt, Venezuela**
+- Campos Basin, Brazil
+- Rumaila, Iraq
+
+### Silver Mines (8 min Silver Lodes, volatile rewards)
+- Potosí, Bolivia
+- Guanajuato, Mexico
+- Coeur d'Alene, Idaho, USA
+- Cannington, Australia
+- Dukat, Russia
 
 ---
 
@@ -26,8 +77,8 @@ Black Gold is the first **holder-gated Proof-of-Work** mining platform on Pump.f
 ### Prerequisites
 
 - Node.js 18+
-- Redis (for rate limiting)
-- Solana wallet
+- Redis (optional, for rate limiting)
+- Solana wallet with COAL tokens
 
 ### Installation
 
@@ -48,16 +99,13 @@ cp .env.example .env.local
 ### Running Locally
 
 ```bash
-# Terminal 1: Start Redis
-docker run -d -p 6379:6379 redis:alpine
-
-# Terminal 2: Start mining pool server
+# Terminal 1: Start game server
 npm run server
 
-# Terminal 3: Start frontend
+# Terminal 2: Start frontend
 npm run dev
 
-# Terminal 4 (optional): Start buyback service
+# Terminal 3 (optional): Start buyback service
 npm run buyback
 ```
 
@@ -65,28 +113,108 @@ Visit `http://localhost:3000` to start mining!
 
 ---
 
+## Game Mechanics
+
+### Staking System
+
+Stake COAL tokens at a mine to boost your mining power:
+
+| Tier | Min Stake | Hashrate | Defense |
+|------|-----------|----------|---------|
+| Base | 0 | 1.0x | 1.0x |
+| Bronze | 100 | 1.5x | 1.2x |
+| Silver | 500 | 2.0x | 1.5x |
+| Gold | 1,000 | 2.5x | 1.8x |
+| Diamond | 5,000 | 3.0x | 2.0x |
+
+### Resource Abilities
+
+| Resource | Discovery | Ability | Description |
+|----------|-----------|---------|-------------|
+| **Coal** | Coal Seam | Steady Burn | +10% loyalty bonus after 7 days at same mine |
+| **Gold** | Gold Nugget | Gold Rush | 5% chance of 5x jackpot on each discovery |
+| **Oil** | Oil Gusher | Syndicate | Rewards scale up to 3x with 50+ miners |
+| **Silver** | Silver Lode | Speculation | Random 0.5x - 2x multiplier each discovery |
+
+### Raiding
+
+1. **Launch Expedition** - Target another mine (1hr cooldown)
+2. **Optional Bet** - Risk up to 20% of your stake for bonus rewards
+3. **Resolution** - When target finds a discovery, raid resolves
+4. **Win** - Steal 10-30% of rewards, target gets 30min debuff
+5. **Lose** - Target gets 2hr immunity, bet penalty applied:
+   - **10%** of your bet → Distributed to defenders
+   - **90%** of your bet → Permanently burned
+
+### Reward Distribution
+
+| Type | Amount | When | Recipient |
+|------|--------|------|-----------|
+| **Instant** | 70% | On discovery | Finder |
+| **Pooled** | 30% | Hourly | All active miners (weighted) |
+
+Hourly pool distribution is weighted by:
+- Hashrate contribution (40%)
+- Stake amount & tier (30%)
+- Loyalty duration (30%)
+
+### Syndicates (Alliances)
+
+Form syndicates with up to 20 players for coordinated operations:
+
+- **Create** - Start your own syndicate and invite allies
+- **Coordinate** - Pool attack power for massive raids
+- **Share Rewards** - Proportional split based on contribution
+- **Bonus Power** - Up to 1.25x multiplier for full syndicate raids
+
+### Anti-Griefing
+
+- Defenders have 1.2x power advantage
+- 2-hour immunity after successful defense
+- Failed bets are burned (deflationary!)
+- 10% of failed bets go to defenders (reward for standing ground)
+- Home base defenders get 1.5x stake power
+- Expedition cooldowns prevent spam
+
+---
+
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    Browser (Frontend)                        │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐          │
-│  │  Dashboard  │  │ Web Workers │  │  WebSocket  │          │
-│  │     UI      │  │   Mining    │  │   Client    │          │
-│  └─────────────┘  └─────────────┘  └──────┬──────┘          │
-└────────────────────────────────────────────┼─────────────────┘
-                                             │
-┌────────────────────────────────────────────┼─────────────────┐
-│                  Mining Pool Server        │                 │
-│  ┌─────────────┐  ┌─────────────┐  ┌──────┴──────┐          │
-│  │    Pool     │  │  Difficulty │  │   WebSocket │          │
-│  │   Manager   │  │  Adjustment │  │    Server   │          │
-│  └─────────────┘  └─────────────┘  └─────────────┘          │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐          │
-│  │   Holder    │  │    Proof    │  │  Anti-Cheat │          │
-│  │ Verification│  │ Verification│  │   Service   │          │
-│  └─────────────┘  └─────────────┘  └─────────────┘          │
-└──────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                    Frontend (Next.js + Three.js)                 │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐              │
+│  │  3D Globe   │  │  Game UI    │  │ Web Workers │              │
+│  │  (r3f/drei) │  │ + Syndicate │  │   Mining    │              │
+│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘              │
+└─────────┼────────────────┼────────────────┼─────────────────────┘
+          │                │                │
+          └────────────────┴────────────────┘
+                           │ WebSocket
+┌──────────────────────────┼──────────────────────────────────────┐
+│                    Game Server (Node.js)                        │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐              │
+│  │    Mine     │  │   Stake     │  │    Raid     │              │
+│  │  Registry   │  │  Manager    │  │   Engine    │              │
+│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘              │
+│         │                │                │                      │
+│  ┌──────┴────────────────┴────────────────┴──────┐              │
+│  │              Pool Managers (per mine)          │              │
+│  └────────────────────────┬───────────────────────┘              │
+│                           │                                      │
+│  ┌────────────────────────┴───────────────────────┐              │
+│  │              NEW IN v2.1                        │              │
+│  │  ┌─────────────┐  ┌─────────────┐              │              │
+│  │  │    Vault    │  │  Syndicate  │              │              │
+│  │  │   Manager   │  │   Manager   │              │              │
+│  │  └──────┬──────┘  └──────┬──────┘              │              │
+│  │         │                │                      │              │
+│  │  ┌──────┴──────┐  ┌──────┴──────┐              │              │
+│  │  │ Distribution│  │  Syndicate  │              │              │
+│  │  │   Service   │  │    Raids    │              │              │
+│  │  └─────────────┘  └─────────────┘              │              │
+│  └────────────────────────────────────────────────┘              │
+└──────────────────────────────────────────────────────────────────┘
                            │
           ┌────────────────┼────────────────┐
           ▼                ▼                ▼
@@ -95,41 +223,6 @@ Visit `http://localhost:3000` to start mining!
     │   API    │    │   RPC    │    │   API    │
     └──────────┘    └──────────┘    └──────────┘
 ```
-
----
-
-## How It Works
-
-### 1. Holder Verification
-
-Before mining, users must hold a minimum percentage of COAL supply:
-
-| Market Cap | Required % | Example (1B Supply) |
-|------------|------------|---------------------|
-| < $10K | 0.5% | 5,000,000 COAL |
-| $10K - $25K | 0.3% | 3,000,000 COAL |
-| $25K - $50K | 0.2% | 2,000,000 COAL |
-| $50K - $100K | 0.1% | 1,000,000 COAL |
-| $100K - $250K | 0.05% | 500,000 COAL |
-| $250K - $500K | 0.025% | 250,000 COAL |
-| $500K - $1M | 0.01% | 100,000 COAL |
-| > $1M | 0.005% | 50,000 COAL |
-
-### 2. Mining Process
-
-1. User enters wallet address (no connection needed)
-2. Server verifies holder status via Helius API
-3. User receives work unit with nonce range
-4. Browser computes SHA-256 double-hashes
-5. When valid proof found, submitted to server
-6. Server verifies and sends reward
-
-### 3. Reward Distribution
-
-- Creator rewards collected from Pump.fun (~3 min intervals)
-- Buyback service swaps SOL → COAL via Jupiter
-- Tokens added to reward pool
-- Barrel finder receives pool contents
 
 ---
 
@@ -148,18 +241,9 @@ TOKEN_MINT_ADDRESS=your_token_mint
 WEBSOCKET_PORT=8080
 TARGET_BARREL_TIME_MS=900000
 REDIS_URL=redis://localhost:6379
-```
 
-### Holder Tiers
-
-Edit `config/holder-tiers.ts` to customize requirements:
-
-```typescript
-export const HOLDER_TIERS = [
-  { maxMC: 10_000, requiredPercent: 0.5, name: 'Genesis' },
-  { maxMC: 25_000, requiredPercent: 0.3, name: 'Early' },
-  // ... add more tiers
-];
+# Frontend
+NEXT_PUBLIC_WS_URL=ws://localhost:8080
 ```
 
 ---
@@ -171,15 +255,20 @@ export const HOLDER_TIERS = [
 ```
 black-gold/
 ├── app/                    # Next.js frontend
-│   ├── components/         # React components
-│   ├── hooks/              # Custom hooks
+│   ├── components/
+│   │   ├── game/           # Game UI panels
+│   │   └── globe/          # 3D globe components
+│   ├── hooks/              # React hooks
+│   ├── lib/                # Utilities
 │   ├── workers/            # Mining Web Workers
 │   └── api/                # API routes
-├── server/                 # Mining pool backend
+├── server/
+│   ├── game/               # Game system (v2)
 │   ├── pool/               # Pool management
 │   ├── verification/       # Proof & anti-cheat
 │   └── solana/             # Blockchain integration
 ├── config/                 # Configuration
+│   └── mines.ts            # Mine definitions
 ├── scripts/                # Standalone scripts
 └── docs/                   # Documentation
 ```
@@ -189,9 +278,65 @@ black-gold/
 ```bash
 npm run dev        # Start Next.js dev server
 npm run build      # Build for production
-npm run server     # Start mining pool server
+npm run server     # Start game server (dev mode)
+npm run server:prod # Start game server (production)
 npm run buyback    # Start buyback service
 npm run lint       # Run ESLint
+```
+
+---
+
+## API Reference
+
+### WebSocket Messages (v2.1)
+
+#### Client → Server
+
+```typescript
+// Connect to game
+{ type: 'connect', payload: { walletAddress: string, cores: number } }
+
+// Join a mine
+{ type: 'join_mine', payload: { mineId: string } }
+
+// Stake tokens
+{ type: 'stake', payload: { mineId: string, amount: number } }
+
+// Start raid
+{ type: 'start_expedition', payload: { targetMineId: string, betAmount?: number } }
+
+// Submit proof
+{ type: 'submit', payload: { workUnitId: string, nonce: number, hash: string } }
+
+// Syndicate operations (NEW in v2.1)
+{ type: 'create_syndicate', payload: { name: string } }
+{ type: 'join_syndicate', payload: { syndicateId: string } }
+{ type: 'leave_syndicate', payload: {} }
+{ type: 'invite_to_syndicate', payload: { walletAddress: string } }
+{ type: 'start_syndicate_raid', payload: { targetMineId: string } }
+```
+
+#### Server → Client
+
+```typescript
+// Work assignment
+{ type: 'work', payload: WorkUnit }
+
+// Global stats
+{ type: 'stats', payload: GlobalNetworkStats }
+
+// Game events
+{ type: 'game_event', payload: { type: 'discovery_found' | 'raid_started' | 'jackpot', ... } }
+
+// Raid result
+{ type: 'raid_result', payload: RaidResult }
+
+// Pool distribution (NEW in v2.1)
+{ type: 'pool_distribution', payload: { mineId: string, totalDistributed: number, recipients: [...] } }
+
+// Syndicate events (NEW in v2.1)
+{ type: 'syndicate_update', payload: Syndicate }
+{ type: 'syndicate_raid_result', payload: SyndicateRaidResult }
 ```
 
 ---
@@ -207,57 +352,10 @@ See [SECURITY.md](docs/SECURITY.md) for full security analysis.
 - ✅ Sybil detection (IP/wallet tracking)
 - ✅ Nonce range validation
 - ✅ Exponential backoff on failures
-
-### Production Checklist
-
-- [ ] Enable WSS (WebSocket Secure)
-- [ ] Use Redis for distributed rate limiting
-- [ ] Store keys in secure vault
-- [ ] Enable DDoS protection
-- [ ] Conduct security audit
-
----
-
-## API Reference
-
-### WebSocket Messages
-
-#### Client → Server
-
-```typescript
-// Connect to pool
-{ type: 'connect', payload: { walletAddress: string, cores: number } }
-
-// Report hashrate
-{ type: 'hashrate', payload: { walletAddress: string, hashrate: number } }
-
-// Submit proof
-{ type: 'submit', payload: { walletAddress: string, workUnitId: string, nonce: number, hash: string } }
-```
-
-#### Server → Client
-
-```typescript
-// Work assignment
-{ type: 'work', payload: WorkUnit }
-
-// Network stats
-{ type: 'stats', payload: NetworkStats }
-
-// Barrel found
-{ type: 'barrel_found', payload: BarrelResult }
-
-// Error
-{ type: 'error', payload: { code: string, message: string } }
-```
-
-### REST Endpoints
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/verify-holder?wallet=<address>` | GET | Check holder eligibility |
-| `ws://host:8080/health` | GET | Server health check |
-| `ws://host:8080/stats` | GET | Network statistics |
+- ✅ 1.2x defense advantage in raids
+- ✅ Bet burning on failed raids (90% burned, 10% to defenders)
+- ✅ Syndicate size limits (max 20 members)
+- ✅ Hourly pool distribution prevents instant drain
 
 ---
 
@@ -287,5 +385,5 @@ MIT License - see [LICENSE](LICENSE) for details.
 ---
 
 <p align="center">
-  <strong>⛏️ DRILL FOR BLACK GOLD ⛏️</strong>
+  <strong>🌍 CONQUER THE GLOBE. DRILL FOR BLACK GOLD. ⛏️</strong>
 </p>

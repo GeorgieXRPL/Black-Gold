@@ -1,0 +1,314 @@
+/**
+ * @fileoverview Game WebSocket hook for Black Gold v2
+ * Handles connection to the multi-mine game server
+ */
+
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { MineStats, ResourceType } from '../lib/mines';
+
+/** Connection status */
+export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
+
+/** Game event types */
+export interface GameEvent {
+  id: string;
+  type: 'raid_started' | 'raid_won' | 'raid_lost' | 'discovery_found' | 'jackpot' | 'vault_payout' | 'spoils_distributed';
+  sourceMine?: string;
+  targetMine?: string;
+  sourceResource?: ResourceType;
+  targetResource?: ResourceType;
+  attackers?: string[];
+  winner?: string;
+  reward?: number;
+  finderShare?: number;
+  vaultShare?: number;
+  discoveryName?: string;
+  spoilsAmount?: number;
+  burnedAmount?: number;
+  timestamp: Date;
+}
+
+/** Raid result from server */
+export interface RaidResult {
+  expeditionId: string;
+  mineId: string;
+  attackersWon: boolean;
+  stolenRewards: number;
+  defensePower: number;
+  attackPower: number;
+}
+
+/** Global stats from server */
+export interface GlobalStats {
+  totalMiners: number;
+  totalHashrate: number;
+  totalStake: number;
+  totalDiscoveries: number;
+  mineStats: MineStats[];
+  activeExpeditions: number;
+  activeRaids: number;
+}
+
+/** Hook options */
+interface UseGameSocketOptions {
+  url: string;
+  walletAddress: string | null;
+  cores?: number;
+  onEvent?: (event: GameEvent) => void;
+  onRaidResult?: (result: RaidResult) => void;
+}
+
+/** Hook return type */
+interface UseGameSocketReturn {
+  status: ConnectionStatus;
+  globalStats: GlobalStats | null;
+  mineStats: Map<string, MineStats>;
+  currentMineId: string | null;
+  connect: () => void;
+  disconnect: () => void;
+  joinMine: (mineId: string) => void;
+  leaveMine: () => void;
+  setHomeBase: (mineId: string) => void;
+  stake: (mineId: string, amount: number) => void;
+  unstake: (mineId: string, amount: number) => void;
+  startExpedition: (targetMineId: string, betAmount?: number) => void;
+  rallyDefense: (mineId: string, tokenCost: number) => void;
+  sendHashrate: (hashrate: number) => void;
+  submitProof: (workUnitId: string, nonce: number, hash: string) => void;
+}
+
+export function useGameSocket({
+  url,
+  walletAddress,
+  cores = 1,
+  onEvent,
+  onRaidResult,
+}: UseGameSocketOptions): UseGameSocketReturn {
+  const [status, setStatus] = useState<ConnectionStatus>('disconnected');
+  const [globalStats, setGlobalStats] = useState<GlobalStats | null>(null);
+  const [mineStats, setMineStats] = useState<Map<string, MineStats>>(new Map());
+  const [currentMineId, setCurrentMineId] = useState<string | null>(null);
+  
+  const wsRef = useRef<WebSocket | null>(null);
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const send = useCallback((type: string, payload: object) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({
+        type,
+        payload,
+        timestamp: Date.now(),
+      }));
+    }
+  }, []);
+
+  const handleMessage = useCallback((event: MessageEvent) => {
+    try {
+      const data = JSON.parse(event.data);
+      
+      switch (data.type) {
+        case 'stats':
+          setGlobalStats(data.payload);
+          if (data.payload.mineStats) {
+            const newStats = new Map<string, MineStats>();
+            data.payload.mineStats.forEach((s: MineStats) => {
+              newStats.set(s.mineId, s);
+            });
+            setMineStats(newStats);
+          }
+          break;
+
+        case 'result':
+          // Handle result messages (confirmations)
+          console.log('[WS] Result:', data.payload);
+          break;
+
+        case 'work':
+          // Work assignment from pool
+          console.log('[WS] Work received:', data.payload);
+          break;
+
+        case 'discovery_found':
+          if (onEvent) {
+            onEvent({
+              id: Date.now().toString(),
+              type: 'discovery_found',
+              targetMine: data.payload.mineName,
+              targetResource: data.payload.resource,
+              winner: data.payload.winner,
+              reward: data.payload.totalReward,
+              finderShare: data.payload.finderShare,
+              vaultShare: data.payload.vaultShare,
+              discoveryName: data.payload.discoveryName,
+              timestamp: new Date(),
+            });
+          }
+          break;
+
+        case 'vault_distribution':
+          if (onEvent) {
+            onEvent({
+              id: Date.now().toString(),
+              type: 'vault_payout',
+              targetMine: data.payload.mineName,
+              reward: data.payload.totalDistributed,
+              timestamp: new Date(),
+            });
+          }
+          break;
+
+        case 'spoils_distribution':
+          if (onEvent) {
+            onEvent({
+              id: Date.now().toString(),
+              type: 'spoils_distributed',
+              targetMine: data.payload.mineName,
+              spoilsAmount: data.payload.spoilsAmount,
+              burnedAmount: data.payload.burnedAmount,
+              timestamp: new Date(),
+            });
+          }
+          break;
+
+        case 'game_event':
+          if (onEvent) {
+            onEvent({
+              id: Date.now().toString(),
+              ...data.payload,
+              timestamp: new Date(),
+            });
+          }
+          break;
+
+        case 'raid_result':
+          if (onRaidResult) {
+            onRaidResult(data.payload);
+          }
+          break;
+
+        case 'error':
+          console.error('[WS] Error:', data.payload);
+          break;
+      }
+    } catch (err) {
+      console.error('[WS] Failed to parse message:', err);
+    }
+  }, [onEvent, onRaidResult]);
+
+  const connect = useCallback(() => {
+    if (!walletAddress) return;
+    if (wsRef.current?.readyState === WebSocket.OPEN) return;
+
+    setStatus('connecting');
+
+    try {
+      const ws = new WebSocket(url);
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        setStatus('connected');
+        // Send connect message
+        send('connect', { walletAddress, cores });
+      };
+
+      ws.onmessage = handleMessage;
+
+      ws.onclose = () => {
+        setStatus('disconnected');
+        wsRef.current = null;
+        
+        // Auto-reconnect after 3 seconds
+        reconnectTimeoutRef.current = setTimeout(() => {
+          if (walletAddress) {
+            connect();
+          }
+        }, 3000);
+      };
+
+      ws.onerror = () => {
+        setStatus('error');
+      };
+    } catch (err) {
+      console.error('[WS] Connection error:', err);
+      setStatus('error');
+    }
+  }, [url, walletAddress, cores, send, handleMessage]);
+
+  const disconnect = useCallback(() => {
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+    }
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+    setStatus('disconnected');
+  }, []);
+
+  const joinMine = useCallback((mineId: string) => {
+    send('join_mine', { mineId });
+    setCurrentMineId(mineId);
+  }, [send]);
+
+  const leaveMine = useCallback(() => {
+    send('leave_mine', {});
+    setCurrentMineId(null);
+  }, [send]);
+
+  const setHomeBase = useCallback((mineId: string) => {
+    send('set_home', { mineId });
+  }, [send]);
+
+  const stake = useCallback((mineId: string, amount: number) => {
+    send('stake', { mineId, amount });
+  }, [send]);
+
+  const unstake = useCallback((mineId: string, amount: number) => {
+    send('unstake', { mineId, amount });
+  }, [send]);
+
+  const startExpedition = useCallback((targetMineId: string, betAmount?: number) => {
+    send('start_expedition', { targetMineId, betAmount: betAmount || 0 });
+  }, [send]);
+
+  const rallyDefense = useCallback((mineId: string, tokenCost: number) => {
+    send('rally_defense', { mineId, tokenCost });
+  }, [send]);
+
+  const sendHashrate = useCallback((hashrate: number) => {
+    if (walletAddress) {
+      send('hashrate', { walletAddress, hashrate });
+    }
+  }, [send, walletAddress]);
+
+  const submitProof = useCallback((workUnitId: string, nonce: number, hash: string) => {
+    if (walletAddress) {
+      send('submit', { workUnitId, nonce, hash });
+    }
+  }, [send, walletAddress]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      disconnect();
+    };
+  }, [disconnect]);
+
+  return {
+    status,
+    globalStats,
+    mineStats,
+    currentMineId,
+    connect,
+    disconnect,
+    joinMine,
+    leaveMine,
+    setHomeBase,
+    stake,
+    unstake,
+    startExpedition,
+    rallyDefense,
+    sendHashrate,
+    submitProof,
+  };
+}

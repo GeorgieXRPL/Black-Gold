@@ -1,10 +1,10 @@
-# Black Gold Codebase Index
+# Black Gold v2 - Codebase Index
 
-> Last updated: January 2026
+> Last updated: January 2026 | Version 2.0 (Interactive Mining Globe)
 
 ## Overview
 
-Black Gold is a CPU mining platform for the COAL token on Solana. It features holder-gated mining (must hold tokens to mine), dynamic difficulty adjustment, and automated buyback of creator rewards.
+Black Gold v2 is an interactive CPU mining platform featuring a 3D globe with 20 real-world mines, staking mechanics, and PvP raiding. Players choose mines, stake tokens for power boosts, and can raid other mines to steal rewards.
 
 ---
 
@@ -12,9 +12,10 @@ Black Gold is a CPU mining platform for the COAL token on Solana. It features ho
 
 ```
 black-gold/
-├── app/                    # Next.js frontend
-├── server/                 # Mining pool backend
-├── config/                 # Configuration files
+├── app/                    # Next.js frontend with 3D globe
+├── server/                 # Mining pool + game backend
+│   └── game/               # v2 game system
+├── config/                 # Configuration + mine definitions
 ├── scripts/                # Standalone scripts
 └── docs/                   # Documentation
 ```
@@ -25,26 +26,40 @@ black-gold/
 
 | File | Purpose | Key Exports |
 |------|---------|-------------|
-| `page.tsx` | Main mining dashboard | `HomePage` (default) |
+| `page.tsx` | Main game page with globe and panels | `HomePage` (default) |
 | `layout.tsx` | Root layout with fonts | `RootLayout` (default) |
-| `globals.css` | Global styles and theme | CSS variables, animations |
+| `globals.css` | Global styles, game effects | CSS variables, animations |
 
-### Components (`app/components/`)
+### Globe Components (`app/components/globe/`)
 
 | File | Purpose | Key Exports |
 |------|---------|-------------|
-| `MiningPanel.tsx` | Mining controls, core selection | `MiningPanel` |
-| `StatsCard.tsx` | Network statistics display | `StatsCard` |
-| `BarrelFeed.tsx` | Live barrel discovery feed | `BarrelFeed` |
-| `HolderGate.tsx` | Holder verification status | `HolderGate` |
-| `EmberParticles.tsx` | Animated background particles | `EmberParticles` |
+| `Globe.tsx` | 3D interactive globe with mine pins | `Globe` (default) |
+
+### Game Components (`app/components/game/`)
+
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| `HomeBase.tsx` | Home mine dashboard | `HomeBase` |
+| `MineDetails.tsx` | Selected mine info panel | `MineDetails` |
+| `StakingPanel.tsx` | Stake/unstake modal | `StakingPanel` |
+| `ExpeditionPanel.tsx` | Raid planning UI | `ExpeditionPanel` |
+| `RaidFeed.tsx` | Live activity feed | `RaidFeed` |
 
 ### Hooks (`app/hooks/`)
 
 | File | Purpose | Key Exports |
 |------|---------|-------------|
+| `useGameSocket.ts` | v2 game WebSocket connection | `useGameSocket` |
 | `useMining.ts` | Mining worker management | `useMining` |
-| `useWebSocket.ts` | Pool connection hook | `useWebSocket` |
+| `useWebSocket.ts` | v1 pool connection hook | `useWebSocket` |
+
+### Libraries (`app/lib/`)
+
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| `mines.ts` | Client-side mine data | `MINES`, `getMineById`, `RESOURCE_COLORS` |
+| `mining.ts` | SHA-256 hashing utilities | `sha256`, `doubleSha256` |
 
 ### Workers (`app/workers/`)
 
@@ -52,49 +67,48 @@ black-gold/
 |------|---------|-------------|
 | `miner.worker.ts` | CPU mining Web Worker | `onmessage` handler |
 
-### Libraries (`app/lib/`)
-
-| File | Purpose | Key Exports |
-|------|---------|-------------|
-| `mining.ts` | SHA-256 hashing utilities | `sha256`, `doubleSha256`, `mineRange` |
-
-### API Routes (`app/api/`)
-
-| File | Purpose | Key Exports |
-|------|---------|-------------|
-| `verify-holder/route.ts` | Holder verification API | `GET` handler |
-
 ---
 
 ## Server (`server/`)
 
 | File | Purpose | Key Exports |
 |------|---------|-------------|
-| `index.ts` | WebSocket server entry point | `startServer` |
+| `index.ts` | v2 WebSocket game server | `startServer` |
 | `types.ts` | Shared TypeScript types | All interfaces |
+
+### Game System (`server/game/`)
+
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| `types.ts` | Game type definitions | `StakeTier`, `Expedition`, `RaidResult`, etc. |
+| `mine-registry.ts` | 20 mine state management | `MineRegistry`, `getMineRegistry` |
+| `stake-manager.ts` | Staking with tier multipliers | `StakeManager`, `getStakeManager` |
+| `cooldowns.ts` | Cooldown enforcement | `CooldownManager` |
+| `expedition-tracker.ts` | Raid expedition lifecycle | `ExpeditionTracker` |
+| `raid-engine.ts` | Attack/defense calculations | `RaidEngine`, `getRaidEngine` |
 
 ### Pool (`server/pool/`)
 
 | File | Purpose | Key Exports |
 |------|---------|-------------|
-| `manager.ts` | Pool state management | `PoolManager`, `createPoolState` |
-| `work.ts` | Work unit generation | `generateWork`, `validateWork`, `startNewBarrel` |
-| `difficulty.ts` | Dynamic difficulty adjustment | `adjustDifficulty`, `difficultyToTarget` |
+| `manager.ts` | Per-mine pool management | `PoolManager` |
+| `work.ts` | Work unit generation | `generateWork`, `validateWork` |
+| `difficulty.ts` | Dynamic difficulty | `adjustDifficulty` |
 
 ### Verification (`server/verification/`)
 
 | File | Purpose | Key Exports |
 |------|---------|-------------|
-| `proof.ts` | Hash proof verification | `verifyProof`, `registerWork` |
-| `anticheat.ts` | Anti-gaming/sybil detection | `AntiCheatService` |
+| `proof.ts` | Hash proof verification | `verifyProof` |
+| `anticheat.ts` | Rate limiting, sybil detection | `AntiCheatService` |
 
 ### Solana (`server/solana/`)
 
 | File | Purpose | Key Exports |
 |------|---------|-------------|
-| `holder.ts` | Holder balance verification | `verifyHolder`, `updateMarketCap` |
-| `rewards.ts` | Token reward distribution | `sendReward`, `getRewardPoolBalance` |
-| `buyback.ts` | Automated token buyback | `BuybackService`, `getBuybackService` |
+| `holder.ts` | Holder balance verification | `verifyHolder` |
+| `rewards.ts` | Token reward distribution | `sendReward` |
+| `buyback.ts` | Automated token buyback | `executeBuyback` |
 
 ---
 
@@ -102,88 +116,71 @@ black-gold/
 
 | File | Purpose | Key Exports |
 |------|---------|-------------|
-| `constants.ts` | Environment-based config | `TOKEN_CONFIG`, `POOL_CONFIG`, etc. |
-| `holder-tiers.ts` | MC-based holder requirements | `HOLDER_TIERS`, `getRequiredPercent` |
+| `constants.ts` | Environment-based config | `TOKEN_CONFIG`, `POOL_CONFIG` |
+| `holder-tiers.ts` | MC-based holder requirements | `HOLDER_TIERS` |
+| `mines.ts` | 20 mine definitions | `MINES`, `RESOURCE_MECHANICS` |
 
 ---
 
-## Scripts (`scripts/`)
+## Mine Locations (20 Total)
 
-| File | Purpose | Usage |
-|------|---------|-------|
-| `buyback.ts` | Standalone buyback service | `npm run buyback` |
+### Coal (5 mines)
+- Appalachian Basin, USA
+- Shanxi Province, China
+- Hunter Valley, Australia
+- Silesia, Poland
+- Kuzbass, Russia
 
----
+### Gold (5 mines)
+- Witwatersrand, South Africa
+- Carlin Trend, Nevada, USA
+- Super Pit, Australia
+- Grasberg, Indonesia
+- Muruntau, Uzbekistan
 
-## Key Types (`server/types.ts`)
+### Oil (5 fields)
+- Ghawar Field, Saudi Arabia
+- Permian Basin, Texas, USA
+- **Orinoco Belt, Venezuela**
+- Campos Basin, Brazil
+- Rumaila, Iraq
 
-### Core Interfaces
-
-- `Miner` - Connected miner state
-- `WorkUnit` - Mining work assignment
-- `ProofSubmission` - Solution submission from miner
-- `BarrelResult` - Successful barrel discovery
-- `HolderVerification` - Token holder check result
-- `NetworkStats` - Pool statistics
-
-### WebSocket Messages
-
-- `WSMessage<T>` - Message envelope with type and payload
-- `ConnectPayload` - Initial connection data
-- `HashratePayload` - Hashrate updates
-- `ErrorPayload` - Error responses
-
----
-
-## Security Measures
-
-### Rate Limiting (`server/verification/anticheat.ts`)
-
-- Max 10 submissions per minute per wallet
-- Max 3 concurrent connections per IP
-- Exponential backoff on failed submissions
-
-### Proof Verification (`server/verification/proof.ts`)
-
-- Server-side SHA-256 double-hash verification
-- Nonce range validation
-- Work unit expiry checks
-
-### Sybil Detection
-
-- Track unique IPs per wallet (flag at 3+)
-- Track unique wallets per IP (flag at 10+)
-- Flagged entities get stricter rate limits
+### Silver (5 mines)
+- Potosí, Bolivia
+- Guanajuato, Mexico
+- Coeur d'Alene, Idaho, USA
+- Cannington, Australia
+- Dukat, Russia
 
 ---
 
-## Environment Variables
+## Game Mechanics
 
-```bash
-# Solana
-SOLANA_RPC_URL=https://api.mainnet-beta.solana.com
-HELIUS_API_KEY=your_key
+### Stake Tiers
 
-# Wallets
-REWARD_WALLET_PRIVATE_KEY=base64_encoded_key
-REWARD_WALLET_ADDRESS=public_key
-CREATOR_WALLET_ADDRESS=public_key
+| Tier | Min Stake | Hashrate | Defense |
+|------|-----------|----------|---------|
+| Base | 0 | 1.0x | 1.0x |
+| Bronze | 100 | 1.5x | 1.2x |
+| Silver | 500 | 2.0x | 1.5x |
+| Gold | 1,000 | 2.5x | 1.8x |
+| Diamond | 5,000 | 3.0x | 2.0x |
 
-# Token
-TOKEN_MINT_ADDRESS=mint_address_after_launch
+### Resource Abilities
 
-# Server
-WEBSOCKET_PORT=8080
-REDIS_URL=redis://localhost:6379
+| Resource | Barrel Time | Ability |
+|----------|-------------|---------|
+| Coal | 5 min | +10% loyalty after 7 days |
+| Gold | 20 min | 5% jackpot (5x) chance |
+| Oil | 10 min | Up to 3x at 50+ miners |
+| Silver | 8 min | 0.5x-2x random multiplier |
 
-# Mining
-TARGET_BARREL_TIME_MS=900000
-MIN_DIFFICULTY=1
-MAX_DIFFICULTY=1000000
+### Raid Rules
 
-# Frontend
-NEXT_PUBLIC_WS_URL=ws://localhost:8080
-```
+- Attackers need 1.2x defender power to win
+- Win: Steal 10-30%, apply 30min debuff
+- Lose: Defender gets 2hr immunity
+- Bets burned on failed raids
 
 ---
 
@@ -193,10 +190,7 @@ NEXT_PUBLIC_WS_URL=ws://localhost:8080
 # Install dependencies
 npm install
 
-# Start Redis (for rate limiting)
-docker run -d -p 6379:6379 redis:alpine
-
-# Start mining pool server
+# Start game server
 npm run server
 
 # Start Next.js frontend (separate terminal)
@@ -208,48 +202,34 @@ npm run buyback
 
 ---
 
-## Architecture Diagram
+## Environment Variables
 
+```bash
+SOLANA_RPC_URL=https://api.mainnet-beta.solana.com
+HELIUS_API_KEY=your_key
+REWARD_WALLET_PRIVATE_KEY=base64_encoded_key
+TOKEN_MINT_ADDRESS=mint_address
+WEBSOCKET_PORT=8080
+NEXT_PUBLIC_WS_URL=ws://localhost:8080
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                         Frontend (Next.js)                       │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐              │
-│  │ MiningPanel │  │  StatsCard  │  │ BarrelFeed  │              │
-│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘              │
-│         │                │                │                      │
-│  ┌──────┴────────────────┴────────────────┴──────┐              │
-│  │              Web Workers (Mining)              │              │
-│  └──────────────────────┬────────────────────────┘              │
-└─────────────────────────┼────────────────────────────────────────┘
-                          │ WebSocket
-┌─────────────────────────┼────────────────────────────────────────┐
-│                         ▼                                        │
-│  ┌─────────────────────────────────────────────────────────┐    │
-│  │              Mining Pool Server (Node.js)                │    │
-│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐      │    │
-│  │  │PoolManager  │  │  Difficulty │  │Work Tracker │      │    │
-│  │  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘      │    │
-│  │         │                │                │              │    │
-│  │  ┌──────┴────────────────┴────────────────┴──────┐      │    │
-│  │  │           Verification Layer                   │      │    │
-│  │  │  ┌─────────────┐      ┌─────────────┐         │      │    │
-│  │  │  │  AntiCheat  │      │ ProofVerify │         │      │    │
-│  │  │  └─────────────┘      └─────────────┘         │      │    │
-│  │  └───────────────────────────────────────────────┘      │    │
-│  └─────────────────────────────────────────────────────────┘    │
-│                              │                                   │
-│  ┌───────────────────────────┼───────────────────────────────┐  │
-│  │            Solana Integration                              │  │
-│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐        │  │
-│  │  │   Holder    │  │   Rewards   │  │   Buyback   │        │  │
-│  │  │ Verification│  │ Distribution│  │   Service   │        │  │
-│  │  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘        │  │
-│  └─────────┼────────────────┼────────────────┼────────────────┘  │
-└────────────┼────────────────┼────────────────┼────────────────────┘
-             │                │                │
-             ▼                ▼                ▼
-        ┌─────────┐     ┌─────────┐     ┌─────────┐
-        │ Helius  │     │ Solana  │     │ Jupiter │
-        │   API   │     │   RPC   │     │   API   │
-        └─────────┘     └─────────┘     └─────────┘
-```
+
+---
+
+## WebSocket Message Types (v2)
+
+### Client → Server
+- `connect` - Initial connection
+- `join_mine` - Join a specific mine
+- `stake` / `unstake` - Manage stakes
+- `set_home` - Set home base
+- `start_expedition` - Launch raid
+- `rally_defense` - Emergency defense boost
+- `hashrate` - Report hashrate
+- `submit` - Submit proof
+
+### Server → Client
+- `work` - Work unit assignment
+- `stats` - Global network stats
+- `game_event` - Raids, barrels, jackpots
+- `raid_result` - Raid outcome
+- `error` - Error messages

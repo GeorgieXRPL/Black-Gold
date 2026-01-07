@@ -126,14 +126,14 @@ export function useMining(options: UseMiningOptions): UseMiningReturn {
       worker.postMessage({
         type: 'start',
         workId: work.id,
-        barrelHeader: work.barrelHeader,
+        discoveryHeader: work.discoveryHeader,
         target: work.target,
         nonceStart: workerStart,
         nonceEnd: workerEnd,
       });
     });
     
-    console.log(`[Mining] Started mining barrel #${work.barrelNumber} with ${cores} cores`);
+    console.log(`[Mining] Started mining discovery #${work.discoveryNumber} with ${cores} cores`);
   }, [cores, initWorkers]);
 
   /**

@@ -43,7 +43,7 @@ function formatHashrate(hashrate: number): string {
 }
 
 /**
- * Format time since last barrel
+ * Format time since last discovery
  */
 function formatTimeSince(date: Date | null): string {
   if (!date) return 'Never';
@@ -104,8 +104,8 @@ export function StatsCard({ stats, userEarnings = 0, loading }: StatsCardProps) 
           loading={loading}
         />
         <StatItem
-          label="Total Barrels"
-          value={stats?.totalBarrels ?? 0}
+          label="Total Discoveries"
+          value={stats?.totalDiscoveries ?? 0}
           loading={loading}
         />
         <StatItem
@@ -114,8 +114,8 @@ export function StatsCard({ stats, userEarnings = 0, loading }: StatsCardProps) 
           loading={loading}
         />
         <StatItem
-          label="Last Barrel"
-          value={formatTimeSince(stats?.lastBarrelTime ?? null)}
+          label="Last Discovery"
+          value={formatTimeSince(stats?.lastDiscoveryTime ?? null)}
           loading={loading}
         />
         <StatItem

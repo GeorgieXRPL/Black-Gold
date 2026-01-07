@@ -55,7 +55,7 @@ export function BarrelFeed({ barrels, maxItems = 10 }: BarrelFeedProps) {
           ) : (
             displayBarrels.map((barrel, index) => (
               <motion.div
-                key={`${barrel.barrelNumber}-${barrel.timestamp}`}
+                key={`${barrel.discoveryNumber}-${barrel.timestamp}`}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 20 }}
@@ -63,14 +63,14 @@ export function BarrelFeed({ barrels, maxItems = 10 }: BarrelFeedProps) {
                 className="flex items-center gap-4 p-3 bg-coal-900 rounded border border-coal-700
                          hover:border-ember/50 transition-colors"
               >
-                {/* Barrel Icon */}
+                {/* Discovery Icon */}
                 <div className="text-2xl">🛢️</div>
 
-                {/* Barrel Info */}
+                {/* Discovery Info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="font-heading text-white">
-                      Barrel #{barrel.barrelNumber}
+                      {barrel.discoveryName || 'Discovery'} #{barrel.discoveryNumber}
                     </span>
                     <span className="text-coal-500 text-sm">
                       {formatTime(new Date(barrel.timestamp))}
@@ -84,7 +84,7 @@ export function BarrelFeed({ barrels, maxItems = 10 }: BarrelFeedProps) {
                 {/* Reward */}
                 <div className="text-right">
                   <div className="stat-value text-lg">
-                    +{barrel.reward.toFixed(2)}
+                    +{(barrel.finderShare || barrel.totalReward).toFixed(2)}
                   </div>
                   <div className="text-coal-500 text-xs">COAL</div>
                 </div>

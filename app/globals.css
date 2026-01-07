@@ -341,6 +341,159 @@ body::before {
 }
 
 /* ============================================
+   Game-specific Styles (v2)
+   ============================================ */
+
+/* Resource type colors */
+.resource-coal { --resource-color: #ff6b35; }
+.resource-gold { --resource-color: #ffd700; }
+.resource-oil { --resource-color: #4a69bd; }
+.resource-silver { --resource-color: #c0c0c0; }
+
+.resource-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Mine pin glow effect */
+.mine-pin {
+  position: relative;
+}
+
+.mine-pin::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  background: var(--resource-color, var(--ember));
+  filter: blur(8px);
+  opacity: 0.5;
+  animation: mine-pulse 2s ease-in-out infinite;
+}
+
+@keyframes mine-pulse {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.1); }
+}
+
+/* Raid indicator */
+.raid-indicator {
+  position: relative;
+  animation: raid-flash 0.5s ease-in-out infinite;
+}
+
+@keyframes raid-flash {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Defense shield effect */
+.defense-shield {
+  position: relative;
+}
+
+.defense-shield::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, #22c55e40, #16a34a40);
+  border: 1px solid #22c55e60;
+  pointer-events: none;
+}
+
+/* Jackpot effect */
+.jackpot-active {
+  animation: jackpot-glow 1s ease-in-out infinite;
+}
+
+@keyframes jackpot-glow {
+  0%, 100% { 
+    box-shadow: 0 0 20px #ffd700, 0 0 40px #ffd70060; 
+  }
+  50% { 
+    box-shadow: 0 0 40px #ffd700, 0 0 80px #ffd70080; 
+  }
+}
+
+/* Stake tier badges */
+.tier-base { --tier-color: #6b7280; }
+.tier-bronze { --tier-color: #cd7f32; }
+.tier-silver { --tier-color: #c0c0c0; }
+.tier-gold { --tier-color: #ffd700; }
+.tier-diamond { --tier-color: #b9f2ff; }
+
+.tier-badge {
+  background: linear-gradient(135deg, var(--tier-color), var(--tier-color)80);
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+
+/* Globe canvas container */
+.globe-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 500px;
+  background: radial-gradient(ellipse at center, #1a1a2e 0%, #0a0a0a 100%);
+  overflow: hidden;
+}
+
+/* Three.js canvas fixes */
+.globe-container canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Expedition panel effects */
+.expedition-active {
+  border-left: 3px solid #a855f7;
+  background: linear-gradient(90deg, #a855f720, transparent);
+}
+
+/* Attack/defense power bars */
+.power-bar {
+  height: 8px;
+  background: var(--coal-800);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.power-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.power-bar-attack {
+  background: linear-gradient(90deg, #a855f7, #f43f5e);
+}
+
+.power-bar-defense {
+  background: linear-gradient(90deg, #3b82f6, #22c55e);
+}
+
+/* Cooldown timer */
+.cooldown-timer {
+  font-family: var(--font-mono);
+  color: #facc15;
+  background: #facc1510;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  border: 1px solid #facc1530;
+}
+
+/* ============================================
    Responsive Utilities
    ============================================ */
 @media (prefers-reduced-motion: reduce) {

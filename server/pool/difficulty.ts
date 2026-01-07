@@ -1,6 +1,6 @@
 /**
  * @fileoverview Dynamic difficulty adjustment for Black Gold mining
- * Adjusts difficulty to maintain target barrel time based on network hashrate
+ * Adjusts difficulty to maintain target discovery time based on network hashrate
  */
 
 import { POOL_CONFIG } from '../../config/constants';
@@ -13,10 +13,10 @@ export interface DifficultyState {
   current: number;
   /** Target for current difficulty */
   target: string;
-  /** Last barrel timestamp */
-  lastBarrelTime: number | null;
-  /** Recent barrel times for averaging */
-  recentBarrelTimes: number[];
+  /** Last discovery timestamp */
+  lastDiscoveryTime: number | null;
+  /** Recent discovery times for averaging */
+  recentDiscoveryTimes: number[];
   /** Network hashrate estimate */
   estimatedHashrate: number;
 }
@@ -28,8 +28,8 @@ export function createDifficultyState(): DifficultyState {
   return {
     current: POOL_CONFIG.MIN_DIFFICULTY,
     target: difficultyToTarget(POOL_CONFIG.MIN_DIFFICULTY),
-    lastBarrelTime: null,
-    recentBarrelTimes: [],
+    lastDiscoveryTime: null,
+    recentDiscoveryTimes: [],
     estimatedHashrate: 0,
   };
 }
@@ -61,10 +61,10 @@ export function difficultyToTarget(difficulty: number): string {
 }
 
 /**
- * Calculate new difficulty based on recent barrel times
+ * Calculate new difficulty based on recent discovery times
  * Uses a moving average of recent times to smooth adjustments
  * @param state - Current difficulty state
- * @param actualTime - Time taken to find last barrel (ms)
+ * @param actualTime - Time taken to find last discovery (ms)
  * @returns Updated difficulty state
  */
 export function adjustDifficulty(
@@ -74,13 +74,13 @@ export function adjustDifficulty(
   const targetTime = POOL_CONFIG.TARGET_BARREL_TIME_MS;
   
   // Add to recent times (keep last 10)
-  const recentBarrelTimes = [...state.recentBarrelTimes, actualTime].slice(-10);
+  const recentDiscoveryTimes = [...state.recentDiscoveryTimes, actualTime].slice(-10);
   
-  // Calculate average barrel time
-  const avgTime = recentBarrelTimes.reduce((a, b) => a + b, 0) / recentBarrelTimes.length;
+  // Calculate average discovery time
+  const avgTime = recentDiscoveryTimes.reduce((a, b) => a + b, 0) / recentDiscoveryTimes.length;
   
   // Calculate adjustment ratio
-  // If barrels are coming too fast, increase difficulty
+  // If discoveries are coming too fast, increase difficulty
   // If too slow, decrease difficulty
   const ratio = targetTime / avgTime;
   
@@ -105,8 +105,8 @@ export function adjustDifficulty(
   return {
     current: newDifficulty,
     target: newTarget,
-    lastBarrelTime: Date.now(),
-    recentBarrelTimes,
+    lastDiscoveryTime: Date.now(),
+    recentDiscoveryTimes,
     estimatedHashrate: state.estimatedHashrate,
   };
 }
@@ -134,11 +134,11 @@ export function updateHashrateEstimate(
 }
 
 /**
- * Estimate time to next barrel based on current difficulty and hashrate
+ * Estimate time to next discovery based on current difficulty and hashrate
  * @param state - Current difficulty state
  * @returns Estimated time in milliseconds
  */
-export function estimateTimeToBarrel(state: DifficultyState): number {
+export function estimateTimeToDiscovery(state: DifficultyState): number {
   if (state.estimatedHashrate === 0) {
     return POOL_CONFIG.TARGET_BARREL_TIME_MS;
   }

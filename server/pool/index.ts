@@ -7,11 +7,13 @@
 export type { WorkTracker } from './work';
 export {
   createWorkTracker,
-  generateBarrelHeader,
+  generateDiscoveryHeader,
+  generateDiscoveryHeader as generateBarrelHeader, // Legacy alias
   generateWork,
   validateWork,
   invalidateWork,
-  startNewBarrel,
+  startNewDiscovery,
+  startNewBarrel, // Legacy alias
   cleanupExpiredWork,
 } from './work';
 
@@ -22,7 +24,8 @@ export {
   difficultyToTarget,
   adjustDifficulty,
   updateHashrateEstimate,
-  estimateTimeToBarrel,
+  estimateTimeToDiscovery,
+  estimateTimeToDiscovery as estimateTimeToBarrel, // Legacy alias
 } from './difficulty';
 
 // Pool manager

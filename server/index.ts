@@ -1,6 +1,6 @@
 /**
- * @fileoverview Black Gold Mining Pool WebSocket Server
- * Entry point for the mining pool server using the 'ws' library
+ * @fileoverview Black Gold v2 Mining Pool WebSocket Server
+ * Entry point with multi-mine, staking, and raid support
  */
 
 import { WebSocket, WebSocketServer, RawData } from 'ws';
@@ -15,229 +15,624 @@ import {
 } from './types';
 import { PoolManager } from './pool/manager';
 import { POOL_CONFIG } from '../config/constants';
+import {
+  getMineRegistry,
+  getStakeManager,
+  getExpeditionTracker,
+  getRaidEngine,
+  getCooldownManager,
+  GlobalNetworkStats,
+} from './game';
+import { MINES } from '../config/mines';
+
+/** Extended message types for v2 */
+export type GameMessageType = 
+  | 'connect'
+  | 'disconnect'
+  | 'join_mine'
+  | 'leave_mine'
+  | 'hashrate'
+  | 'submit'
+  | 'stats'
+  | 'mine_stats'
+  | 'stake'
+  | 'unstake'
+  | 'set_home'
+  | 'start_expedition'
+  | 'leave_expedition'
+  | 'rally_defense'
+  | 'work'
+  | 'result'
+  | 'error'
+  | 'discovery_found'
+  | 'raid_result'
+  | 'game_event';
+
+/** Extended connect payload for v2 */
+interface GameConnectPayload extends ConnectPayload {
+  mineId?: string;
+}
+
+/** Mine join payload */
+interface JoinMinePayload {
+  mineId: string;
+}
+
+/** Stake payload */
+interface StakePayload {
+  mineId: string;
+  amount: number;
+}
+
+/** Expedition payload */
+interface ExpeditionPayload {
+  targetMineId: string;
+  betAmount?: number;
+}
+
+/** Rally payload */
+interface RallyPayload {
+  mineId: string;
+  tokenCost: number;
+}
 
 /**
  * Client connection metadata
  */
 interface ClientConnection {
-  /** Client IP address */
   ip: string;
-  /** Associated wallet address (set after connect message) */
   walletAddress?: string;
-  /** Whether the connection is authenticated */
   authenticated: boolean;
+  currentMineId?: string;
 }
 
 /** Map of WebSocket to client metadata */
 const clientConnections = new Map<WebSocket, ClientConnection>();
 
-/** Pool manager instance */
-let poolManager: PoolManager;
+/** Pool managers per mine */
+const minePoolManagers = new Map<string, PoolManager>();
 
 /** WebSocket server instance */
 let wss: WebSocketServer;
 
 /**
  * Extracts the client IP address from the request
- * Handles proxied connections via X-Forwarded-For header
- * @param req - The HTTP upgrade request
- * @returns Client IP address
  */
 function getClientIP(req: IncomingMessage): string {
-  // Check for proxy headers first
   const forwarded = req.headers['x-forwarded-for'];
   if (forwarded) {
     const ips = Array.isArray(forwarded) ? forwarded[0] : forwarded.split(',')[0];
     return ips.trim();
   }
-
-  // Fall back to socket remote address
   return req.socket.remoteAddress || 'unknown';
 }
 
 /**
- * Parses and validates an incoming WebSocket message
- * @param data - Raw WebSocket data
- * @returns Parsed message or null if invalid
+ * Parses incoming WebSocket message
  */
 function parseMessage(data: RawData): WSMessage | null {
   try {
     const str = data.toString('utf-8');
     const parsed = JSON.parse(str);
-
-    // Validate required fields
     if (!parsed.type || parsed.payload === undefined) {
-      console.log('[WS] Invalid message format: missing type or payload');
       return null;
     }
-
     return parsed as WSMessage;
-  } catch (error) {
-    console.log('[WS] Failed to parse message:', error);
+  } catch {
     return null;
   }
 }
 
 /**
  * Sends a JSON message to a WebSocket client
- * @param ws - WebSocket connection
- * @param type - Message type
- * @param payload - Message payload
  */
 function sendMessage<T>(ws: WebSocket, type: string, payload: T): void {
   if (ws.readyState !== WebSocket.OPEN) return;
-
   const message: WSMessage<T> = {
     type: type as WSMessage['type'],
     payload,
     timestamp: Date.now(),
   };
-
   ws.send(JSON.stringify(message));
 }
 
 /**
- * Sends an error message to a client
- * @param ws - WebSocket connection
- * @param code - Error code
- * @param message - Error message description
+ * Sends an error message
  */
 function sendError(ws: WebSocket, code: string, message: string): void {
   sendMessage(ws, 'error', { code, message });
 }
 
 /**
- * Handles the 'connect' message from a client
- * @param ws - WebSocket connection
- * @param payload - Connection payload
- * @param clientInfo - Client connection metadata
+ * Broadcasts a message to all clients at a specific mine
+ */
+function broadcastToMine<T>(mineId: string, type: string, payload: T): void {
+  const registry = getMineRegistry();
+  const mine = registry.getMine(mineId);
+  if (!mine) return;
+
+  for (const [ws, info] of clientConnections) {
+    if (info.currentMineId === mineId && ws.readyState === WebSocket.OPEN) {
+      sendMessage(ws, type, payload);
+    }
+  }
+}
+
+/**
+ * Broadcasts to all connected clients
+ */
+function broadcastToAll<T>(type: string, payload: T): void {
+  for (const [ws] of clientConnections) {
+    if (ws.readyState === WebSocket.OPEN) {
+      sendMessage(ws, type, payload);
+    }
+  }
+}
+
+/**
+ * Handles the 'connect' message
  */
 function handleConnect(
   ws: WebSocket,
-  payload: ConnectPayload,
+  payload: GameConnectPayload,
   clientInfo: ClientConnection
 ): void {
-  // Validate payload
   if (!payload.walletAddress || typeof payload.cores !== 'number') {
     sendError(ws, 'INVALID_PAYLOAD', 'Missing walletAddress or cores');
     return;
   }
 
-  // Validate wallet address format (basic Solana address check)
-  if (
-    payload.walletAddress.length < 32 ||
-    payload.walletAddress.length > 44
-  ) {
+  if (payload.walletAddress.length < 32 || payload.walletAddress.length > 44) {
     sendError(ws, 'INVALID_WALLET', 'Invalid wallet address format');
     return;
   }
 
-  // Validate core count
   if (payload.cores < 1 || payload.cores > 128) {
     sendError(ws, 'INVALID_CORES', 'Core count must be between 1 and 128');
     return;
   }
 
-  // Attempt to register with pool manager
-  const success = poolManager.handleConnect(ws, payload, clientInfo.ip);
+  clientInfo.walletAddress = payload.walletAddress;
+  clientInfo.authenticated = true;
 
-  if (success) {
-    clientInfo.walletAddress = payload.walletAddress;
-    clientInfo.authenticated = true;
+  // Initialize stake manager state for this wallet
+  const stakeManager = getStakeManager();
+  stakeManager.getMinerState(payload.walletAddress);
 
-    // Send confirmation
-    sendMessage(ws, 'result', {
-      success: true,
-      message: 'Connected to mining pool',
-      barrelNumber: poolManager.getDifficultyState().current,
-    });
-
-    console.log(`[WS] Client authenticated: ${payload.walletAddress}`);
-  } else {
-    ws.close(1008, 'Connection rejected');
+  // If a mineId was provided, join that mine
+  if (payload.mineId) {
+    handleJoinMine(ws, { mineId: payload.mineId }, clientInfo);
   }
+
+  // Send welcome response with global stats
+  sendMessage(ws, 'result', {
+    success: true,
+    message: 'Connected to Black Gold v2',
+    mines: MINES.map(m => ({ id: m.id, name: m.name, resource: m.resource })),
+  });
+
+  console.log(`[WS] Client authenticated: ${payload.walletAddress}`);
 }
 
 /**
- * Handles the 'hashrate' message from a client
- * @param ws - WebSocket connection
- * @param payload - Hashrate payload
- * @param clientInfo - Client connection metadata
+ * Handles joining a specific mine
+ */
+function handleJoinMine(
+  ws: WebSocket,
+  payload: JoinMinePayload,
+  clientInfo: ClientConnection
+): void {
+  if (!clientInfo.authenticated) {
+    sendError(ws, 'NOT_AUTHENTICATED', 'Must connect first');
+    return;
+  }
+
+  const registry = getMineRegistry();
+  const mine = registry.getMine(payload.mineId);
+
+  if (!mine) {
+    sendError(ws, 'INVALID_MINE', `Mine ${payload.mineId} not found`);
+    return;
+  }
+
+  // Leave current mine if any
+  if (clientInfo.currentMineId && clientInfo.currentMineId !== payload.mineId) {
+    registry.removeMiner(clientInfo.walletAddress!, 0);
+  }
+
+  // Join new mine
+  registry.addMiner(clientInfo.walletAddress!, payload.mineId, 0);
+  clientInfo.currentMineId = payload.mineId;
+
+  // Get or create pool manager for this mine
+  let poolManager = minePoolManagers.get(payload.mineId);
+  if (!poolManager) {
+    poolManager = new PoolManager({
+      onDiscoveryFound: (result) => handleDiscoveryFound(payload.mineId, result),
+      onStatsUpdate: () => {}, // Handled globally
+    });
+    poolManager.start();
+    minePoolManagers.set(payload.mineId, poolManager);
+  }
+
+  // Register with pool manager
+  poolManager.handleConnect(ws, {
+    walletAddress: clientInfo.walletAddress!,
+    cores: 1, // Will be updated with hashrate
+  }, clientInfo.ip);
+
+  sendMessage(ws, 'result', {
+    success: true,
+    message: `Joined ${mine.definition.name}`,
+    mineId: payload.mineId,
+    stats: {
+      miners: mine.activeMiners.size,
+      hashrate: mine.totalHashrate,
+      discoveries: mine.totalDiscoveries,
+    },
+  });
+
+  console.log(`[WS] ${clientInfo.walletAddress} joined ${mine.definition.name}`);
+}
+
+/**
+ * Handles discovery found at a mine
+ */
+async function handleDiscoveryFound(mineId: string, result: BarrelResult): Promise<void> {
+  const registry = getMineRegistry();
+  const raidEngine = getRaidEngine();
+  const mine = registry.getMine(mineId);
+
+  if (!mine) return;
+
+  const resource = mine.definition.resource;
+  const discoveryEmoji = resource === 'coal' ? '⛏️' : resource === 'gold' ? '🥇' : resource === 'oil' ? '🛢️' : '🥈';
+
+  console.log('═'.repeat(60));
+  console.log(`${discoveryEmoji}  ${result.discoveryName || 'DISCOVERY'} #${result.discoveryNumber} at ${mine.definition.name}!`);
+  console.log(`   Winner: ${result.winner}`);
+  console.log(`   Hash:   ${result.hash.substring(0, 16)}...`);
+  console.log(`   Finder: +${result.finderShare} | Vault: +${result.vaultShare}`);
+  console.log('═'.repeat(60));
+
+  // Update mine state
+  registry.recordDiscoveryFound(mineId, result.hash);
+
+  // Check for jackpot (gold mines)
+  if (mine.definition.resource === 'gold' && mine.isJackpotActive) {
+    console.log('🎰 GOLD RUSH JACKPOT ACTIVATED!');
+    broadcastToAll('game_event', {
+      type: 'jackpot',
+      mineId,
+      mineName: mine.definition.name,
+      multiplier: 5,
+    });
+  }
+
+  // Resolve any active raids against this mine
+  if (mine.incomingRaids.length > 0) {
+    const raidResults = raidEngine.resolveAllRaids(mineId);
+    
+    for (const raidResult of raidResults) {
+      broadcastToAll('raid_result', {
+        mineId,
+        ...raidResult,
+        attackersWon: raidResult.attackersWon,
+        stolenRewards: raidResult.stolenRewards,
+      });
+    }
+  }
+
+  // Broadcast discovery found
+  broadcastToMine(mineId, 'discovery_found', {
+    ...result,
+    mineId,
+    mineName: mine.definition.name,
+    resource: mine.definition.resource,
+    rewardMultiplier: registry.getRewardMultiplier(mineId),
+  });
+
+  // Also broadcast globally for raid feed
+  broadcastToAll('game_event', {
+    type: 'discovery_found',
+    mineId,
+    mineName: mine.definition.name,
+    winner: result.winner,
+    discoveryNumber: result.discoveryNumber,
+    discoveryName: result.discoveryName,
+    resource: mine.definition.resource,
+  });
+}
+
+/**
+ * Handles hashrate update
  */
 function handleHashrate(
   ws: WebSocket,
   payload: HashratePayload,
   clientInfo: ClientConnection
 ): void {
-  if (!clientInfo.authenticated) {
-    sendError(ws, 'NOT_AUTHENTICATED', 'Must send connect message first');
+  if (!clientInfo.authenticated || !clientInfo.currentMineId) {
+    sendError(ws, 'NOT_AUTHENTICATED', 'Must join a mine first');
     return;
   }
 
-  // Validate payload
-  if (typeof payload.hashrate !== 'number' || payload.hashrate < 0) {
-    sendError(ws, 'INVALID_PAYLOAD', 'Invalid hashrate value');
-    return;
-  }
+  const registry = getMineRegistry();
+  const stakeManager = getStakeManager();
+  const poolManager = minePoolManagers.get(clientInfo.currentMineId);
 
-  // Update hashrate
+  if (!poolManager) return;
+
+  // Get effective hashrate with stake multiplier
+  const effectiveHashrate = stakeManager.getEffectiveHashrate(
+    clientInfo.walletAddress!,
+    payload.hashrate,
+    clientInfo.currentMineId
+  );
+
+  // Update registry
+  registry.updateMinerHashrate(
+    clientInfo.walletAddress!,
+    0, // Old hashrate not tracked here
+    effectiveHashrate
+  );
+
+  // Update pool manager
   poolManager.handleHashrateUpdate({
     walletAddress: clientInfo.walletAddress!,
-    hashrate: payload.hashrate,
+    hashrate: effectiveHashrate,
   });
 }
 
 /**
- * Handles the 'submit' message (proof submission) from a client
- * @param ws - WebSocket connection
- * @param payload - Proof submission payload
- * @param clientInfo - Client connection metadata
+ * Handles proof submission
  */
 async function handleSubmit(
   ws: WebSocket,
   payload: ProofSubmission,
   clientInfo: ClientConnection
 ): Promise<void> {
-  if (!clientInfo.authenticated) {
-    sendError(ws, 'NOT_AUTHENTICATED', 'Must send connect message first');
+  if (!clientInfo.authenticated || !clientInfo.currentMineId) {
+    sendError(ws, 'NOT_AUTHENTICATED', 'Must join a mine first');
     return;
   }
 
-  // Validate payload
-  if (
-    typeof payload.nonce !== 'number' ||
-    !payload.hash ||
-    !payload.workUnitId
-  ) {
-    sendError(ws, 'INVALID_PAYLOAD', 'Missing nonce, hash, or workUnitId');
+  const poolManager = minePoolManagers.get(clientInfo.currentMineId);
+  if (!poolManager) {
+    sendError(ws, 'NO_POOL', 'Mine pool not initialized');
     return;
   }
 
-  // Ensure wallet matches
   payload.walletAddress = clientInfo.walletAddress!;
   payload.timestamp = Date.now();
 
-  // Process submission
   const success = await poolManager.handleSubmission(payload);
 
+  sendMessage(ws, 'result', {
+    success,
+    message: success ? 'Proof accepted!' : 'Proof rejected',
+  });
+}
+
+/**
+ * Handles staking request
+ */
+function handleStake(
+  ws: WebSocket,
+  payload: StakePayload,
+  clientInfo: ClientConnection
+): void {
+  if (!clientInfo.authenticated) {
+    sendError(ws, 'NOT_AUTHENTICATED', 'Must connect first');
+    return;
+  }
+
+  const stakeManager = getStakeManager();
+  const success = stakeManager.stake(
+    clientInfo.walletAddress!,
+    payload.mineId,
+    payload.amount
+  );
+
   if (success) {
+    const newStake = stakeManager.getStakeAtMine(clientInfo.walletAddress!, payload.mineId);
+    const tier = stakeManager.getStakeTierAtMine(clientInfo.walletAddress!, payload.mineId);
+
     sendMessage(ws, 'result', {
       success: true,
-      message: 'Proof accepted!',
+      message: `Staked ${payload.amount} at mine`,
+      totalStake: newStake,
+      tier: tier.name,
+      multiplier: tier.hashrateMultiplier,
     });
   } else {
-    sendMessage(ws, 'result', {
-      success: false,
-      message: 'Proof rejected',
-    });
+    sendError(ws, 'STAKE_FAILED', 'Failed to stake tokens');
   }
 }
 
 /**
+ * Handles unstaking request
+ */
+function handleUnstake(
+  ws: WebSocket,
+  payload: StakePayload,
+  clientInfo: ClientConnection
+): void {
+  if (!clientInfo.authenticated) {
+    sendError(ws, 'NOT_AUTHENTICATED', 'Must connect first');
+    return;
+  }
+
+  const stakeManager = getStakeManager();
+  const success = stakeManager.unstake(
+    clientInfo.walletAddress!,
+    payload.mineId,
+    payload.amount
+  );
+
+  if (success) {
+    const newStake = stakeManager.getStakeAtMine(clientInfo.walletAddress!, payload.mineId);
+    sendMessage(ws, 'result', {
+      success: true,
+      message: `Unstaked ${payload.amount}`,
+      totalStake: newStake,
+    });
+  } else {
+    sendError(ws, 'UNSTAKE_FAILED', 'Failed to unstake tokens');
+  }
+}
+
+/**
+ * Handles set home base request
+ */
+function handleSetHome(
+  ws: WebSocket,
+  payload: JoinMinePayload,
+  clientInfo: ClientConnection
+): void {
+  if (!clientInfo.authenticated) {
+    sendError(ws, 'NOT_AUTHENTICATED', 'Must connect first');
+    return;
+  }
+
+  const cooldownManager = getCooldownManager();
+  const cooldownError = cooldownManager.checkAction(clientInfo.walletAddress!, 'home_base_switch');
+  
+  if (cooldownError) {
+    sendError(ws, 'COOLDOWN', cooldownError);
+    return;
+  }
+
+  const stakeManager = getStakeManager();
+  const success = stakeManager.setHomeBase(clientInfo.walletAddress!, payload.mineId);
+
+  if (success) {
+    cooldownManager.applyCooldown(clientInfo.walletAddress!, 'home_base_switch');
+    
+    const registry = getMineRegistry();
+    const mine = registry.getMine(payload.mineId);
+
+    sendMessage(ws, 'result', {
+      success: true,
+      message: `Home base set to ${mine?.definition.name}`,
+      mineId: payload.mineId,
+    });
+  } else {
+    sendError(ws, 'SET_HOME_FAILED', 'Failed to set home base');
+  }
+}
+
+/**
+ * Handles expedition start
+ */
+function handleStartExpedition(
+  ws: WebSocket,
+  payload: ExpeditionPayload,
+  clientInfo: ClientConnection
+): void {
+  if (!clientInfo.authenticated) {
+    sendError(ws, 'NOT_AUTHENTICATED', 'Must connect first');
+    return;
+  }
+
+  const stakeManager = getStakeManager();
+  const tracker = getExpeditionTracker();
+  const minerState = stakeManager.getMinerState(clientInfo.walletAddress!);
+
+  if (!minerState.homeBaseMineId) {
+    sendError(ws, 'NO_HOME', 'Must set a home base first');
+    return;
+  }
+
+  // Get hashrate from pool manager
+  const poolManager = minePoolManagers.get(minerState.homeBaseMineId);
+  const miner = poolManager?.getMiner(clientInfo.walletAddress!);
+  const hashrate = miner?.hashrate || 0;
+
+  const expedition = tracker.createExpedition(
+    clientInfo.walletAddress!,
+    minerState.homeBaseMineId,
+    payload.targetMineId,
+    hashrate,
+    payload.betAmount || 0
+  );
+
+  if (expedition) {
+    const registry = getMineRegistry();
+    const targetMine = registry.getMine(payload.targetMineId);
+
+    sendMessage(ws, 'result', {
+      success: true,
+      message: `Expedition launched against ${targetMine?.definition.name}`,
+      expeditionId: expedition.id,
+      expiresAt: expedition.expiresAt.toISOString(),
+    });
+
+    // Broadcast raid started
+    broadcastToAll('game_event', {
+      type: 'raid_started',
+      sourceMineId: minerState.homeBaseMineId,
+      targetMineId: payload.targetMineId,
+      attackerCount: expedition.attackers.length,
+    });
+  } else {
+    sendError(ws, 'EXPEDITION_FAILED', 'Failed to start expedition');
+  }
+}
+
+/**
+ * Handles rally defense request
+ */
+function handleRallyDefense(
+  ws: WebSocket,
+  payload: RallyPayload,
+  clientInfo: ClientConnection
+): void {
+  if (!clientInfo.authenticated) {
+    sendError(ws, 'NOT_AUTHENTICATED', 'Must connect first');
+    return;
+  }
+
+  const raidEngine = getRaidEngine();
+  const success = raidEngine.rallyDefense(
+    payload.mineId,
+    clientInfo.walletAddress!,
+    payload.tokenCost
+  );
+
+  if (success) {
+    sendMessage(ws, 'result', {
+      success: true,
+      message: 'Defense rallied! +50% boost for 30 minutes',
+    });
+  } else {
+    sendError(ws, 'RALLY_FAILED', 'Failed to rally defense');
+  }
+}
+
+/**
+ * Gets global network stats
+ */
+function getGlobalStats(): GlobalNetworkStats {
+  const registry = getMineRegistry();
+  const tracker = getExpeditionTracker();
+
+  const mineStats = registry.getNetworkStats();
+  const expeditionStats = tracker.getStats();
+
+  return {
+    totalMiners: registry.getTotalMiners(),
+    totalHashrate: registry.getTotalHashrate(),
+    totalStake: registry.getTotalStake(),
+    totalDiscoveries: registry.getTotalDiscoveries(),
+    mineStats,
+    activeExpeditions: expeditionStats.active,
+    activeRaids: mineStats.filter(m => m.activeRaidCount > 0).length,
+  };
+}
+
+/**
  * Handles incoming WebSocket messages
- * @param ws - WebSocket connection
- * @param data - Raw message data
- * @param clientInfo - Client connection metadata
  */
 async function handleMessage(
   ws: WebSocket,
@@ -250,11 +645,15 @@ async function handleMessage(
     return;
   }
 
-  console.log(`[WS] Received ${message.type} from ${clientInfo.walletAddress || clientInfo.ip}`);
+  console.log(`[WS] ${message.type} from ${clientInfo.walletAddress || clientInfo.ip}`);
 
   switch (message.type) {
     case 'connect':
-      handleConnect(ws, message.payload as ConnectPayload, clientInfo);
+      handleConnect(ws, message.payload as GameConnectPayload, clientInfo);
+      break;
+
+    case 'join_mine':
+      handleJoinMine(ws, message.payload as JoinMinePayload, clientInfo);
       break;
 
     case 'hashrate':
@@ -266,9 +665,27 @@ async function handleMessage(
       break;
 
     case 'stats':
-      // Client requesting stats
-      const stats = poolManager.getNetworkStats();
-      sendMessage(ws, 'stats', stats);
+      sendMessage(ws, 'stats', getGlobalStats());
+      break;
+
+    case 'stake':
+      handleStake(ws, message.payload as StakePayload, clientInfo);
+      break;
+
+    case 'unstake':
+      handleUnstake(ws, message.payload as StakePayload, clientInfo);
+      break;
+
+    case 'set_home':
+      handleSetHome(ws, message.payload as JoinMinePayload, clientInfo);
+      break;
+
+    case 'start_expedition':
+      handleStartExpedition(ws, message.payload as ExpeditionPayload, clientInfo);
+      break;
+
+    case 'rally_defense':
+      handleRallyDefense(ws, message.payload as RallyPayload, clientInfo);
       break;
 
     default:
@@ -278,170 +695,100 @@ async function handleMessage(
 
 /**
  * Handles WebSocket connection close
- * @param ws - WebSocket connection
- * @param clientInfo - Client connection metadata
  */
 function handleClose(ws: WebSocket, clientInfo: ClientConnection): void {
-  console.log(
-    `[WS] Client disconnected: ${clientInfo.walletAddress || clientInfo.ip}`
-  );
+  console.log(`[WS] Disconnected: ${clientInfo.walletAddress || clientInfo.ip}`);
 
   if (clientInfo.walletAddress) {
-    poolManager.handleDisconnect(clientInfo.walletAddress);
+    const registry = getMineRegistry();
+    registry.removeMiner(clientInfo.walletAddress, 0);
+
+    if (clientInfo.currentMineId) {
+      const poolManager = minePoolManagers.get(clientInfo.currentMineId);
+      poolManager?.handleDisconnect(clientInfo.walletAddress);
+    }
   }
 
   clientConnections.delete(ws);
 }
 
 /**
- * Handles WebSocket errors
- * @param ws - WebSocket connection
- * @param error - The error that occurred
- * @param clientInfo - Client connection metadata
- */
-function handleError(
-  ws: WebSocket,
-  error: Error,
-  clientInfo: ClientConnection
-): void {
-  console.error(
-    `[WS] Error for ${clientInfo.walletAddress || clientInfo.ip}:`,
-    error.message
-  );
-}
-
-/**
- * Handles barrel found events
- * @param result - The barrel result
- */
-function onBarrelFound(result: BarrelResult): void {
-  console.log('═'.repeat(60));
-  console.log(`🛢️  BARREL #${result.barrelNumber} DISCOVERED!`);
-  console.log(`   Winner: ${result.winner}`);
-  console.log(`   Hash:   ${result.hash.substring(0, 16)}...`);
-  console.log(`   Nonce:  ${result.nonce}`);
-  console.log(`   Time:   ${result.timestamp.toISOString()}`);
-  console.log('═'.repeat(60));
-
-  // TODO: Trigger reward distribution via Solana module
-}
-
-/**
- * Handles network stats updates
- * @param stats - Updated network statistics
- */
-function onStatsUpdate(stats: NetworkStats): void {
-  console.log(
-    `[Stats] Miners: ${stats.totalMiners} | ` +
-      `Hashrate: ${(stats.networkHashrate / 1000).toFixed(2)} kH/s | ` +
-      `Difficulty: ${stats.difficulty} | ` +
-      `Barrels: ${stats.totalBarrels}`
-  );
-}
-
-/**
- * Starts the WebSocket mining pool server
- * @returns Promise that resolves when server is ready
+ * Starts the WebSocket server
  */
 export async function startServer(): Promise<WebSocketServer> {
   const port = POOL_CONFIG.PORT;
 
   console.log('╔══════════════════════════════════════════════════════════╗');
-  console.log('║           BLACK GOLD MINING POOL SERVER                  ║');
+  console.log('║        BLACK GOLD v2 - INTERACTIVE MINING GLOBE          ║');
   console.log('╚══════════════════════════════════════════════════════════╝');
   console.log(`[Server] Starting on port ${port}...`);
+  console.log(`[Server] Loaded ${MINES.length} mines`);
 
-  // Initialize pool manager
-  poolManager = new PoolManager({
-    onBarrelFound,
-    onMinerConnect: (miner) => {
-      console.log(`[Pool] Miner joined: ${miner.walletAddress}`);
-    },
-    onMinerDisconnect: (wallet) => {
-      console.log(`[Pool] Miner left: ${wallet}`);
-    },
-    onStatsUpdate,
-  });
+  // Initialize game systems
+  getMineRegistry();
+  getStakeManager();
+  getCooldownManager();
+  getExpeditionTracker();
+  getRaidEngine();
 
-  // Create WebSocket server
   wss = new WebSocketServer({
     port,
-    perMessageDeflate: false, // Disable compression for lower latency
-    maxPayload: 64 * 1024, // 64KB max message size
+    perMessageDeflate: false,
+    maxPayload: 64 * 1024,
   });
 
-  // Handle new connections
   wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
     const ip = getClientIP(req);
     console.log(`[WS] New connection from ${ip}`);
 
-    // Store client metadata
     const clientInfo: ClientConnection = {
       ip,
       authenticated: false,
     };
     clientConnections.set(ws, clientInfo);
 
-    // Set up message handler
     ws.on('message', (data: RawData) => {
       handleMessage(ws, data, clientInfo).catch((error) => {
-        console.error('[WS] Message handler error:', error);
+        console.error('[WS] Error:', error);
         sendError(ws, 'INTERNAL_ERROR', 'Internal server error');
       });
     });
 
-    // Set up close handler
-    ws.on('close', () => {
-      handleClose(ws, clientInfo);
-    });
-
-    // Set up error handler
-    ws.on('error', (error: Error) => {
-      handleError(ws, error, clientInfo);
-    });
-
-    // Set ping/pong for connection health
-    ws.on('pong', () => {
-      // Connection is alive
-    });
+    ws.on('close', () => handleClose(ws, clientInfo));
+    ws.on('error', (err) => console.error(`[WS] Error: ${err.message}`));
   });
 
-  // Ping all clients every 30 seconds
-  const pingInterval = setInterval(() => {
+  // Periodic cleanup
+  setInterval(() => {
+    getCooldownManager().cleanupExpired();
+    getMineRegistry().clearExpiredEffects();
+    getExpeditionTracker().cleanup();
+  }, 60000);
+
+  // Broadcast stats every 10 seconds
+  setInterval(() => {
+    broadcastToAll('stats', getGlobalStats());
+  }, 10000);
+
+  // Ping clients
+  setInterval(() => {
     wss.clients.forEach((ws) => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.ping();
-      }
+      if (ws.readyState === WebSocket.OPEN) ws.ping();
     });
   }, 30000);
 
-  // Handle server errors
-  wss.on('error', (error: Error) => {
-    console.error('[Server] WebSocket server error:', error);
-  });
-
-  // Start pool manager
-  poolManager.start();
-
-  // Wait for server to be listening
   await new Promise<void>((resolve) => {
     wss.on('listening', () => {
-      console.log(`[Server] WebSocket server listening on ws://localhost:${port}`);
-      console.log('[Server] Pool manager started');
+      console.log(`[Server] WebSocket listening on ws://localhost:${port}`);
       console.log('[Server] Ready for miners!');
       resolve();
     });
   });
 
-  // Handle graceful shutdown
   const shutdown = () => {
     console.log('\n[Server] Shutting down...');
-    clearInterval(pingInterval);
-    poolManager.stop();
-    wss.close(() => {
-      console.log('[Server] Server closed');
-      process.exit(0);
-    });
+    minePoolManagers.forEach((pm) => pm.stop());
+    wss.close(() => process.exit(0));
   };
 
   process.on('SIGINT', shutdown);
@@ -450,32 +797,15 @@ export async function startServer(): Promise<WebSocketServer> {
   return wss;
 }
 
-/**
- * Stops the WebSocket server
- */
 export async function stopServer(): Promise<void> {
-  if (poolManager) {
-    poolManager.stop();
-  }
+  minePoolManagers.forEach((pm) => pm.stop());
   if (wss) {
     return new Promise((resolve) => {
-      wss.close(() => {
-        console.log('[Server] Server stopped');
-        resolve();
-      });
+      wss.close(() => resolve());
     });
   }
 }
 
-/**
- * Gets the pool manager instance
- * @returns The pool manager instance
- */
-export function getPoolManager(): PoolManager {
-  return poolManager;
-}
-
-// Run server if this file is executed directly
 if (require.main === module) {
   startServer().catch((error) => {
     console.error('[Server] Failed to start:', error);

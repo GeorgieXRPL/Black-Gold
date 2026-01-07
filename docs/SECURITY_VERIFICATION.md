@@ -18,7 +18,7 @@ The verification layer provides cryptographic proof validation and anti-gaming p
 ### Algorithm: Bitcoin-style Double SHA-256
 
 ```
-hash = SHA256(SHA256(barrelHeader + ":" + nonce))
+hash = SHA256(SHA256(discoveryHeader + ":" + nonce))
 ```
 
 **Why double-hash?**

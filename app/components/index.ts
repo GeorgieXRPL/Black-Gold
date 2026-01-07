@@ -6,5 +6,7 @@
 export { MiningPanel } from "./MiningPanel";
 export { StatsCard } from "./StatsCard";
 export { BarrelFeed } from "./BarrelFeed";
+export { DiscoveryFeed } from "./DiscoveryFeed";
+export type { DiscoveryEvent } from "./DiscoveryFeed";
 export { HolderGate } from "./HolderGate";
 export { EmberParticles } from "./EmberParticles";

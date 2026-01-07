@@ -45,8 +45,8 @@ function meetsTarget(hash: string, target: string): boolean {
 /**
  * Create mining header
  */
-function createMiningHeader(barrelHeader: string, nonce: number): string {
-  return `${barrelHeader}:${nonce.toString(16).padStart(16, '0')}`;
+function createMiningHeader(discoveryHeader: string, nonce: number): string {
+  return `${discoveryHeader}:${nonce.toString(16).padStart(16, '0')}`;
 }
 
 // Worker state
@@ -59,7 +59,7 @@ let lastHashrateUpdate = Date.now();
 interface StartMessage {
   type: 'start';
   workId: string;
-  barrelHeader: string;
+  discoveryHeader: string;
   target: string;
   nonceStart: number;
   nonceEnd: number;
@@ -97,7 +97,7 @@ type WorkerResponse = HashrateBroadcast | SolutionFound | WorkComplete;
  */
 async function mine(
   workId: string,
-  barrelHeader: string,
+  discoveryHeader: string,
   target: string,
   nonceStart: number,
   nonceEnd: number
@@ -111,7 +111,7 @@ async function mine(
   const HASHRATE_INTERVAL = 1000; // Report hashrate every second
 
   for (let nonce = nonceStart; nonce < nonceEnd && isRunning; nonce++) {
-    const header = createMiningHeader(barrelHeader, nonce);
+    const header = createMiningHeader(discoveryHeader, nonce);
     const hash = await doubleSha256(header);
     hashCount++;
 
@@ -179,7 +179,7 @@ self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
       // Start new work
       await mine(
         message.workId,
-        message.barrelHeader,
+        message.discoveryHeader,
         message.target,
         message.nonceStart,
         message.nonceEnd

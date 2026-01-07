@@ -105,17 +105,17 @@ export function doubleSHA256(data: string): string {
 /**
  * Compute the proof hash from header and nonce
  * 
- * @param barrelHeader - The barrel header (hex string)
+ * @param discoveryHeader - The discovery header (hex string)
  * @param nonce - The nonce value
  * @returns Double SHA-256 hash as hex string
  * 
  * SECURITY: The header is already a SHA-256 hash, and we append nonce
  * in a deterministic format before double-hashing.
  */
-export function computeProofHash(barrelHeader: string, nonce: number): string {
+export function computeProofHash(discoveryHeader: string, nonce: number): string {
   // Combine header and nonce in a deterministic way
   // Using ':' separator ensures no ambiguity between header and nonce
-  const input = `${barrelHeader}:${nonce}`;
+  const input = `${discoveryHeader}:${nonce}`;
   return doubleSHA256(input);
 }
 
@@ -332,7 +332,7 @@ export async function verifyProof(submission: ProofSubmission): Promise<boolean>
   }
   
   // Step 4: Compute the proof hash server-side
-  const computedHash = computeProofHash(work.barrelHeader, nonce);
+  const computedHash = computeProofHash(work.discoveryHeader, nonce);
   
   // Step 5: Verify submitted hash matches computed hash
   // SECURITY: Use timing-safe comparison to prevent timing attacks

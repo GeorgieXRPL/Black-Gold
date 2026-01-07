@@ -59,20 +59,20 @@ export interface PoolState {
   rateLimits: Map<string, RateLimitEntry>;
   /** IP tracking for sybil detection */
   ipTrackers: Map<string, IPTracker>;
-  /** Total barrels found */
-  totalBarrels: number;
+  /** Total discoveries found */
+  totalDiscoveries: number;
   /** Total rewards distributed */
   totalRewardsDistributed: number;
-  /** Barrel history */
-  barrelHistory: BarrelResult[];
+  /** Discovery history */
+  discoveryHistory: BarrelResult[];
 }
 
 /**
  * Event handlers that can be registered with the pool manager
  */
 export interface PoolEventHandlers {
-  /** Called when a barrel is found */
-  onBarrelFound?: (result: BarrelResult) => void | Promise<void>;
+  /** Called when a discovery is found */
+  onDiscoveryFound?: (result: BarrelResult) => void | Promise<void>;
   /** Called when a miner connects */
   onMinerConnect?: (miner: Miner) => void;
   /** Called when a miner disconnects */
@@ -102,9 +102,9 @@ export class PoolManager {
       difficultyState: createDifficultyState(),
       rateLimits: new Map(),
       ipTrackers: new Map(),
-      totalBarrels: 0,
+      totalDiscoveries: 0,
       totalRewardsDistributed: 0,
-      barrelHistory: [],
+      discoveryHistory: [],
     };
     this.eventHandlers = eventHandlers;
   }
@@ -326,8 +326,8 @@ export class PoolManager {
       `[PoolManager] Valid proof from ${walletAddress}: nonce=${nonce}`
     );
 
-    // Barrel found!
-    await this.handleBarrelFound(walletAddress, hash, nonce, workUnit);
+    // Discovery found!
+    await this.handleDiscoveryFound(walletAddress, hash, nonce, workUnit);
 
     return true;
   }
@@ -370,10 +370,10 @@ export class PoolManager {
     return {
       totalMiners: this.state.miners.size,
       networkHashrate: totalHashrate,
-      totalBarrels: this.state.totalBarrels,
+      totalDiscoveries: this.state.totalDiscoveries,
       difficulty: this.state.difficultyState.current,
-      lastBarrelTime: this.state.difficultyState.lastBarrelTime
-        ? new Date(this.state.difficultyState.lastBarrelTime)
+      lastDiscoveryTime: this.state.difficultyState.lastDiscoveryTime
+        ? new Date(this.state.difficultyState.lastDiscoveryTime)
         : null,
       totalRewardsDistributed: this.state.totalRewardsDistributed,
       currentRewardPool: 0, // TODO: Get from reward wallet balance
@@ -406,75 +406,80 @@ export class PoolManager {
   }
 
   /**
-   * Gets barrel history
+   * Gets discovery history
    * @param limit - Maximum number of results
-   * @returns Array of barrel results, most recent first
+   * @returns Array of discovery results, most recent first
    */
-  public getBarrelHistory(limit: number = 100): BarrelResult[] {
-    return this.state.barrelHistory.slice(-limit).reverse();
+  public getDiscoveryHistory(limit: number = 100): BarrelResult[] {
+    return this.state.discoveryHistory.slice(-limit).reverse();
   }
 
   // ============ Private Methods ============
 
   /**
-   * Handles a barrel discovery
+   * Handles a discovery
    * @param walletAddress - Winning miner's wallet
    * @param hash - Winning hash
    * @param nonce - Winning nonce
    * @param workUnit - The work unit that was solved
    */
-  private async handleBarrelFound(
+  private async handleDiscoveryFound(
     walletAddress: string,
     hash: string,
     nonce: number,
     workUnit: WorkUnit
   ): Promise<void> {
     const now = new Date();
-    const barrelNumber = workUnit.barrelNumber;
+    const discoveryNumber = workUnit.discoveryNumber;
 
     console.log(
-      `[PoolManager] 🛢️ BARREL #${barrelNumber} FOUND by ${walletAddress}!`
+      `[PoolManager] ⛏️ DISCOVERY #${discoveryNumber} FOUND by ${walletAddress}!`
     );
 
-    // Create barrel result
+    // Create discovery result
     const result: BarrelResult = {
-      barrelNumber,
+      discoveryNumber,
       winner: walletAddress,
       hash,
       nonce,
-      reward: 0, // TODO: Calculate based on reward pool
+      totalReward: 0, // TODO: Calculate based on reward pool
+      finderShare: 0, // 70%
+      vaultShare: 0, // 30%
       timestamp: now,
+      mineId: workUnit.mineId,
+      resource: 'coal', // Default, should be set by caller
+      discoveryName: 'Seam', // Default, should be set by caller
     };
 
     // Add to history
-    this.state.barrelHistory.push(result);
-    this.state.totalBarrels++;
+    this.state.discoveryHistory.push(result);
+    this.state.totalDiscoveries++;
 
-    // Calculate time since last barrel for difficulty adjustment
-    const lastBarrelTime = this.state.difficultyState.lastBarrelTime;
-    if (lastBarrelTime !== null) {
-      const actualTime = now.getTime() - lastBarrelTime;
+    // Calculate time since last discovery for difficulty adjustment
+    const lastDiscoveryTime = this.state.difficultyState.lastDiscoveryTime;
+    if (lastDiscoveryTime !== null) {
+      const actualTime = now.getTime() - lastDiscoveryTime;
       this.state.difficultyState = adjustDifficulty(
         this.state.difficultyState,
         actualTime
       );
     } else {
-      // First barrel, just update the timestamp
+      // First discovery, just update the timestamp
       this.state.difficultyState = {
         ...this.state.difficultyState,
-        lastBarrelTime: now.getTime(),
+        lastDiscoveryTime: now.getTime(),
       };
     }
 
-    // Start new barrel
+    // Start new discovery work
     this.state.workTracker = startNewBarrel(this.state.workTracker, hash);
 
-    // Broadcast barrel found to all miners
-    this.broadcastMessage('barrel_found', result);
+    // Broadcast discovery found to all miners
+    this.broadcastMessage('discovery_found', result);
 
     // Notify event handler
-    if (this.eventHandlers.onBarrelFound) {
-      await this.eventHandlers.onBarrelFound(result);
+    if (this.eventHandlers.onDiscoveryFound) {
+      await this.eventHandlers.onDiscoveryFound(result);
     }
 
     // Assign new work to all miners

@@ -66,10 +66,10 @@ export function useWebSocket(options: UseWebSocketOptions): UseWebSocketReturn {
           onStats?.(stats);
           break;
           
-        case 'barrel_found':
-          const barrel = message.payload as BarrelResult;
-          setLastBarrel(barrel);
-          onBarrelFound?.(barrel);
+        case 'discovery_found':
+          const discovery = message.payload as BarrelResult;
+          setLastBarrel(discovery);
+          onBarrelFound?.(discovery);
           break;
           
         case 'error':

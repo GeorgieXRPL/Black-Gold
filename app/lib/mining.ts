@@ -84,12 +84,12 @@ export function difficultyToTarget(difficulty: number): string {
 
 /**
  * Create mining header from components
- * @param barrelHeader - Previous barrel data
+ * @param discoveryHeader - Current discovery header
  * @param nonce - Nonce to try
  * @returns Combined header string
  */
-export function createMiningHeader(barrelHeader: string, nonce: number): string {
-  return `${barrelHeader}:${nonce.toString(16).padStart(16, '0')}`;
+export function createMiningHeader(discoveryHeader: string, nonce: number): string {
+  return `${discoveryHeader}:${nonce.toString(16).padStart(16, '0')}`;
 }
 
 /**
@@ -104,7 +104,7 @@ export interface MiningResult {
 
 /**
  * Mine a range of nonces (used by worker)
- * @param barrelHeader - Header to hash
+ * @param discoveryHeader - Header to hash
  * @param target - Difficulty target
  * @param nonceStart - Start of range
  * @param nonceEnd - End of range
@@ -112,7 +112,7 @@ export interface MiningResult {
  * @returns Mining result
  */
 export async function mineRange(
-  barrelHeader: string,
+  discoveryHeader: string,
   target: string,
   nonceStart: number,
   nonceEnd: number,
@@ -121,7 +121,7 @@ export async function mineRange(
   let hashesComputed = 0;
   
   for (let nonce = nonceStart; nonce < nonceEnd; nonce++) {
-    const header = createMiningHeader(barrelHeader, nonce);
+    const header = createMiningHeader(discoveryHeader, nonce);
     const hash = await doubleSha256(header);
     hashesComputed++;
     
