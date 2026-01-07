@@ -61,10 +61,7 @@ export default function MineDetails({
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center gap-2">
-              <span 
-                className="px-2 py-0.5 text-xs font-bold rounded uppercase"
-                style={{ backgroundColor: colors.glow, color: colors.primary }}
-              >
+              <span className={`resource-badge resource-badge-${mine.resource}`}>
                 {mine.resource}
               </span>
               {isHome && (

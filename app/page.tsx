@@ -271,22 +271,85 @@ export default function Home() {
             
             {/* Quick Resource Selector - Below Globe */}
             <div className="flex justify-center gap-2 mt-4">
-              {(['coal', 'gold', 'oil', 'silver'] as ResourceType[]).map((resource) => (
-                <button
-                  key={resource}
-                  onClick={() => {
-                    const mine = MINES.find(m => m.resource === resource);
-                    if (mine) setSelectedMineId(mine.id);
-                  }}
-                  className="flex items-center gap-2 px-4 py-2 bg-coal-800/80 hover:bg-coal-700 border border-coal-700 rounded-full transition-colors"
-                >
-                  <div 
-                    className="w-3 h-3 rounded-full"
-                    style={{ backgroundColor: RESOURCE_COLORS[resource].glow }}
-                  />
-                  <span className="text-sm text-coal-300 capitalize hidden sm:inline">{resource}</span>
-                </button>
-              ))}
+              {/* Coal button */}
+              <button
+                onClick={() => {
+                  const mine = MINES.find(m => m.resource === 'coal');
+                  if (mine) setSelectedMineId(mine.id);
+                }}
+                className="group flex items-center gap-2 px-4 py-2.5 rounded-lg transition-all hover:scale-105"
+                style={{
+                  background: 'linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 50%, #0f0f0f 100%)',
+                  border: '1px solid #3a3a3a',
+                }}
+              >
+                <div className="relative w-4 h-4">
+                  <div className="absolute inset-0 rounded-sm bg-gradient-to-br from-coal-800 via-coal-950 to-coal-900 border border-coal-600" />
+                  <div className="absolute inset-0 rounded-sm animate-pulse opacity-70"
+                    style={{ boxShadow: '0 0 8px 2px #ff6b35, inset 0 0 4px #ff4500' }} />
+                </div>
+                <span className="text-sm font-semibold text-coal-200 hidden sm:inline group-hover:text-white">Coal</span>
+              </button>
+              
+              {/* Gold button */}
+              <button
+                onClick={() => {
+                  const mine = MINES.find(m => m.resource === 'gold');
+                  if (mine) setSelectedMineId(mine.id);
+                }}
+                className="group flex items-center gap-2 px-4 py-2.5 rounded-lg transition-all hover:scale-105"
+                style={{
+                  background: 'linear-gradient(135deg, #1a1500 0%, #2d2400 50%, #1a1500 100%)',
+                  border: '1px solid rgba(255, 215, 0, 0.4)',
+                }}
+              >
+                <div className="w-4 h-4 rounded-sm"
+                  style={{ 
+                    background: 'linear-gradient(135deg, #ffd700 0%, #ffec8b 25%, #ffd700 50%, #b8860b 75%, #ffd700 100%)',
+                    boxShadow: '0 0 10px 3px rgba(255, 215, 0, 0.5)'
+                  }} />
+                <span className="text-sm font-semibold hidden sm:inline group-hover:text-yellow-300" style={{ color: '#ffd700' }}>Gold</span>
+              </button>
+              
+              {/* Oil button */}
+              <button
+                onClick={() => {
+                  const mine = MINES.find(m => m.resource === 'oil');
+                  if (mine) setSelectedMineId(mine.id);
+                }}
+                className="group flex items-center gap-2 px-4 py-2.5 rounded-lg transition-all hover:scale-105"
+                style={{
+                  background: 'linear-gradient(135deg, #0a0a15 0%, #1a1a2e 50%, #0a0a15 100%)',
+                  border: '1px solid rgba(74, 105, 189, 0.4)',
+                }}
+              >
+                <div className="w-4 h-4 rounded-full"
+                  style={{ 
+                    background: 'linear-gradient(135deg, #1a1a2e 0%, #2d2d4a 30%, #1a1a2e 50%, #4a69bd 80%, #1a1a2e 100%)',
+                    boxShadow: '0 0 8px 2px rgba(74, 105, 189, 0.5), inset 0 1px 3px rgba(255,255,255,0.15)'
+                  }} />
+                <span className="text-sm font-semibold text-blue-300 hidden sm:inline group-hover:text-blue-200">Oil</span>
+              </button>
+              
+              {/* Silver button */}
+              <button
+                onClick={() => {
+                  const mine = MINES.find(m => m.resource === 'silver');
+                  if (mine) setSelectedMineId(mine.id);
+                }}
+                className="group flex items-center gap-2 px-4 py-2.5 rounded-lg transition-all hover:scale-105"
+                style={{
+                  background: 'linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 50%, #1a1a1a 100%)',
+                  border: '1px solid rgba(192, 192, 192, 0.4)',
+                }}
+              >
+                <div className="w-4 h-4 rounded-sm"
+                  style={{ 
+                    background: 'linear-gradient(135deg, #e8e8e8 0%, #c0c0c0 25%, #f0f0f0 50%, #a8a8a8 75%, #c0c0c0 100%)',
+                    boxShadow: '0 0 8px 2px rgba(192, 192, 192, 0.4)'
+                  }} />
+                <span className="text-sm font-semibold text-gray-300 hidden sm:inline group-hover:text-gray-100">Silver</span>
+              </button>
             </div>
           </div>
         </div>

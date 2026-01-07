@@ -536,18 +536,57 @@ export default function Globe({ mineStats, selectedMine, onMineSelect, userHomeM
       </Suspense>
       
       {/* Resource legend - top left for mobile visibility */}
-      <div className="absolute top-3 left-3 bg-coal-900/80 backdrop-blur-sm border border-coal-700 rounded-lg p-2">
-        <div className="text-[10px] text-coal-400 mb-1 font-semibold uppercase tracking-wide">Resources</div>
-        <div className="flex flex-wrap gap-2">
-          {(['coal', 'gold', 'oil', 'silver'] as ResourceType[]).map((resource) => (
-            <div key={resource} className="flex items-center gap-1 text-[10px]">
-              <div 
-                className="w-2 h-2 rounded-full"
-                style={{ backgroundColor: RESOURCE_COLORS[resource].glow }}
-              />
-              <span className="capitalize text-coal-300">{resource}</span>
+      <div className="absolute top-3 left-3 bg-coal-900/90 backdrop-blur-sm border border-coal-700 rounded-lg p-2.5">
+        <div className="text-[9px] text-coal-500 mb-1.5 font-semibold uppercase tracking-wider">Resources</div>
+        <div className="flex flex-wrap gap-1.5">
+          {/* Coal - ember glow effect */}
+          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-gradient-to-r from-coal-950 to-coal-900 border border-coal-700">
+            <div className="relative">
+              <div className="w-3 h-3 rounded-sm bg-gradient-to-br from-coal-800 via-coal-950 to-coal-900 border border-coal-600" />
+              <div className="absolute inset-0 w-3 h-3 rounded-sm animate-pulse opacity-60" 
+                style={{ boxShadow: '0 0 6px 1px #ff6b35, inset 0 0 3px #ff4500' }} />
             </div>
-          ))}
+            <span className="text-[10px] font-semibold text-coal-300">Coal</span>
+          </div>
+          
+          {/* Gold - metallic shimmer */}
+          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border border-yellow-600/50"
+            style={{ background: 'linear-gradient(135deg, #1a1500 0%, #2d2400 50%, #1a1500 100%)' }}>
+            <div className="relative">
+              <div className="w-3 h-3 rounded-sm"
+                style={{ 
+                  background: 'linear-gradient(135deg, #ffd700 0%, #ffec8b 25%, #ffd700 50%, #b8860b 75%, #ffd700 100%)',
+                  boxShadow: '0 0 8px 2px rgba(255, 215, 0, 0.5)'
+                }} />
+            </div>
+            <span className="text-[10px] font-semibold" style={{ color: '#ffd700' }}>Gold</span>
+          </div>
+          
+          {/* Oil - iridescent black */}
+          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border border-blue-900/50"
+            style={{ background: 'linear-gradient(135deg, #0a0a15 0%, #1a1a2e 50%, #0a0a15 100%)' }}>
+            <div className="relative">
+              <div className="w-3 h-3 rounded-full"
+                style={{ 
+                  background: 'linear-gradient(135deg, #1a1a2e 0%, #2d2d4a 30%, #1a1a2e 50%, #4a69bd 80%, #1a1a2e 100%)',
+                  boxShadow: '0 0 6px 1px rgba(74, 105, 189, 0.4), inset 0 1px 2px rgba(255,255,255,0.1)'
+                }} />
+            </div>
+            <span className="text-[10px] font-semibold text-blue-300">Oil</span>
+          </div>
+          
+          {/* Silver - polished metallic */}
+          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border border-gray-500/50"
+            style={{ background: 'linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 50%, #1a1a1a 100%)' }}>
+            <div className="relative">
+              <div className="w-3 h-3 rounded-sm"
+                style={{ 
+                  background: 'linear-gradient(135deg, #e8e8e8 0%, #c0c0c0 25%, #f0f0f0 50%, #a8a8a8 75%, #c0c0c0 100%)',
+                  boxShadow: '0 0 6px 1px rgba(192, 192, 192, 0.4)'
+                }} />
+            </div>
+            <span className="text-[10px] font-semibold text-gray-300">Silver</span>
+          </div>
         </div>
       </div>
 
