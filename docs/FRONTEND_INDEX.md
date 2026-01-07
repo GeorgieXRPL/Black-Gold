@@ -1,6 +1,6 @@
-# Black Gold v2 Frontend - Codebase Index
+# Black Gold v2.3 Frontend - Codebase Index
 
-> Last updated: January 2026 | Version 2.0 (Interactive Mining Globe)
+> Last updated: January 2026 | Version 2.3 (Privy Wallet Integration)
 
 ## Overview
 
@@ -29,30 +29,39 @@ app/
 │   ├── game/               # Game UI panels
 │   │   ├── HomeBase.tsx    # Home mine dashboard
 │   │   ├── MineDetails.tsx # Selected mine info
-│   │   ├── StakingPanel.tsx # Stake management
+│   │   ├── StakingPanel.tsx # Stake management (with wallet signature)
 │   │   ├── ExpeditionPanel.tsx # Raid planning
 │   │   ├── RaidFeed.tsx    # Activity feed
 │   │   └── index.ts        # Barrel export
 │   ├── BarrelFeed.tsx      # Legacy barrel feed
 │   ├── EmberParticles.tsx  # Background particles
-│   ├── HolderGate.tsx      # Holder verification
+│   ├── HolderGate.tsx      # Holder verification (with Privy connect)
 │   ├── MiningPanel.tsx     # Legacy mining panel
 │   ├── StatsCard.tsx       # Network stats
 │   └── index.ts            # Component exports
+├── providers/
+│   ├── PrivyProvider.tsx   # Privy wallet authentication
+│   └── index.ts            # Barrel export
 ├── hooks/
 │   ├── useGameSocket.ts    # v2 game WebSocket
 │   ├── useMining.ts        # Mining state
-│   └── useWebSocket.ts     # v1 WebSocket
+│   ├── useWebSocket.ts     # v1 WebSocket
+│   ├── useWallet.ts        # Unified wallet state (Privy)
+│   ├── useHolderVerification.ts # Holder verification API
+│   └── index.ts            # Barrel export
 ├── lib/
 │   ├── mines.ts            # Mine data & utilities
 │   └── mining.ts           # SHA-256 hashing
 ├── workers/
 │   └── miner.worker.ts     # Mining Web Worker
 ├── api/
+│   ├── auth/
+│   │   ├── nonce/route.ts  # Signature nonce generation
+│   │   └── verify/route.ts # Signature verification
 │   └── verify-holder/
 │       └── route.ts        # Holder verification API
 ├── page.tsx                # Main game page
-├── layout.tsx              # Root layout
+├── layout.tsx              # Root layout (with PrivyProvider)
 └── globals.css             # Global styles
 ```
 
@@ -62,11 +71,19 @@ app/
 
 ### Globe (`components/globe/Globe.tsx`)
 
-3D interactive globe using React Three Fiber.
+3D interactive globe using React Three Fiber with TopoJSON country borders.
 
-**Features:**
-- Rotating Earth with grid lines
-- 20 mine pins with resource colors
+**Features (v2.2 Globe Styling):**
+- TopoJSON world borders from `public/geo/world-110m.json`
+- Multi-layered ember-colored continent outlines with glow effect
+  - Outer glow: `#ff4500` at 12% opacity
+  - Middle glow: `#ff6b35` at 25% opacity  
+  - Core line: `#ff8c42` at 85% opacity
+  - Hot highlight: `#ffb366` at 50% opacity
+- Fallback to `continents.json` if TopoJSON fails
+- Dark ocean background (`#0a0a15`)
+- Rotating Earth with subtle grid lines
+- 20 mine pins with resource-specific colors
 - Click to select, hover for details
 - Stars background
 - Smooth camera controls
@@ -169,6 +186,46 @@ Live activity feed.
 ---
 
 ## Hooks
+
+### useWallet
+
+Unified wallet state with Privy integration.
+
+**Returns:**
+```typescript
+{
+  // State
+  isConnected: boolean;
+  isReady: boolean;
+  isLoading: boolean;
+  walletAddress: string | null;
+  displayAddress: string | null;
+  holderVerification: UseHolderVerificationReturn;
+  
+  // Actions
+  connect: () => void;
+  disconnect: () => Promise<void>;
+  signMessage: (message: string) => Promise<string | null>;
+}
+```
+
+---
+
+### useHolderVerification
+
+Holder verification API hook.
+
+**Returns:**
+```typescript
+{
+  verification: HolderVerification | null;
+  loading: boolean;
+  error: string | null;
+  refresh: () => Promise<void>;
+}
+```
+
+---
 
 ### useGameSocket
 
@@ -340,8 +397,56 @@ npm run lint
   "@react-three/fiber": "^9.5.0",
   "@react-three/drei": "^10.7.7",
   "three": "^0.182.0",
+  "topojson-client": "^3.1.0",
   "next": "16.1.1",
   "react": "19.2.3",
-  "tailwindcss": "^4"
+  "tailwindcss": "^4",
+  "@privy-io/react-auth": "latest",
+  "@privy-io/server-auth": "latest"
 }
 ```
+
+---
+
+## Static Assets (`public/geo/`)
+
+| File | Purpose | Source |
+|------|---------|--------|
+| `world-110m.json` | TopoJSON world country borders | world-atlas npm package |
+| `continents.json` | Fallback continent outlines | Custom simplified GeoJSON |
+
+---
+
+## Wallet Integration
+
+### Privy Configuration
+
+The app uses Privy for Solana wallet authentication. Configuration is in `app/providers/PrivyProvider.tsx`.
+
+**Supported Wallets:**
+- Phantom
+- Solflare
+- Backpack
+- And other Solana Standard Wallet compatible wallets
+
+**Environment Variable:**
+```bash
+NEXT_PUBLIC_PRIVY_APP_ID=your_privy_app_id
+```
+
+### Wallet Flow
+
+1. User clicks "Connect Wallet" in `HolderGate` component
+2. Privy opens wallet selection modal
+3. User connects their Solana wallet
+4. `useWallet` hook provides wallet state
+5. `useHolderVerification` checks token holdings
+6. User can start mining if eligible
+
+### Signed Actions
+
+These actions require wallet signature (gasless):
+- Stake tokens at a mine
+- Unstake tokens from a mine
+- Set home base
+- Start expedition/raid

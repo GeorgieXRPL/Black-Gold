@@ -1,10 +1,10 @@
-# Black Gold v2.1 - Codebase Index
+# Black Gold v2.3 - Codebase Index
 
 > Complete file-by-file documentation for the Black Gold Interactive Mining Globe platform
 
 **Last Updated**: January 2026  
-**Version**: 2.1 (Enhanced Rewards & Syndicates)  
-**Total Files**: 50+ TypeScript/TSX files
+**Version**: 2.3 (Privy Wallet Integration)  
+**Total Files**: 60+ TypeScript/TSX files
 
 ---
 
@@ -28,18 +28,28 @@
 black-gold/
 ├── app/                          # Next.js 14 frontend
 │   ├── api/                      # API routes
+│   │   ├── auth/                 # Authentication routes
+│   │   │   ├── nonce/            # Signature nonce generation
+│   │   │   └── verify/           # Signature verification
 │   │   └── verify-holder/        # Holder verification endpoint
 │   ├── components/               # React UI components
 │   │   ├── game/                 # Game-specific components
 │   │   └── globe/                # 3D globe components
 │   ├── hooks/                    # Custom React hooks
 │   ├── lib/                      # Utility libraries
+│   ├── providers/                # React context providers
+│   │   └── PrivyProvider.tsx     # Wallet authentication
 │   ├── workers/                  # Web Workers for mining
-│   ├── layout.tsx                # Root layout
+│   ├── layout.tsx                # Root layout (with PrivyProvider)
 │   ├── page.tsx                  # Main game page
 │   └── globals.css               # Global styles
 ├── server/                       # Node.js backend
+│   ├── auth/                     # Wallet authentication (v2.3)
+│   │   └── verify-wallet.ts      # Solana signature verification
 │   ├── game/                     # Game system (v2)
+│   ├── middleware/               # Security middleware (v2.2)
+│   │   ├── validate.ts           # Zod message validation
+│   │   └── rateLimit.ts          # Per-IP rate limiting
 │   ├── pool/                     # Mining pool logic
 │   ├── solana/                   # Blockchain integration
 │   ├── verification/             # Security & proof validation
@@ -50,6 +60,9 @@ black-gold/
 ├── scripts/                      # Standalone scripts
 ├── docs/                         # Documentation
 └── public/                       # Static assets
+    └── geo/                      # Geographic data
+        ├── world-110m.json       # TopoJSON world borders
+        └── continents.json       # Fallback continent outlines
 ```
 
 ---
@@ -68,8 +81,14 @@ black-gold/
 
 | File | Lines | Exports | Purpose |
 |------|-------|---------|---------|
-| `Globe.tsx` | ~280 | `Globe` (default) | 3D interactive globe using react-three-fiber with mine pins |
+| `Globe.tsx` | ~350 | `Globe` (default) | 3D interactive globe with TopoJSON continent outlines, ember glow effects, and mine pins |
 | `index.ts` | ~5 | Re-export | Barrel export |
+
+**Globe Features (v2.2):**
+- Uses TopoJSON (`world-110m.json`) for accurate country borders
+- Multi-layered ember-colored continent edges (outer glow → core → hot highlight)
+- Falls back to `continents.json` if TopoJSON fails
+- Dark ocean background with subtle grid lines
 
 ### Game Components (`app/components/game/`)
 
@@ -94,6 +113,13 @@ black-gold/
 | `HolderGate.tsx` | ~140 | `HolderGate` | Holder verification status |
 | `EmberParticles.tsx` | ~70 | `EmberParticles` | Animated ember particle background |
 
+### Providers (`app/providers/`)
+
+| File | Lines | Exports | Purpose |
+|------|-------|---------|---------|
+| `PrivyProvider.tsx` | ~55 | `PrivyProvider` | Privy wallet authentication wrapper |
+| `index.ts` | ~5 | Re-exports | Barrel export |
+
 ### Hooks (`app/hooks/`)
 
 | File | Lines | Exports | Purpose |
@@ -101,6 +127,9 @@ black-gold/
 | `useGameSocket.ts` | ~250 | `useGameSocket` | v2 WebSocket hook for multi-mine game server |
 | `useWebSocket.ts` | ~150 | `useWebSocket` | v1 WebSocket connection |
 | `useMining.ts` | ~130 | `useMining` | Mining state management, Web Workers |
+| `useWallet.ts` | ~115 | `useWallet`, `usePrivyConfigured` | Unified wallet state with Privy |
+| `useHolderVerification.ts` | ~80 | `useHolderVerification` | Holder verification API hook |
+| `index.ts` | ~10 | Re-exports | Barrel export for all hooks |
 
 ### Libraries (`app/lib/`)
 
@@ -120,6 +149,8 @@ black-gold/
 | File | Lines | Method | Purpose |
 |------|-------|--------|---------|
 | `verify-holder/route.ts` | ~140 | `GET` | Verifies wallet holds required token % |
+| `auth/nonce/route.ts` | ~45 | `POST` | Generate nonce for wallet signature |
+| `auth/verify/route.ts` | ~75 | `POST` | Verify signed wallet actions |
 
 ---
 
@@ -166,9 +197,21 @@ black-gold/
 | File | Lines | Exports | Purpose |
 |------|-------|---------|---------|
 | `holder.ts` | ~180 | `verifyHolder`, `createConnection` | Token holder verification via Helius |
-| `rewards.ts` | ~250 | `sendReward`, `queueReward` | SPL token reward distribution |
+| `rewards.ts` | ~280 | `sendReward`, `queueReward` | SPL token reward distribution (security-hardened v2.2) |
 | `buyback.ts` | ~360 | `executeBuyback`, `shouldExecuteBuyback` | Automated SOL→COAL swap |
 | `index.ts` | ~45 | Re-exports | Barrel exports |
+
+**Security Hardening (rewards.ts - v2.2):**
+- Private key handling documented with security warnings
+- Error messages sanitized to prevent key exposure
+- Regex filtering removes potential key data from logs
+
+### Auth Module (`server/auth/`)
+
+| File | Lines | Exports | Purpose |
+|------|-------|---------|---------|
+| `verify-wallet.ts` | ~160 | `verifySignature`, `verifySignedAction`, `generateNonce` | Solana wallet signature verification |
+| `index.ts` | ~15 | Re-exports | Barrel exports |
 
 ### Verification Module (`server/verification/`)
 
@@ -474,6 +517,8 @@ score = (hashrate × 0.4) + (stakeAmount × 0.3) + (loyaltyBonus × 0.3)
 | Variable | Used In | Required |
 |----------|---------|----------|
 | `NEXT_PUBLIC_WS_URL` | Frontend | Yes |
+| `NEXT_PUBLIC_PRIVY_APP_ID` | PrivyProvider.tsx | Yes (for wallet) |
+| `NEXT_PUBLIC_SOLANA_RPC_URL` | PrivyProvider.tsx | No (has default) |
 | `HELIUS_API_KEY` | holder.ts, buyback.ts | Yes |
 | `SOLANA_RPC_URL` | holder.ts | No (has default) |
 | `TOKEN_MINT_ADDRESS` | constants.ts | Yes (after launch) |
@@ -503,15 +548,19 @@ score = (hashrate × 0.4) + (stakeAmount × 0.3) + (loyaltyBonus × 0.3)
 
 | Category | Files | Total Lines |
 |----------|-------|-------------|
-| Frontend Globe/Game | 9 | ~1,810 |
+| Frontend Globe/Game | 9 | ~1,880 |
 | Frontend Legacy | 5 | ~620 |
-| Frontend Hooks | 3 | ~530 |
+| Frontend Hooks | 6 | ~735 |
+| Frontend Providers | 2 | ~60 |
 | Frontend Pages/Layout | 3 | ~850 |
+| Frontend API Routes | 3 | ~260 |
 | Server Game System | 11 | ~2,790 |
+| Server Middleware | 2 | ~590 |
 | Server Pool | 4 | ~780 |
-| Server Solana | 4 | ~835 |
+| Server Solana | 4 | ~865 |
+| Server Auth | 2 | ~175 |
 | Server Verification | 2 | ~780 |
-| Server Core | 2 | ~770 |
+| Server Core | 2 | ~820 |
 | Config | 3 | ~440 |
 | Scripts | 1 | ~215 |
-| **Total** | **47** | **~10,420** |
+| **Total** | **59** | **~11,860** |

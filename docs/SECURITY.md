@@ -2,6 +2,34 @@
 
 > Red team analysis of the mining platform
 
+**Last Updated**: January 2026  
+**Version**: 2.3 (Wallet Signature Verification)
+
+---
+
+## v2.2 Security Enhancements
+
+### New Middleware (`server/middleware/`)
+
+1. **Zod Validation** (`validate.ts`)
+   - All WebSocket message payloads validated with strict Zod schemas
+   - Wallet addresses validated as base58, 32-44 characters
+   - Numeric bounds enforced (cores 1-128, hashrate max 1GH/s, etc.)
+   - `sanitizeForLog()` prevents log injection attacks
+   - `redactSensitive()` removes keys/secrets from logged objects
+
+2. **Rate Limiting** (`rateLimit.ts`)
+   - In-memory sliding window algorithm (no Redis dependency)
+   - Per-IP rate limits by action type
+   - Exponential backoff for repeat violators
+   - Auto-ban with configurable max duration
+   - Automatic cleanup of inactive entries
+
+### Private Key Security (`server/solana/rewards.ts`)
+- Never log private key material
+- Error messages sanitized with regex to redact potential key leaks
+- Documentation warnings in code about key handling
+
 ---
 
 ## Attack Vectors Considered
@@ -41,12 +69,15 @@
 **Attack**: Submit many proofs rapidly to increase win chance.
 
 **Mitigations**:
-- ✅ Max 10 submissions per minute per wallet
+- ✅ Max 50 submissions per 10 seconds per IP (v2.2)
 - ✅ Exponential backoff after failed submissions
 - ✅ Backoff multiplier: 2x per failure
-- ✅ Max backoff: 60 seconds
+- ✅ Configurable max ban duration (10 minutes for submissions)
+- ✅ Sliding window algorithm for accurate limiting
 
-**Code Location**: `checkSubmission()` in `server/verification/anticheat.ts`
+**Code Location**: 
+- `server/middleware/rateLimit.ts` (v2.2 - primary)
+- `server/verification/anticheat.ts` (additional checks)
 
 ---
 
@@ -94,14 +125,17 @@
 **Mitigations**:
 - ✅ Max 3 connections per IP
 - ✅ Connection tracked and counted
+- ✅ **Connection rate limiting**: Max 5 connections per minute per IP (v2.2)
+- ✅ Exponential backoff on repeat violations
 - ⚠️ **Partial vulnerability**: Attacker with many IPs could still flood
 
 **Improvement Opportunities**:
-- 🔴 Add connection rate limiting per IP (e.g., max 10/minute)
 - 🔴 Add global connection limit
-- 🔴 Use Redis for distributed rate limiting
+- 🔴 Use Redis for distributed rate limiting (multi-server)
 
-**Code Location**: `checkConnection()` in `server/verification/anticheat.ts`
+**Code Location**: 
+- `server/middleware/rateLimit.ts` (v2.2 - connection rate limiting)
+- `server/verification/anticheat.ts` (connection count tracking)
 
 ---
 
@@ -126,11 +160,15 @@
 - ✅ Private key stored securely in environment variables
 - ✅ Only valid barrel winners receive rewards
 - ✅ Transaction verification on-chain
+- ✅ Error messages sanitized to prevent key exposure (v2.2)
+- ✅ Private key handling documented with security warnings (v2.2)
 
 **Security Notes**:
 - 🔴 Never commit private keys to git
 - 🔴 Use hardware wallet for production
 - 🔴 Consider multi-sig for reward wallet
+
+**Code Location**: `server/solana/rewards.ts` (security-hardened in v2.2)
 
 ---
 
@@ -158,6 +196,45 @@
 - ✅ Work units assigned by server
 
 **Note**: Client modifications cannot gain advantage since all validation is server-side.
+
+---
+
+### 11. Unauthorized Actions (Staking, Raiding, etc.)
+
+**Attack**: Perform actions (stake, unstake, raid) without wallet owner consent.
+
+**Mitigations (v2.3)**:
+- ✅ All state-changing actions require wallet signature
+- ✅ Signatures verified using `nacl.sign.detached.verify`
+- ✅ Nonce system prevents replay attacks
+- ✅ Nonces expire after 5 minutes
+- ✅ Each nonce can only be used once
+- ✅ Wallet address verified against signature
+
+**Code Location**: `verifySignedAction()` in `server/auth/verify-wallet.ts`
+
+**Signed Actions:**
+- `stake` - Stake tokens at a mine
+- `unstake` - Unstake tokens from a mine
+- `set_home` - Set home mine
+- `start_expedition` - Launch raid
+- `leave_expedition` - Cancel raid
+- `syndicate_action` - Syndicate management
+- `claim_rewards` - Claim accumulated rewards
+
+---
+
+### 12. Wallet Impersonation
+
+**Attack**: Claim to be a wallet you don't own.
+
+**Mitigations (v2.3)**:
+- ✅ Privy handles secure wallet connection
+- ✅ Wallet address comes from cryptographic verification
+- ✅ All sensitive actions require valid signature from claimed wallet
+- ✅ Signature verification uses on-chain public key
+
+**Code Location**: `verifySignature()` in `server/auth/verify-wallet.ts`
 
 ---
 
@@ -197,14 +274,18 @@
 |-------|----------|--------|
 | Fake proof submission | High | ✅ Mitigated |
 | Nonce range gaming | High | ✅ Mitigated |
-| Rate limit bypass | Medium | ✅ Mitigated |
+| Rate limit bypass | Medium | ✅ Mitigated (v2.2) |
 | Sybil attack | Medium | ⚠️ Partial |
 | Flash loan attack | Medium | ⚠️ Partial |
-| WebSocket flooding | Medium | ⚠️ Partial |
+| WebSocket flooding | Medium | ✅ Mitigated (v2.2) |
 | Hashrate manipulation | Low | ✅ Mitigated |
-| Reward theft | Critical | ✅ Mitigated |
+| Reward theft | Critical | ✅ Mitigated (v2.2 hardened) |
 | MITM attack | High | ⚠️ Requires WSS |
 | Client tampering | Low | ✅ Mitigated |
+| Log injection | Medium | ✅ Mitigated (v2.2) |
+| Payload injection | Medium | ✅ Mitigated (v2.2 Zod) |
+| Unauthorized actions | High | ✅ Mitigated (v2.3 signatures) |
+| Wallet impersonation | High | ✅ Mitigated (v2.3 Privy) |
 
 ---
 
@@ -213,10 +294,10 @@
 ### Priority 1 (Before Launch)
 1. Implement time-weighted balance check for flash loan prevention
 2. Enable WSS with proper TLS
-3. Add connection rate limiting
+3. ~~Add connection rate limiting~~ ✅ **Done in v2.2**
 
 ### Priority 2 (Post-Launch)
-1. Add Redis for distributed state
+1. Add Redis for distributed state (multi-server deployments)
 2. Implement proof-of-humanity for flagged accounts
 3. Add captcha for suspicious connections
 
@@ -224,3 +305,14 @@
 1. Multi-sig reward wallet
 2. External security audit
 3. Bug bounty program
+
+---
+
+## v2.2 Changes Summary
+
+| Component | Changes |
+|-----------|---------|
+| `server/middleware/validate.ts` | NEW - Zod validation schemas for all message types |
+| `server/middleware/rateLimit.ts` | NEW - In-memory rate limiting with sliding window |
+| `server/index.ts` | Added validation + rate limiting to all handlers |
+| `server/solana/rewards.ts` | Security hardening for private key handling |

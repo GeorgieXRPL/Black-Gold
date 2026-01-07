@@ -1,13 +1,15 @@
 # Black Gold Solana Integration
 
-This document describes the Solana integration for the Black Gold mining platform, including holder verification, reward distribution, and the automatic buyback service.
+This document describes the Solana integration for the Black Gold mining platform, including wallet authentication, holder verification, reward distribution, and the automatic buyback service.
 
 ## Overview
 
-The Solana integration consists of three main modules:
+The Solana integration consists of four main modules:
 
 | Module | File | Purpose |
 |--------|------|---------|
+| Wallet Authentication | `app/providers/PrivyProvider.tsx` | Privy-based wallet connection |
+| Signature Verification | `server/auth/verify-wallet.ts` | Verifies wallet signatures for actions |
 | Holder Verification | `server/solana/holder.ts` | Verifies wallet token holdings using Helius API |
 | Reward Distribution | `server/solana/rewards.ts` | Sends SPL token rewards to miners |
 | Buyback Service | `server/solana/buyback.ts` | Swaps SOL → COAL via Jupiter API |
@@ -15,6 +17,10 @@ The Solana integration consists of three main modules:
 ## Environment Variables
 
 ```bash
+# Privy Wallet Authentication
+NEXT_PUBLIC_PRIVY_APP_ID=your_privy_app_id  # Get from privy.io dashboard
+NEXT_PUBLIC_SOLANA_RPC_URL=https://...      # Optional: custom RPC for wallet
+
 # Required
 HELIUS_API_KEY=your_helius_api_key        # Helius API key for RPC and holder verification
 TOKEN_MINT_ADDRESS=your_token_mint        # COAL token mint address
@@ -30,6 +36,71 @@ SOLANA_RPC_URL=https://...                # Custom RPC endpoint (defaults to Hel
 ```
 
 ## Module Documentation
+
+### 0. Wallet Authentication (Privy)
+
+Black Gold uses Privy for wallet authentication. This allows users to connect their Solana wallet securely.
+
+#### Setup
+
+1. Create an account at [privy.io](https://privy.io)
+2. Create a new app and get your App ID
+3. Set `NEXT_PUBLIC_PRIVY_APP_ID` in your environment
+
+#### Client-Side Usage
+
+```typescript
+import { useWallet } from '@/app/hooks/useWallet';
+
+function MyComponent() {
+  const { 
+    isConnected, 
+    walletAddress, 
+    connect, 
+    disconnect,
+    signMessage 
+  } = useWallet();
+
+  // Connect wallet
+  const handleConnect = () => connect();
+
+  // Sign a message (for authenticated actions)
+  const handleSign = async () => {
+    const message = JSON.stringify({ action: 'stake', amount: 1000 });
+    const signature = await signMessage(message);
+    // Send to server for verification
+  };
+}
+```
+
+#### Signature Verification
+
+For actions that require authentication (stake, unstake, set home, etc.), the server verifies wallet signatures:
+
+```typescript
+import { verifySignature, verifySignedAction } from '@/server/auth';
+
+// Verify a raw signature
+const isValid = verifySignature(walletAddress, message, signature);
+
+// Verify a complete signed action (with nonce)
+const isValid = verifySignedAction({
+  walletAddress,
+  action: 'stake',
+  nonce: 'abc123',
+  signature,
+  data: { mineId: 'coal-1', amount: 1000 }
+});
+```
+
+#### API Routes
+
+| Route | Method | Purpose |
+|-------|--------|---------|
+| `/api/auth/nonce` | POST | Generate a nonce for signing |
+| `/api/auth/verify` | POST | Verify a signed action |
+
+---
 
 ### 1. Holder Verification (`server/solana/holder.ts`)
 

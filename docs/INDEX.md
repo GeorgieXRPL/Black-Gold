@@ -1,6 +1,6 @@
-# Black Gold v2 - Codebase Index
+# Black Gold v2.3 - Codebase Index
 
-> Last updated: January 2026 | Version 2.0 (Interactive Mining Globe)
+> Last updated: January 2026 | Version 2.3 (Privy Wallet Integration)
 
 ## Overview
 
@@ -13,7 +13,10 @@ Black Gold v2 is an interactive CPU mining platform featuring a 3D globe with 20
 ```
 black-gold/
 ├── app/                    # Next.js frontend with 3D globe
+│   ├── providers/          # PrivyProvider for wallet auth
+│   └── hooks/              # useWallet, useHolderVerification
 ├── server/                 # Mining pool + game backend
+│   ├── auth/               # Wallet signature verification
 │   └── game/               # v2 game system
 ├── config/                 # Configuration + mine definitions
 ├── scripts/                # Standalone scripts
@@ -34,7 +37,7 @@ black-gold/
 
 | File | Purpose | Key Exports |
 |------|---------|-------------|
-| `Globe.tsx` | 3D interactive globe with mine pins | `Globe` (default) |
+| `Globe.tsx` | 3D globe with TopoJSON borders, ember glow outlines, mine pins | `Globe` (default) |
 
 ### Game Components (`app/components/game/`)
 
@@ -46,6 +49,12 @@ black-gold/
 | `ExpeditionPanel.tsx` | Raid planning UI | `ExpeditionPanel` |
 | `RaidFeed.tsx` | Live activity feed | `RaidFeed` |
 
+### Providers (`app/providers/`)
+
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| `PrivyProvider.tsx` | Privy wallet authentication wrapper | `PrivyProvider` |
+
 ### Hooks (`app/hooks/`)
 
 | File | Purpose | Key Exports |
@@ -53,6 +62,8 @@ black-gold/
 | `useGameSocket.ts` | v2 game WebSocket connection | `useGameSocket` |
 | `useMining.ts` | Mining worker management | `useMining` |
 | `useWebSocket.ts` | v1 pool connection hook | `useWebSocket` |
+| `useWallet.ts` | Unified wallet state with Privy | `useWallet`, `usePrivyConfigured` |
+| `useHolderVerification.ts` | Holder verification API hook | `useHolderVerification` |
 
 ### Libraries (`app/lib/`)
 
@@ -73,8 +84,15 @@ black-gold/
 
 | File | Purpose | Key Exports |
 |------|---------|-------------|
-| `index.ts` | v2 WebSocket game server | `startServer` |
+| `index.ts` | v2 WebSocket game server (with validation + rate limiting) | `startServer` |
 | `types.ts` | Shared TypeScript types | All interfaces |
+
+### Middleware (`server/middleware/`) - NEW in v2.2
+
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| `validate.ts` | Zod schemas for WebSocket message validation | `validatePayload`, `sanitizeForLog` |
+| `rateLimit.ts` | In-memory per-IP rate limiting (no Redis) | `RateLimiter`, `getRateLimiter` |
 
 ### Game System (`server/game/`)
 
@@ -109,6 +127,12 @@ black-gold/
 | `holder.ts` | Holder balance verification | `verifyHolder` |
 | `rewards.ts` | Token reward distribution | `sendReward` |
 | `buyback.ts` | Automated token buyback | `executeBuyback` |
+
+### Auth (`server/auth/`)
+
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| `verify-wallet.ts` | Solana signature verification | `verifySignature`, `verifySignedAction` |
 
 ---
 
@@ -205,10 +229,17 @@ npm run buyback
 ## Environment Variables
 
 ```bash
+# Privy Wallet Authentication
+NEXT_PUBLIC_PRIVY_APP_ID=your_privy_app_id
+NEXT_PUBLIC_SOLANA_RPC_URL=https://api.mainnet-beta.solana.com
+
+# Solana Integration
 SOLANA_RPC_URL=https://api.mainnet-beta.solana.com
 HELIUS_API_KEY=your_key
 REWARD_WALLET_PRIVATE_KEY=base64_encoded_key
 TOKEN_MINT_ADDRESS=mint_address
+
+# Server
 WEBSOCKET_PORT=8080
 NEXT_PUBLIC_WS_URL=ws://localhost:8080
 ```
@@ -218,11 +249,11 @@ NEXT_PUBLIC_WS_URL=ws://localhost:8080
 ## WebSocket Message Types (v2)
 
 ### Client → Server
-- `connect` - Initial connection
+- `connect` - Initial connection (with wallet signature)
 - `join_mine` - Join a specific mine
-- `stake` / `unstake` - Manage stakes
-- `set_home` - Set home base
-- `start_expedition` - Launch raid
+- `stake` / `unstake` - Manage stakes (requires signature)
+- `set_home` - Set home base (requires signature)
+- `start_expedition` - Launch raid (requires signature)
 - `rally_defense` - Emergency defense boost
 - `hashrate` - Report hashrate
 - `submit` - Submit proof
