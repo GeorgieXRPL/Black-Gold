@@ -1,6 +1,7 @@
 /**
  * @fileoverview Black Gold v2 Mining Pool WebSocket Server
  * Entry point with multi-mine, staking, and raid support
+ * Includes validation and rate limiting for all message handlers
  */
 
 import { WebSocket, WebSocketServer, RawData } from 'ws';
@@ -24,6 +25,19 @@ import {
   GlobalNetworkStats,
 } from './game';
 import { MINES } from '../config/mines';
+import {
+  validateMessage,
+  validatePayload,
+  sanitizeForLog,
+  ValidatedConnectPayload,
+  ValidatedJoinMinePayload,
+  ValidatedHashratePayload,
+  ValidatedProofSubmission,
+  ValidatedStakePayload,
+  ValidatedExpeditionPayload,
+  ValidatedRallyPayload,
+} from './middleware/validate';
+import { getRateLimiter, RateLimiter } from './middleware/rateLimit';
 
 /** Extended message types for v2 */
 export type GameMessageType = 
@@ -95,6 +109,9 @@ const minePoolManagers = new Map<string, PoolManager>();
 /** WebSocket server instance */
 let wss: WebSocketServer;
 
+/** Rate limiter instance */
+let rateLimiter: RateLimiter;
+
 /**
  * Extracts the client IP address from the request
  */
@@ -108,11 +125,20 @@ function getClientIP(req: IncomingMessage): string {
 }
 
 /**
- * Parses incoming WebSocket message
+ * Parses and validates incoming WebSocket message
+ * Uses Zod validation for message envelope
  */
 function parseMessage(data: RawData): WSMessage | null {
   try {
     const str = data.toString('utf-8');
+    
+    // Validate message envelope structure
+    const validation = validateMessage(str);
+    if (!validation.success || !validation.data) {
+      console.warn(`[WS] Invalid message format: ${validation.error}`);
+      return null;
+    }
+    
     const parsed = JSON.parse(str);
     if (!parsed.type || parsed.payload === undefined) {
       return null;
@@ -171,26 +197,14 @@ function broadcastToAll<T>(type: string, payload: T): void {
 
 /**
  * Handles the 'connect' message
+ * Payload is pre-validated by Zod schema
  */
 function handleConnect(
   ws: WebSocket,
-  payload: GameConnectPayload,
+  payload: ValidatedConnectPayload,
   clientInfo: ClientConnection
 ): void {
-  if (!payload.walletAddress || typeof payload.cores !== 'number') {
-    sendError(ws, 'INVALID_PAYLOAD', 'Missing walletAddress or cores');
-    return;
-  }
-
-  if (payload.walletAddress.length < 32 || payload.walletAddress.length > 44) {
-    sendError(ws, 'INVALID_WALLET', 'Invalid wallet address format');
-    return;
-  }
-
-  if (payload.cores < 1 || payload.cores > 128) {
-    sendError(ws, 'INVALID_CORES', 'Core count must be between 1 and 128');
-    return;
-  }
+  // Payload already validated by Zod - walletAddress and cores are guaranteed valid
 
   clientInfo.walletAddress = payload.walletAddress;
   clientInfo.authenticated = true;
@@ -211,15 +225,16 @@ function handleConnect(
     mines: MINES.map(m => ({ id: m.id, name: m.name, resource: m.resource })),
   });
 
-  console.log(`[WS] Client authenticated: ${payload.walletAddress}`);
+  console.log(`[WS] Client authenticated: ${sanitizeForLog(payload.walletAddress)}`);
 }
 
 /**
  * Handles joining a specific mine
+ * Payload is pre-validated by Zod schema
  */
 function handleJoinMine(
   ws: WebSocket,
-  payload: JoinMinePayload,
+  payload: ValidatedJoinMinePayload,
   clientInfo: ClientConnection
 ): void {
   if (!clientInfo.authenticated) {
@@ -231,7 +246,7 @@ function handleJoinMine(
   const mine = registry.getMine(payload.mineId);
 
   if (!mine) {
-    sendError(ws, 'INVALID_MINE', `Mine ${payload.mineId} not found`);
+    sendError(ws, 'INVALID_MINE', `Mine ${sanitizeForLog(payload.mineId)} not found`);
     return;
   }
 
@@ -272,7 +287,7 @@ function handleJoinMine(
     },
   });
 
-  console.log(`[WS] ${clientInfo.walletAddress} joined ${mine.definition.name}`);
+  console.log(`[WS] ${sanitizeForLog(clientInfo.walletAddress || '')} joined ${mine.definition.name}`);
 }
 
 /**
@@ -346,10 +361,11 @@ async function handleDiscoveryFound(mineId: string, result: BarrelResult): Promi
 
 /**
  * Handles hashrate update
+ * Payload is pre-validated by Zod schema
  */
 function handleHashrate(
   ws: WebSocket,
-  payload: HashratePayload,
+  payload: ValidatedHashratePayload,
   clientInfo: ClientConnection
 ): void {
   if (!clientInfo.authenticated || !clientInfo.currentMineId) {
@@ -386,10 +402,11 @@ function handleHashrate(
 
 /**
  * Handles proof submission
+ * Payload is pre-validated by Zod schema
  */
 async function handleSubmit(
   ws: WebSocket,
-  payload: ProofSubmission,
+  payload: ValidatedProofSubmission,
   clientInfo: ClientConnection
 ): Promise<void> {
   if (!clientInfo.authenticated || !clientInfo.currentMineId) {
@@ -403,10 +420,16 @@ async function handleSubmit(
     return;
   }
 
-  payload.walletAddress = clientInfo.walletAddress!;
-  payload.timestamp = Date.now();
+  // Build the full proof submission with server-controlled fields
+  const fullPayload: ProofSubmission = {
+    walletAddress: clientInfo.walletAddress!,
+    nonce: payload.nonce,
+    hash: payload.hash,
+    workUnitId: payload.workUnitId,
+    timestamp: Date.now(),
+  };
 
-  const success = await poolManager.handleSubmission(payload);
+  const success = await poolManager.handleSubmission(fullPayload);
 
   sendMessage(ws, 'result', {
     success,
@@ -416,10 +439,11 @@ async function handleSubmit(
 
 /**
  * Handles staking request
+ * Payload is pre-validated by Zod schema
  */
 function handleStake(
   ws: WebSocket,
-  payload: StakePayload,
+  payload: ValidatedStakePayload,
   clientInfo: ClientConnection
 ): void {
   if (!clientInfo.authenticated) {
@@ -452,10 +476,11 @@ function handleStake(
 
 /**
  * Handles unstaking request
+ * Payload is pre-validated by Zod schema
  */
 function handleUnstake(
   ws: WebSocket,
-  payload: StakePayload,
+  payload: ValidatedStakePayload,
   clientInfo: ClientConnection
 ): void {
   if (!clientInfo.authenticated) {
@@ -484,10 +509,11 @@ function handleUnstake(
 
 /**
  * Handles set home base request
+ * Payload is pre-validated by Zod schema
  */
 function handleSetHome(
   ws: WebSocket,
-  payload: JoinMinePayload,
+  payload: ValidatedJoinMinePayload,
   clientInfo: ClientConnection
 ): void {
   if (!clientInfo.authenticated) {
@@ -524,10 +550,11 @@ function handleSetHome(
 
 /**
  * Handles expedition start
+ * Payload is pre-validated by Zod schema
  */
 function handleStartExpedition(
   ws: WebSocket,
-  payload: ExpeditionPayload,
+  payload: ValidatedExpeditionPayload,
   clientInfo: ClientConnection
 ): void {
   if (!clientInfo.authenticated) {
@@ -582,10 +609,11 @@ function handleStartExpedition(
 
 /**
  * Handles rally defense request
+ * Payload is pre-validated by Zod schema
  */
 function handleRallyDefense(
   ws: WebSocket,
-  payload: RallyPayload,
+  payload: ValidatedRallyPayload,
   clientInfo: ClientConnection
 ): void {
   if (!clientInfo.authenticated) {
@@ -633,6 +661,7 @@ function getGlobalStats(): GlobalNetworkStats {
 
 /**
  * Handles incoming WebSocket messages
+ * Includes rate limiting and payload validation
  */
 async function handleMessage(
   ws: WebSocket,
@@ -645,23 +674,38 @@ async function handleMessage(
     return;
   }
 
-  console.log(`[WS] ${message.type} from ${clientInfo.walletAddress || clientInfo.ip}`);
+  // Rate limit check
+  const rateLimitResult = rateLimiter.check(clientInfo.ip, message.type);
+  if (!rateLimitResult.allowed) {
+    sendError(ws, 'RATE_LIMITED', rateLimitResult.error || 'Too many requests');
+    return;
+  }
+
+  // Log with sanitized data
+  console.log(`[WS] ${sanitizeForLog(message.type)} from ${sanitizeForLog(clientInfo.walletAddress || clientInfo.ip)}`);
+
+  // Validate payload for the specific message type
+  const validation = validatePayload(message.type, message.payload);
+  if (!validation.success) {
+    sendError(ws, 'VALIDATION_ERROR', validation.error || 'Invalid payload');
+    return;
+  }
 
   switch (message.type) {
     case 'connect':
-      handleConnect(ws, message.payload as GameConnectPayload, clientInfo);
+      handleConnect(ws, validation.data as ValidatedConnectPayload, clientInfo);
       break;
 
     case 'join_mine':
-      handleJoinMine(ws, message.payload as JoinMinePayload, clientInfo);
+      handleJoinMine(ws, validation.data as ValidatedJoinMinePayload, clientInfo);
       break;
 
     case 'hashrate':
-      handleHashrate(ws, message.payload as HashratePayload, clientInfo);
+      handleHashrate(ws, validation.data as ValidatedHashratePayload, clientInfo);
       break;
 
     case 'submit':
-      await handleSubmit(ws, message.payload as ProofSubmission, clientInfo);
+      await handleSubmit(ws, validation.data as ValidatedProofSubmission, clientInfo);
       break;
 
     case 'stats':
@@ -669,27 +713,27 @@ async function handleMessage(
       break;
 
     case 'stake':
-      handleStake(ws, message.payload as StakePayload, clientInfo);
+      handleStake(ws, validation.data as ValidatedStakePayload, clientInfo);
       break;
 
     case 'unstake':
-      handleUnstake(ws, message.payload as StakePayload, clientInfo);
+      handleUnstake(ws, validation.data as ValidatedStakePayload, clientInfo);
       break;
 
     case 'set_home':
-      handleSetHome(ws, message.payload as JoinMinePayload, clientInfo);
+      handleSetHome(ws, validation.data as ValidatedJoinMinePayload, clientInfo);
       break;
 
     case 'start_expedition':
-      handleStartExpedition(ws, message.payload as ExpeditionPayload, clientInfo);
+      handleStartExpedition(ws, validation.data as ValidatedExpeditionPayload, clientInfo);
       break;
 
     case 'rally_defense':
-      handleRallyDefense(ws, message.payload as RallyPayload, clientInfo);
+      handleRallyDefense(ws, validation.data as ValidatedRallyPayload, clientInfo);
       break;
 
     default:
-      sendError(ws, 'UNKNOWN_TYPE', `Unknown message type: ${message.type}`);
+      sendError(ws, 'UNKNOWN_TYPE', `Unknown message type: ${sanitizeForLog(message.type)}`);
   }
 }
 
@@ -723,6 +767,7 @@ export async function startServer(): Promise<WebSocketServer> {
   console.log('╚══════════════════════════════════════════════════════════╝');
   console.log(`[Server] Starting on port ${port}...`);
   console.log(`[Server] Loaded ${MINES.length} mines`);
+  console.log('[Server] Validation and rate limiting enabled');
 
   // Initialize game systems
   getMineRegistry();
@@ -730,6 +775,9 @@ export async function startServer(): Promise<WebSocketServer> {
   getCooldownManager();
   getExpeditionTracker();
   getRaidEngine();
+  
+  // Initialize rate limiter
+  rateLimiter = getRateLimiter();
 
   wss = new WebSocketServer({
     port,
@@ -739,7 +787,16 @@ export async function startServer(): Promise<WebSocketServer> {
 
   wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
     const ip = getClientIP(req);
-    console.log(`[WS] New connection from ${ip}`);
+    
+    // Rate limit connections per IP
+    const connectRateLimit = rateLimiter.check(ip, 'connect');
+    if (!connectRateLimit.allowed) {
+      console.warn(`[WS] Connection rejected for ${sanitizeForLog(ip)}: rate limited`);
+      ws.close(1008, 'Rate limited');
+      return;
+    }
+    
+    console.log(`[WS] New connection from ${sanitizeForLog(ip)}`);
 
     const clientInfo: ClientConnection = {
       ip,
@@ -749,13 +806,13 @@ export async function startServer(): Promise<WebSocketServer> {
 
     ws.on('message', (data: RawData) => {
       handleMessage(ws, data, clientInfo).catch((error) => {
-        console.error('[WS] Error:', error);
+        console.error('[WS] Error:', error instanceof Error ? error.message : 'Unknown error');
         sendError(ws, 'INTERNAL_ERROR', 'Internal server error');
       });
     });
 
     ws.on('close', () => handleClose(ws, clientInfo));
-    ws.on('error', (err) => console.error(`[WS] Error: ${err.message}`));
+    ws.on('error', (err) => console.error(`[WS] Error: ${sanitizeForLog(err.message)}`));
   });
 
   // Periodic cleanup
@@ -788,6 +845,7 @@ export async function startServer(): Promise<WebSocketServer> {
   const shutdown = () => {
     console.log('\n[Server] Shutting down...');
     minePoolManagers.forEach((pm) => pm.stop());
+    rateLimiter.stop();
     wss.close(() => process.exit(0));
   };
 
@@ -799,6 +857,9 @@ export async function startServer(): Promise<WebSocketServer> {
 
 export async function stopServer(): Promise<void> {
   minePoolManagers.forEach((pm) => pm.stop());
+  if (rateLimiter) {
+    rateLimiter.stop();
+  }
   if (wss) {
     return new Promise((resolve) => {
       wss.close(() => resolve());

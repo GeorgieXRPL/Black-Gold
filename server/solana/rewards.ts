@@ -2,6 +2,9 @@
  * @fileoverview SPL Token reward distribution service for Black Gold mining
  * Sends COAL token rewards to miners who successfully discover barrels
  * Uses @solana/spl-token for token transfers
+ * 
+ * SECURITY NOTE: This file handles private keys. Never log, serialize, or expose
+ * private key material. All key handling is ephemeral and in-memory only.
  */
 
 import {
@@ -66,8 +69,13 @@ const pendingRewards: PendingReward[] = [];
  * Loads the reward wallet keypair from environment variable
  * The private key should be stored as a base58-encoded string or JSON array
  * 
+ * SECURITY: This function handles sensitive key material.
+ * - Never log the privateKeyEnv or secretKey values
+ * - Never serialize the Keypair back to a loggable format
+ * - Only use the Keypair for signing transactions
+ * 
  * @returns Keypair for the reward wallet
- * @throws Error if private key is not configured or invalid
+ * @throws Error if private key is not configured or invalid (without exposing key data)
  */
 export function loadRewardWalletKeypair(): Keypair {
   const privateKeyEnv = process.env.REWARD_WALLET_PRIVATE_KEY;
@@ -76,18 +84,27 @@ export function loadRewardWalletKeypair(): Keypair {
     throw new Error('REWARD_WALLET_PRIVATE_KEY environment variable is required');
   }
 
+  // Validate length before attempting to parse (without logging the value)
+  if (privateKeyEnv.length < 32) {
+    throw new Error('REWARD_WALLET_PRIVATE_KEY appears to be too short');
+  }
+
   try {
     // Try parsing as JSON array first (Phantom export format)
     const secretKey = JSON.parse(privateKeyEnv);
+    if (!Array.isArray(secretKey) || secretKey.length !== 64) {
+      throw new Error('Invalid key array length');
+    }
     return Keypair.fromSecretKey(Uint8Array.from(secretKey));
-  } catch {
+  } catch (jsonError) {
     // Try parsing as base58 string
     try {
       const bs58 = require('bs58');
       const secretKey = bs58.decode(privateKeyEnv);
       return Keypair.fromSecretKey(secretKey);
     } catch {
-      throw new Error('Invalid REWARD_WALLET_PRIVATE_KEY format. Use JSON array or base58 string.');
+      // Generic error message - never expose key format hints that could aid attackers
+      throw new Error('Failed to parse REWARD_WALLET_PRIVATE_KEY. Check format.');
     }
   }
 }
@@ -246,7 +263,14 @@ export async function sendReward(
       timestamp,
     };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    // Sanitize error message to prevent leaking sensitive data
+    let errorMessage = 'Unknown error';
+    if (error instanceof Error) {
+      // Filter out any potential key-related error details
+      errorMessage = error.message
+        .replace(/[1-9A-HJ-NP-Za-km-z]{32,}/g, '[REDACTED_KEY]')
+        .replace(/\[[\d,\s]{100,}\]/g, '[REDACTED_ARRAY]');
+    }
     console.error(`[Rewards] ✗ Failed to send reward:`, errorMessage);
 
     return {
@@ -348,7 +372,11 @@ export async function getRewardPoolBalance(): Promise<number> {
     const account = await getAccount(connection, sourceATA);
     return Number(account.amount) / Math.pow(10, TOKEN_CONFIG.DECIMALS);
   } catch (error) {
-    console.error('[Rewards] Failed to get pool balance:', error);
+    // Log error without potentially sensitive details
+    const safeMessage = error instanceof Error 
+      ? error.message.replace(/[1-9A-HJ-NP-Za-km-z]{32,}/g, '[ADDR]')
+      : 'Unknown error';
+    console.error('[Rewards] Failed to get pool balance:', safeMessage);
     return 0;
   }
 }

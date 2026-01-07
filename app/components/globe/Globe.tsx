@@ -2,14 +2,32 @@
 
 /**
  * @fileoverview 3D Interactive Globe component using Three.js
- * Displays mine locations with real-time statistics
+ * Displays mine locations with real-time statistics and stylized continent outlines
+ * Uses TopoJSON for accurate world geography with glowing ember-colored continent edges
  */
 
-import { useRef, useMemo, useState, useCallback, Suspense } from 'react';
+import { useRef, useMemo, useState, useCallback, Suspense, useEffect } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Stars, Html, Line } from '@react-three/drei';
 import * as THREE from 'three';
+import * as topojson from 'topojson-client';
+import type { Topology, GeometryCollection } from 'topojson-specification';
 import { MINES, Mine, MineStats, RESOURCE_COLORS, ResourceType } from '../../lib/mines';
+
+/** GeoJSON types for continent data (fallback) */
+interface GeoJSONFeature {
+  type: 'Feature';
+  properties: { name: string };
+  geometry: {
+    type: 'LineString' | 'MultiLineString' | 'Polygon' | 'MultiPolygon';
+    coordinates: number[][] | number[][][] | number[][][][];
+  };
+}
+
+interface GeoJSONCollection {
+  type: 'FeatureCollection';
+  features: GeoJSONFeature[];
+}
 
 interface GlobeProps {
   mineStats: Map<string, MineStats>;
@@ -134,23 +152,23 @@ function MinePin({ mine, stats, isSelected, isHome, onClick }: MinePinProps) {
   );
 }
 
-/** Earth sphere with texture */
+/** Earth sphere with dark ocean */
 function Earth() {
   const meshRef = useRef<THREE.Mesh>(null);
   
-  // Create gradient material for earth look
+  // Create gradient material for dark ocean
   const earthMaterial = useMemo(() => {
     return new THREE.MeshStandardMaterial({
-      color: new THREE.Color('#1a1a2e'),
-      roughness: 0.8,
-      metalness: 0.2,
+      color: new THREE.Color('#0a0a15'),
+      roughness: 0.9,
+      metalness: 0.1,
     });
   }, []);
 
   // Slow rotation
   useFrame(() => {
     if (meshRef.current) {
-      meshRef.current.rotation.y += 0.0005;
+      meshRef.current.rotation.y += 0.0003;
     }
   });
 
@@ -161,30 +179,228 @@ function Earth() {
   );
 }
 
-/** Atmosphere glow effect */
-function Atmosphere() {
+/** Glowing continent outlines using TopoJSON world data */
+function ContinentOutlines() {
+  const [continentLines, setContinentLines] = useState<[number, number, number][][]>([]);
+  const groupRef = useRef<THREE.Group>(null);
+
+  // Load TopoJSON world data and extract country borders
+  useEffect(() => {
+    const loadWorldData = async () => {
+      try {
+        // Try TopoJSON first (more accurate)
+        const res = await fetch('/geo/world-110m.json');
+        const worldData = await res.json() as Topology<{ countries: GeometryCollection }>;
+
+        const radius = 2.005; // Slightly above the globe surface
+        const lines: [number, number, number][][] = [];
+
+        // Extract mesh of country borders using topojson-client
+        if (worldData.objects && worldData.objects.countries) {
+          const mesh = topojson.mesh(
+            worldData,
+            worldData.objects.countries as GeometryCollection,
+            (a, b) => a !== b // Only include shared borders (coastlines + land borders)
+          );
+
+          // Process the mesh geometry
+          if (mesh.type === 'MultiLineString') {
+            mesh.coordinates.forEach((lineCoords: number[][]) => {
+              if (lineCoords.length < 2) return;
+              
+              const points: [number, number, number][] = lineCoords.map(([lng, lat]) => {
+                const v = latLngToVector3(lat, lng, radius);
+                return [v.x, v.y, v.z];
+              });
+              lines.push(points);
+            });
+          } else if (mesh.type === 'LineString') {
+            const coords = mesh.coordinates as unknown as [number, number][];
+            const points: [number, number, number][] = coords.map(([lng, lat]) => {
+              const v = latLngToVector3(lat, lng, radius);
+              return [v.x, v.y, v.z];
+            });
+            lines.push(points);
+          }
+
+          // Also add coastlines (full country outlines for better visibility)
+          const feature = topojson.feature(
+            worldData,
+            worldData.objects.countries as GeometryCollection
+          );
+
+          if (feature.type === 'FeatureCollection') {
+            feature.features.forEach((f) => {
+              const geom = f.geometry;
+              if (geom.type === 'Polygon') {
+                geom.coordinates.forEach((ring: number[][]) => {
+                  if (ring.length < 2) return;
+                  const points: [number, number, number][] = ring.map(([lng, lat]) => {
+                    const v = latLngToVector3(lat, lng, radius);
+                    return [v.x, v.y, v.z];
+                  });
+                  lines.push(points);
+                });
+              } else if (geom.type === 'MultiPolygon') {
+                geom.coordinates.forEach((polygon: number[][][]) => {
+                  polygon.forEach((ring: number[][]) => {
+                    if (ring.length < 2) return;
+                    const points: [number, number, number][] = ring.map(([lng, lat]) => {
+                      const v = latLngToVector3(lat, lng, radius);
+                      return [v.x, v.y, v.z];
+                    });
+                    lines.push(points);
+                  });
+                });
+              }
+            });
+          }
+        }
+
+        setContinentLines(lines);
+      } catch (err) {
+        console.warn('Failed to load TopoJSON world data, trying fallback:', err);
+        
+        // Fallback to simple continents.json
+        try {
+          const res = await fetch('/geo/continents.json');
+          const data = await res.json() as GeoJSONCollection;
+          const radius = 2.005;
+          const lines: [number, number, number][][] = [];
+
+          data.features.forEach(feature => {
+            const { geometry } = feature;
+
+            const processCoords = (coords: number[][]) => {
+              if (coords.length < 2) return;
+              const points: [number, number, number][] = coords.map(([lng, lat]) => {
+                const v = latLngToVector3(lat, lng, radius);
+                return [v.x, v.y, v.z];
+              });
+              lines.push(points);
+            };
+
+            if (geometry.type === 'LineString') {
+              processCoords(geometry.coordinates as number[][]);
+            } else if (geometry.type === 'MultiLineString') {
+              (geometry.coordinates as number[][][]).forEach(processCoords);
+            }
+          });
+
+          setContinentLines(lines);
+        } catch (fallbackErr) {
+          console.warn('Failed to load fallback continent data:', fallbackErr);
+        }
+      }
+    };
+
+    loadWorldData();
+  }, []);
+
+  // Slow rotation synced with Earth
+  useFrame(() => {
+    if (groupRef.current) {
+      groupRef.current.rotation.y += 0.0003;
+    }
+  });
+
+  if (continentLines.length === 0) return null;
+
   return (
-    <mesh>
-      <sphereGeometry args={[2.1, 64, 64]} />
-      <meshBasicMaterial 
-        color="#4a69bd"
-        transparent
-        opacity={0.1}
-        side={THREE.BackSide}
-      />
-    </mesh>
+    <group ref={groupRef}>
+      {/* Outer glow layer - softest, widest */}
+      {continentLines.map((points, i) => (
+        <Line
+          key={`outer-glow-${i}`}
+          points={points.map(([x, y, z]) => {
+            const scale = 1.006;
+            return [x * scale, y * scale, z * scale] as [number, number, number];
+          })}
+          color="#ff4500"
+          lineWidth={4}
+          transparent
+          opacity={0.12}
+        />
+      ))}
+      {/* Middle glow layer */}
+      {continentLines.map((points, i) => (
+        <Line
+          key={`mid-glow-${i}`}
+          points={points.map(([x, y, z]) => {
+            const scale = 1.003;
+            return [x * scale, y * scale, z * scale] as [number, number, number];
+          })}
+          color="#ff6b35"
+          lineWidth={2.5}
+          transparent
+          opacity={0.25}
+        />
+      ))}
+      {/* Core ember line - brightest */}
+      {continentLines.map((points, i) => (
+        <Line
+          key={`continent-${i}`}
+          points={points}
+          color="#ff8c42"
+          lineWidth={1.2}
+          transparent
+          opacity={0.85}
+        />
+      ))}
+      {/* Inner hot core - brightest highlight */}
+      {continentLines.map((points, i) => (
+        <Line
+          key={`hot-core-${i}`}
+          points={points}
+          color="#ffb366"
+          lineWidth={0.6}
+          transparent
+          opacity={0.5}
+        />
+      ))}
+    </group>
   );
 }
 
-/** Grid lines on globe */
+/** Atmosphere glow effect - ember/gold tint */
+function Atmosphere() {
+  return (
+    <>
+      {/* Inner atmosphere - subtle ember glow */}
+      <mesh>
+        <sphereGeometry args={[2.05, 64, 64]} />
+        <meshBasicMaterial 
+          color="#ff6b35"
+          transparent
+          opacity={0.03}
+          side={THREE.BackSide}
+        />
+      </mesh>
+      {/* Outer atmosphere - larger glow */}
+      <mesh>
+        <sphereGeometry args={[2.15, 64, 64]} />
+        <meshBasicMaterial 
+          color="#ff9f43"
+          transparent
+          opacity={0.05}
+          side={THREE.BackSide}
+        />
+      </mesh>
+    </>
+  );
+}
+
+/** Subtle grid lines on globe */
 function GlobeGrid() {
+  const groupRef = useRef<THREE.Group>(null);
+  
   // Create latitude lines as point arrays
   const latLines = useMemo(() => {
     const lines: [number, number, number][][] = [];
     for (let lat = -60; lat <= 60; lat += 30) {
       const points: [number, number, number][] = [];
       for (let lng = 0; lng <= 360; lng += 10) {
-        const v = latLngToVector3(lat, lng, 2.01);
+        const v = latLngToVector3(lat, lng, 2.003);
         points.push([v.x, v.y, v.z]);
       }
       lines.push(points);
@@ -198,7 +414,7 @@ function GlobeGrid() {
     for (let lng = 0; lng < 360; lng += 30) {
       const points: [number, number, number][] = [];
       for (let lat = -90; lat <= 90; lat += 10) {
-        const v = latLngToVector3(lat, lng, 2.01);
+        const v = latLngToVector3(lat, lng, 2.003);
         points.push([v.x, v.y, v.z]);
       }
       lines.push(points);
@@ -206,26 +422,33 @@ function GlobeGrid() {
     return lines;
   }, []);
 
+  // Sync rotation with Earth
+  useFrame(() => {
+    if (groupRef.current) {
+      groupRef.current.rotation.y += 0.0003;
+    }
+  });
+
   return (
-    <group>
+    <group ref={groupRef}>
       {latLines.map((points, i) => (
         <Line
           key={`lat-${i}`}
           points={points}
-          color="#333333"
+          color="#1a1a2e"
           lineWidth={0.5}
           transparent
-          opacity={0.3}
+          opacity={0.15}
         />
       ))}
       {lngLines.map((points, i) => (
         <Line
           key={`lng-${i}`}
           points={points}
-          color="#333333"
+          color="#1a1a2e"
           lineWidth={0.5}
           transparent
-          opacity={0.3}
+          opacity={0.15}
         />
       ))}
     </group>
@@ -249,14 +472,15 @@ function GlobeScene({ mineStats, selectedMine, onMineSelect, userHomeMine }: Glo
       <Stars 
         radius={100} 
         depth={50} 
-        count={2000} 
+        count={3000} 
         factor={4} 
-        saturation={0} 
+        saturation={0.1} 
         fade 
-        speed={0.5}
+        speed={0.3}
       />
       
       <Earth />
+      <ContinentOutlines />
       <Atmosphere />
       <GlobeGrid />
       
