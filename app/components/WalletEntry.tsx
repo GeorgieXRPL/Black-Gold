@@ -189,25 +189,25 @@ export function WalletEntry({ onWalletChange, compact = false }: WalletEntryProp
           </button>
         )}
         
-        {/* Address input modal - positioned lower to avoid mobile address bar */}
+        {/* Address input modal - centered with solid black background */}
         <AnimatePresence>
           {showAddressInput && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm pb-8 sm:pb-0 pt-20"
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black"
               onClick={() => setShowAddressInput(false)}
             >
               <motion.div
-                initial={{ scale: 0.9, opacity: 0, y: 20 }}
-                animate={{ scale: 1, opacity: 1, y: 0 }}
-                exit={{ scale: 0.9, opacity: 0, y: 20 }}
-                className="bg-coal-900 border border-coal-700 rounded-xl p-6 max-w-md w-full mx-4 mb-safe"
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                className="bg-coal-900 border-2 border-coal-600 rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl shadow-black/50"
                 onClick={(e) => e.stopPropagation()}
               >
-                <h3 className="text-lg font-bold text-white mb-2">Enter Wallet Address</h3>
-                <p className="text-coal-400 text-sm mb-4">
+                <h3 className="text-xl font-bold text-white mb-3">Enter Wallet Address</h3>
+                <p className="text-coal-400 text-sm mb-5">
                   Enter your Solana wallet address to start mining. For staking and raids, you'll need to connect your wallet.
                 </p>
                 
@@ -219,7 +219,7 @@ export function WalletEntry({ onWalletChange, compact = false }: WalletEntryProp
                     setAddressError(null);
                   }}
                   placeholder="Enter Solana wallet address..."
-                  className="w-full px-4 py-3 bg-coal-800 border border-coal-600 rounded-lg text-white font-mono text-sm focus:outline-none focus:border-ember-500 transition-colors"
+                  className="w-full px-4 py-3 bg-coal-950 border-2 border-coal-600 rounded-lg text-white font-mono text-sm focus:outline-none focus:border-orange-500 transition-colors"
                   onKeyDown={(e) => e.key === 'Enter' && handleAddressSubmit()}
                   autoFocus
                 />
@@ -228,18 +228,18 @@ export function WalletEntry({ onWalletChange, compact = false }: WalletEntryProp
                   <p className="text-red-400 text-sm mt-2">{addressError}</p>
                 )}
                 
-                <div className="flex gap-3 mt-4">
+                <div className="flex gap-4 mt-6">
                   <button
                     onClick={() => setShowAddressInput(false)}
-                    className="flex-1 px-4 py-2 bg-coal-800 hover:bg-coal-700 text-coal-300 rounded-lg transition-colors"
+                    className="flex-1 px-4 py-3 bg-coal-950 hover:bg-red-900/50 border border-coal-600 hover:border-red-700 text-coal-300 hover:text-red-300 rounded-lg transition-all font-medium"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleAddressSubmit}
-                    className="flex-1 px-4 py-2 bg-ember-600 hover:bg-ember-500 text-white font-semibold rounded-lg transition-colors"
+                    className="flex-1 px-4 py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-lg transition-colors shadow-lg shadow-orange-900/30"
                   >
-                    Start Mining
+                    Start Mining ⛏️
                   </button>
                 </div>
               </motion.div>
