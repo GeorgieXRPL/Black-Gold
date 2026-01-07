@@ -1,10 +1,10 @@
-# Black Gold v2.3 - Codebase Index
+# Black Gold v2.4 - Codebase Index
 
 > Complete file-by-file documentation for the Black Gold Interactive Mining Globe platform
 
-**Last Updated**: January 2026  
-**Version**: 2.3 (Privy Wallet Integration)  
-**Total Files**: 60+ TypeScript/TSX files
+**Last Updated**: January 7, 2026  
+**Version**: 2.4 (Dual Wallet Mode + Staking Integration)  
+**Total Files**: 65+ TypeScript/TSX files
 
 ---
 
@@ -107,6 +107,7 @@ black-gold/
 
 | File | Lines | Exports | Purpose |
 |------|-------|---------|---------|
+| `WalletEntry.tsx` | ~350 | `WalletEntry`, `WalletEntryState` | **NEW** Dual-mode wallet entry (address-only or Privy connect) |
 | `MiningPanel.tsx` | ~180 | `MiningPanel` | Mining controls (v1 style) |
 | `StatsCard.tsx` | ~110 | `StatsCard` | Network statistics display |
 | `DiscoveryFeed.tsx` | ~120 | `DiscoveryFeed` | Live resource discovery feed (Coal Veins, Gold Nuggets, etc.) |
@@ -128,8 +129,9 @@ black-gold/
 | `useWebSocket.ts` | ~150 | `useWebSocket` | v1 WebSocket connection |
 | `useMining.ts` | ~130 | `useMining` | Mining state management, Web Workers |
 | `useWallet.ts` | ~115 | `useWallet`, `usePrivyConfigured` | Unified wallet state with Privy |
+| `useStaking.ts` | ~140 | `useStaking` | **NEW** On-chain staking hook with Quarry integration |
 | `useHolderVerification.ts` | ~80 | `useHolderVerification` | Holder verification API hook |
-| `index.ts` | ~10 | Re-exports | Barrel export for all hooks |
+| `index.ts` | ~12 | Re-exports | Barrel export for all hooks |
 
 ### Libraries (`app/lib/`)
 
@@ -149,8 +151,10 @@ black-gold/
 | File | Lines | Method | Purpose |
 |------|-------|--------|---------|
 | `verify-holder/route.ts` | ~140 | `GET` | Verifies wallet holds required token % |
+| `status/route.ts` | ~55 | `GET` | **NEW** System status and service health check |
 | `auth/nonce/route.ts` | ~45 | `POST` | Generate nonce for wallet signature |
 | `auth/verify/route.ts` | ~75 | `POST` | Verify signed wallet actions |
+| `admin/auth/route.ts` | ~40 | `POST` | Admin console authentication |
 
 ---
 
@@ -190,7 +194,8 @@ black-gold/
 | `distribution-service.ts` | ~280 | `DistributionService`, `getDistributionService` | Hourly pool distribution weighted by contribution score |
 | `syndicate-manager.ts` | ~280 | `SyndicateManager`, `getSyndicateManager` | Alliance creation, join/leave, invitations |
 | `syndicate-raids.ts` | ~250 | `SyndicateRaids`, `getSyndicateRaids` | Coordinated raids with pooled attack power |
-| `index.ts` | ~45 | Re-exports | Barrel exports |
+| `reward-orchestrator.ts` | ~220 | `initRewardOrchestrator`, `handleNewDiscovery` | **NEW** Connects buyback→distribution flow |
+| `index.ts` | ~55 | Re-exports | Barrel exports |
 
 ### Solana Module (`server/solana/`)
 
@@ -199,7 +204,8 @@ black-gold/
 | `holder.ts` | ~180 | `verifyHolder`, `createConnection` | Token holder verification via Helius |
 | `rewards.ts` | ~280 | `sendReward`, `queueReward` | SPL token reward distribution (security-hardened v2.2) |
 | `buyback.ts` | ~360 | `executeBuyback`, `shouldExecuteBuyback` | Automated SOL→COAL swap |
-| `index.ts` | ~45 | Re-exports | Barrel exports |
+| `staking.ts` | ~220 | `buildStakeTransaction`, `buildUnstakeTransaction` | **NEW** Quarry SDK on-chain staking |
+| `index.ts` | ~60 | Re-exports | Barrel exports |
 
 **Security Hardening (rewards.ts - v2.2):**
 - Private key handling documented with security warnings
@@ -226,7 +232,7 @@ black-gold/
 
 | File | Lines | Exports | Purpose |
 |------|-------|---------|---------|
-| `constants.ts` | ~90 | `TOKEN_CONFIG`, `POOL_CONFIG`, etc. | Environment-based configuration |
+| `constants.ts` | ~110 | `TOKEN_CONFIG`, `POOL_CONFIG`, `NETWORK`, `IS_DEVNET` | Environment-based configuration with devnet support |
 | `holder-tiers.ts` | ~70 | `HOLDER_TIERS`, `getRequiredPercent` | Dynamic holder requirements |
 | `mines.ts` | ~280 | `MINES`, `RESOURCE_MECHANICS`, `getMineById` | 20 mine definitions with coordinates |
 
@@ -237,6 +243,23 @@ black-gold/
 | File | Lines | Purpose | Usage |
 |------|-------|---------|-------|
 | `buyback.ts` | ~215 | Standalone buyback service | `npm run buyback` |
+
+---
+
+## Documentation (docs/)
+
+| File | Purpose |
+|------|---------|
+| `INDEX.md` | Main project documentation |
+| `DEPLOYMENT.md` | Step-by-step deployment guide for Vercel + Railway |
+| `DEVNET_SETUP.md` | **NEW** Devnet testing environment setup |
+| `HELIUS_SETUP.md` | **NEW** Helius API configuration guide |
+| `SECURITY_CHECKLIST.md` | **NEW** Security testing checklist and verification |
+| `SECURITY.md` | Security architecture overview |
+| `SECURITY_VERIFICATION.md` | Proof verification algorithm details |
+| `PARALLEL_AGENTS.md` | Guide for multi-agent development |
+| `FRONTEND_INDEX.md` | Frontend component documentation |
+| `SOLANA_INTEGRATION.md` | Solana blockchain integration details |
 
 ---
 
@@ -516,18 +539,22 @@ score = (hashrate × 0.4) + (stakeAmount × 0.3) + (loyaltyBonus × 0.3)
 
 | Variable | Used In | Required |
 |----------|---------|----------|
+| `SOLANA_NETWORK` | constants.ts | No (default: mainnet) |
 | `NEXT_PUBLIC_WS_URL` | Frontend | Yes |
 | `NEXT_PUBLIC_PRIVY_APP_ID` | PrivyProvider.tsx | Yes (for wallet) |
-| `NEXT_PUBLIC_SOLANA_RPC_URL` | PrivyProvider.tsx | No (has default) |
-| `HELIUS_API_KEY` | holder.ts, buyback.ts | Yes |
+| `NEXT_PUBLIC_SOLANA_NETWORK` | Frontend | No (for devnet indicator) |
+| `HELIUS_API_KEY` | holder.ts, buyback.ts | Recommended |
 | `SOLANA_RPC_URL` | holder.ts | No (has default) |
 | `TOKEN_MINT_ADDRESS` | constants.ts | Yes (after launch) |
 | `REWARD_WALLET_PRIVATE_KEY` | rewards.ts | Yes |
 | `REWARD_WALLET_ADDRESS` | constants.ts | Yes |
 | `CREATOR_WALLET_PRIVATE_KEY` | buyback.ts | Yes |
 | `CREATOR_WALLET_ADDRESS` | constants.ts | Yes |
+| `QUARRY_REWARDER_ADDRESS` | staking.ts | Yes (after setup) |
+| `QUARRY_ADDRESS` | staking.ts | Yes (after setup) |
+| `ADMIN_SECRET` | admin/layout.tsx | Yes |
 | `WEBSOCKET_PORT` | constants.ts | No (default 8080) |
-| `REDIS_URL` | constants.ts | No |
+| `NEXT_PUBLIC_USE_MOCKS` | Frontend | No (default: false) |
 
 ---
 
