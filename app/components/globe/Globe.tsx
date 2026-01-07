@@ -56,31 +56,79 @@ function latLngToVector3(lat: number, lng: number, radius: number): THREE.Vector
   );
 }
 
-/** Resource color as THREE.Color */
-function getResourceColor(resource: ResourceType): THREE.Color {
-  const colors = RESOURCE_COLORS[resource];
-  return new THREE.Color(colors.glow);
-}
+/** Resource-specific colors for 3D rendering */
+const RESOURCE_3D_STYLES = {
+  coal: {
+    primary: new THREE.Color('#1a1a1a'),      // Dark coal
+    glow: new THREE.Color('#ff6b35'),          // Ember orange
+    emissive: new THREE.Color('#ff4500'),      // Fire red-orange
+    metalness: 0.1,
+    roughness: 0.9,
+  },
+  gold: {
+    primary: new THREE.Color('#ffd700'),       // Bright gold
+    glow: new THREE.Color('#fff59d'),          // Light gold glow
+    emissive: new THREE.Color('#b8860b'),      // Dark gold
+    metalness: 1.0,
+    roughness: 0.2,
+  },
+  oil: {
+    primary: new THREE.Color('#1a1a2e'),       // Dark blue-black
+    glow: new THREE.Color('#4a69bd'),          // Blue sheen
+    emissive: new THREE.Color('#2d2d4a'),      // Deep blue
+    metalness: 0.8,
+    roughness: 0.1,
+  },
+  silver: {
+    primary: new THREE.Color('#c0c0c0'),       // Silver
+    glow: new THREE.Color('#f0f0f0'),          // Bright silver
+    emissive: new THREE.Color('#a8a8a8'),      // Muted silver
+    metalness: 1.0,
+    roughness: 0.3,
+  },
+};
 
 /** Single mine pin on the globe */
 function MinePin({ mine, stats, isSelected, isHome, onClick }: MinePinProps) {
   const meshRef = useRef<THREE.Mesh>(null);
   const glowRef = useRef<THREE.Mesh>(null);
+  const innerGlowRef = useRef<THREE.Mesh>(null);
   const [hovered, setHovered] = useState(false);
   
   const position = useMemo(() => latLngToVector3(mine.lat, mine.lng, 2.02), [mine.lat, mine.lng]);
-  const color = useMemo(() => getResourceColor(mine.resource), [mine.resource]);
+  const style = RESOURCE_3D_STYLES[mine.resource];
   
-  // Pulse animation
+  // Resource-specific animations
   useFrame((state) => {
+    const time = state.clock.elapsedTime;
+    const isActive = isSelected || hovered;
+    
     if (meshRef.current) {
-      const scale = isSelected || hovered 
-        ? 1.5 + Math.sin(state.clock.elapsedTime * 3) * 0.2
-        : 1 + Math.sin(state.clock.elapsedTime * 2) * 0.1;
+      // Base scale with pulse
+      const baseScale = isActive ? 1.5 : 1;
+      const pulseAmount = mine.resource === 'coal' ? 0.15 : 0.1;
+      const pulseSpeed = mine.resource === 'coal' ? 4 : 2;
+      const scale = baseScale + Math.sin(time * pulseSpeed) * pulseAmount;
       meshRef.current.scale.setScalar(scale);
+      
+      // Coal: Flickering ember intensity
+      if (mine.resource === 'coal') {
+        const material = meshRef.current.material as THREE.MeshStandardMaterial;
+        material.emissiveIntensity = 0.5 + Math.sin(time * 6) * 0.3 + Math.random() * 0.1;
+      }
     }
+    
+    // Outer glow pulse
     if (glowRef.current) {
-      glowRef.current.scale.setScalar(isSelected || hovered ? 2.5 : 1.8);
+      const glowScale = isActive ? 2.8 : 2.0;
+      const glowPulse = mine.resource === 'oil' ? Math.sin(time * 1.5) * 0.2 : Math.sin(time * 2) * 0.15;
+      glowRef.current.scale.setScalar(glowScale + glowPulse);
+    }
+    
+    // Inner glow for gold shimmer
+    if (innerGlowRef.current && mine.resource === 'gold') {
+      const material = innerGlowRef.current.material as THREE.MeshBasicMaterial;
+      material.opacity = 0.4 + Math.sin(time * 3) * 0.2;
     }
   });
 
@@ -89,28 +137,49 @@ function MinePin({ mine, stats, isSelected, isHome, onClick }: MinePinProps) {
 
   return (
     <group position={position}>
-      {/* Glow effect */}
+      {/* Outer glow effect */}
       <mesh ref={glowRef}>
         <sphereGeometry args={[pinSize * 2, 16, 16]} />
         <meshBasicMaterial 
-          color={color} 
+          color={style.glow} 
           transparent 
-          opacity={0.3}
+          opacity={mine.resource === 'coal' ? 0.4 : 0.25}
         />
       </mesh>
       
-      {/* Main pin */}
+      {/* Inner glow for gold/silver metallic shine */}
+      {(mine.resource === 'gold' || mine.resource === 'silver') && (
+        <mesh ref={innerGlowRef}>
+          <sphereGeometry args={[pinSize * 1.3, 16, 16]} />
+          <meshBasicMaterial 
+            color={style.glow} 
+            transparent 
+            opacity={0.5}
+          />
+        </mesh>
+      )}
+      
+      {/* Main pin with resource-specific material */}
       <mesh 
         ref={meshRef}
         onClick={(e) => { e.stopPropagation(); onClick(); }}
         onPointerOver={() => setHovered(true)}
         onPointerOut={() => setHovered(false)}
       >
-        <sphereGeometry args={[pinSize, 16, 16]} />
+        {/* Coal uses box geometry, oil uses sphere, gold/silver use icosahedron for faceted look */}
+        {mine.resource === 'coal' ? (
+          <boxGeometry args={[pinSize * 1.4, pinSize * 1.4, pinSize * 1.4]} />
+        ) : mine.resource === 'oil' ? (
+          <sphereGeometry args={[pinSize, 24, 24]} />
+        ) : (
+          <icosahedronGeometry args={[pinSize, 0]} />
+        )}
         <meshStandardMaterial 
-          color={color}
-          emissive={color}
-          emissiveIntensity={isSelected ? 1 : 0.5}
+          color={style.primary}
+          emissive={style.emissive}
+          emissiveIntensity={isSelected ? 1.2 : 0.6}
+          metalness={style.metalness}
+          roughness={style.roughness}
         />
       </mesh>
 
