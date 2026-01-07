@@ -134,13 +134,6 @@ export type ValidatedWSMessage = z.infer<typeof WSMessageSchema>;
 // Validation Functions
 // ============================================================================
 
-/** Validation result type */
-export interface ValidationResult<T> {
-  success: boolean;
-  data?: T;
-  error?: z.ZodError;
-}
-
 /**
  * Validate an incoming WebSocket message
  * @param data - Raw message data (string or object)
@@ -155,20 +148,17 @@ export function validateWSMessage(data: unknown): ValidationResult<ValidatedWSMe
     const result = WSMessageSchema.safeParse(parsed);
     
     if (result.success) {
-      return { success: true, data: result.data };
+      return { success: true, data: result.data, error: undefined };
     } else {
       console.warn('[Validate] Invalid message:', result.error.issues);
-      return { success: false, error: result.error };
+      return { success: false, data: undefined, error: result.error.issues.map(i => i.message).join(', ') };
     }
   } catch (error) {
     console.warn('[Validate] Failed to parse message:', error);
     return { 
       success: false, 
-      error: new z.ZodError([{
-        code: 'custom',
-        path: [],
-        message: error instanceof Error ? error.message : 'Parse error',
-      }])
+      data: undefined,
+      error: error instanceof Error ? error.message : 'Parse error',
     };
   }
 }
@@ -216,19 +206,36 @@ export const validateMessage = validateWSMessage;
  * Validate a specific payload type
  * @param type - Message type
  * @param payload - Payload to validate
- * @returns Validated payload or null
+ * @returns Validation result with success, data, and error
  */
-export function validatePayload<T>(type: string, payload: unknown): T | null {
+export function validatePayload(type: string, payload: unknown): ValidationResult<ValidatedWSMessage> {
   try {
-    const fullMessage = { type, ...payload as object };
+    const fullMessage = { type, ...(payload as object || {}) };
     const result = WSMessageSchema.safeParse(fullMessage);
+    
     if (result.success) {
-      return result.data as T;
+      return { success: true, data: result.data, error: undefined };
     }
-    return null;
-  } catch {
-    return null;
+    
+    return { 
+      success: false, 
+      data: undefined,
+      error: result.error.issues.map(i => i.message).join(', ')
+    };
+  } catch (err) {
+    return { 
+      success: false,
+      data: undefined,
+      error: err instanceof Error ? err.message : 'Validation failed'
+    };
   }
+}
+
+/** Simplified validation result for the server */
+export interface ValidationResult<T> {
+  success: boolean;
+  data?: T;
+  error?: string;
 }
 
 /**
@@ -260,7 +267,7 @@ export function sanitizeForLog(data: unknown): unknown {
 
 export type ValidatedConnectPayload = z.infer<typeof AuthMessageSchema>;
 export type ValidatedJoinMinePayload = z.infer<typeof JoinMineSchema>;
-export type ValidatedHashratePayload = { type: 'hashrate'; rate: number };
+export type ValidatedHashratePayload = z.infer<typeof HashrateSchema>;
 export type ValidatedProofSubmission = z.infer<typeof SubmitProofSchema>;
 export type ValidatedStakePayload = z.infer<typeof StakeSchema>;
 export type ValidatedExpeditionPayload = z.infer<typeof StartExpeditionSchema>;

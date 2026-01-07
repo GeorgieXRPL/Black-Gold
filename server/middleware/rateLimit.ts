@@ -223,14 +223,19 @@ export class RateLimiter {
   /**
    * Check if allowed and return result object
    * @param key - Identifier
-   * @returns Result object with allowed status and remaining info
+   * @param subKey - Optional sub-key (e.g., message type) for combined rate limiting
+   * @returns Result object with allowed status, remaining info, and error message
    */
-  check(key: string): { allowed: boolean; remaining: number; resetIn: number } {
-    const allowed = this.isAllowed(key);
+  check(key: string, subKey?: string): { allowed: boolean; remaining: number; resetIn: number; error?: string } {
+    const compositeKey = subKey ? `${key}:${subKey}` : key;
+    const allowed = this.isAllowed(compositeKey);
+    const resetIn = this.getResetTime(compositeKey);
+    
     return {
       allowed,
-      remaining: this.getRemaining(key),
-      resetIn: this.getResetTime(key),
+      remaining: this.getRemaining(compositeKey),
+      resetIn,
+      error: allowed ? undefined : `Rate limited. Try again in ${Math.ceil(resetIn / 1000)}s`,
     };
   }
 }

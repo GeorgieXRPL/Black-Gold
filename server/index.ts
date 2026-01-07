@@ -215,7 +215,7 @@ function handleConnect(
 
   // If a mineId was provided, join that mine
   if (payload.mineId) {
-    handleJoinMine(ws, { mineId: payload.mineId }, clientInfo);
+    handleJoinMine(ws, { type: 'join_mine', mineId: payload.mineId }, clientInfo);
   }
 
   // Send welcome response with global stats
@@ -625,7 +625,7 @@ function handleRallyDefense(
   const success = raidEngine.rallyDefense(
     payload.mineId,
     clientInfo.walletAddress!,
-    payload.tokenCost
+    payload.tokenCost ?? 0
   );
 
   if (success) {
@@ -777,7 +777,11 @@ export async function startServer(): Promise<WebSocketServer> {
   getRaidEngine();
   
   // Initialize rate limiter
-  rateLimiter = getRateLimiter();
+  rateLimiter = getRateLimiter('ws-messages', {
+    limit: 200,
+    windowMs: 60_000,
+    blockDurationMs: 300_000,
+  });
 
   wss = new WebSocketServer({
     port,
