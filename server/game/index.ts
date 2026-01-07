@@ -19,6 +19,7 @@ export {
   getStakeManager, 
   resetStakeManager,
 } from './stake-manager';
+export type { UnstakeRequest, UnstakeResult } from './stake-manager';
 
 // Cooldown Manager
 export { 

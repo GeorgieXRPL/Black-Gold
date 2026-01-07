@@ -1,6 +1,7 @@
 /**
  * @fileoverview Stake Manager for Black Gold v2
  * Manages staking operations, power calculations, and tier tracking
+ * Includes unstake queue system to prevent mid-raid exploits
  */
 
 import {
@@ -16,6 +17,31 @@ import { getMineRegistry } from './mine-registry';
 import { ResourceType } from '../../config/mines';
 
 /**
+ * Unstake queue entry
+ * Stores pending unstake requests during active events
+ */
+export interface UnstakeRequest {
+  id: string;
+  walletAddress: string;
+  mineId: string;
+  amount: number;
+  requestedAt: Date;
+  reason: 'raid_attacker' | 'raid_defender' | 'expedition_active';
+  estimatedProcessTime: Date;
+}
+
+/**
+ * Unstake result
+ */
+export interface UnstakeResult {
+  success: boolean;
+  queued: boolean;
+  queuePosition?: number;
+  estimatedWait?: number; // in seconds
+  error?: string;
+}
+
+/**
  * Stake Manager class
  * Handles all staking operations and calculations
  */
@@ -28,6 +54,18 @@ export class StakeManager {
 
   /** Pending rewards from defender spoils and other sources (wallet -> amount) */
   private pendingRewards: Map<string, number> = new Map();
+
+  /** Unstake queue for requests made during active events */
+  private unstakeQueue: Map<string, UnstakeRequest[]> = new Map();
+
+  /** Active raids by wallet (wallet -> raid IDs) */
+  private activeRaidsByWallet: Map<string, Set<string>> = new Map();
+
+  /** Mines currently under attack (mineId -> attack count) */
+  private minesUnderAttack: Map<string, number> = new Map();
+
+  /** Maximum wait time for queued unstakes in ms (15 minutes) */
+  private readonly MAX_QUEUE_WAIT_MS = 15 * 60 * 1000;
 
   /**
    * Get or create miner game state
@@ -136,24 +174,101 @@ export class StakeManager {
   }
 
   /**
-   * Withdraw stake from a mine
+   * Request to withdraw stake from a mine
+   * May be queued if user has active raids or mine is under attack
    */
-  unstake(walletAddress: string, mineId: string, amount: number): boolean {
+  requestUnstake(walletAddress: string, mineId: string, amount: number): UnstakeResult {
     const walletStakes = this.stakes.get(walletAddress);
     if (!walletStakes) {
-      console.log(`[StakeManager] No stakes found for ${walletAddress}`);
-      return false;
+      return { success: false, queued: false, error: 'No stakes found' };
     }
 
     const stakeIndex = walletStakes.findIndex(s => s.mineId === mineId);
     if (stakeIndex < 0) {
-      console.log(`[StakeManager] No stake at ${mineId} for ${walletAddress}`);
-      return false;
+      return { success: false, queued: false, error: 'No stake at this mine' };
     }
 
     const stake = walletStakes[stakeIndex];
     if (amount > stake.amount) {
       amount = stake.amount; // Unstake all
+    }
+
+    // Check if user has active raids
+    const activeRaids = this.activeRaidsByWallet.get(walletAddress);
+    if (activeRaids && activeRaids.size > 0) {
+      return this.queueUnstake(walletAddress, mineId, amount, 'raid_attacker');
+    }
+
+    // Check if mine is under attack (for defenders)
+    const attackCount = this.minesUnderAttack.get(mineId) || 0;
+    if (attackCount > 0) {
+      return this.queueUnstake(walletAddress, mineId, amount, 'raid_defender');
+    }
+
+    // Check if user has active expedition
+    const state = this.getMinerState(walletAddress);
+    if (state.currentExpeditionId) {
+      return this.queueUnstake(walletAddress, mineId, amount, 'expedition_active');
+    }
+
+    // No active events - process immediately
+    const success = this.processUnstake(walletAddress, mineId, amount);
+    return { success, queued: false };
+  }
+
+  /**
+   * Queue an unstake request for later processing
+   */
+  private queueUnstake(
+    walletAddress: string,
+    mineId: string,
+    amount: number,
+    reason: UnstakeRequest['reason']
+  ): UnstakeResult {
+    const request: UnstakeRequest = {
+      id: `unstake_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+      walletAddress,
+      mineId,
+      amount,
+      requestedAt: new Date(),
+      reason,
+      estimatedProcessTime: new Date(Date.now() + 10 * 60 * 1000), // 10 min estimate
+    };
+
+    let queue = this.unstakeQueue.get(walletAddress);
+    if (!queue) {
+      queue = [];
+      this.unstakeQueue.set(walletAddress, queue);
+    }
+
+    queue.push(request);
+
+    console.log(
+      `[StakeManager] Queued unstake for ${walletAddress}: ${amount} from ${mineId} ` +
+      `(reason: ${reason}, position: ${queue.length})`
+    );
+
+    return {
+      success: true,
+      queued: true,
+      queuePosition: queue.length,
+      estimatedWait: 10 * 60, // 10 minutes in seconds
+    };
+  }
+
+  /**
+   * Process an unstake (internal method, always executes)
+   */
+  private processUnstake(walletAddress: string, mineId: string, amount: number): boolean {
+    const walletStakes = this.stakes.get(walletAddress);
+    if (!walletStakes) return false;
+
+    const stakeIndex = walletStakes.findIndex(s => s.mineId === mineId);
+    if (stakeIndex < 0) return false;
+
+    const stake = walletStakes[stakeIndex];
+    if (amount > stake.amount) {
+      amount = stake.amount;
     }
 
     stake.amount -= amount;
@@ -170,6 +285,181 @@ export class StakeManager {
 
     console.log(`[StakeManager] ${walletAddress} unstaked ${amount} from ${mineId}`);
     return true;
+  }
+
+  /**
+   * Legacy unstake method (bypasses queue, use for internal calls only)
+   */
+  unstake(walletAddress: string, mineId: string, amount: number): boolean {
+    return this.processUnstake(walletAddress, mineId, amount);
+  }
+
+  /**
+   * Register an active raid for a wallet
+   */
+  registerActiveRaid(walletAddress: string, raidId: string): void {
+    let raids = this.activeRaidsByWallet.get(walletAddress);
+    if (!raids) {
+      raids = new Set();
+      this.activeRaidsByWallet.set(walletAddress, raids);
+    }
+    raids.add(raidId);
+    console.log(`[StakeManager] Registered active raid ${raidId} for ${walletAddress}`);
+  }
+
+  /**
+   * Unregister an active raid for a wallet
+   * Also processes any queued unstakes for this wallet
+   */
+  unregisterActiveRaid(walletAddress: string, raidId: string): void {
+    const raids = this.activeRaidsByWallet.get(walletAddress);
+    if (raids) {
+      raids.delete(raidId);
+      if (raids.size === 0) {
+        this.activeRaidsByWallet.delete(walletAddress);
+        // Process queued unstakes for this wallet
+        this.processQueuedUnstakes(walletAddress);
+      }
+    }
+    console.log(`[StakeManager] Unregistered active raid ${raidId} for ${walletAddress}`);
+  }
+
+  /**
+   * Register a mine as under attack
+   */
+  registerMineUnderAttack(mineId: string): void {
+    const current = this.minesUnderAttack.get(mineId) || 0;
+    this.minesUnderAttack.set(mineId, current + 1);
+    console.log(`[StakeManager] Mine ${mineId} under attack (count: ${current + 1})`);
+  }
+
+  /**
+   * Unregister a mine attack
+   * Also processes queued unstakes for stakers at that mine
+   */
+  unregisterMineAttack(mineId: string): void {
+    const current = this.minesUnderAttack.get(mineId) || 0;
+    if (current <= 1) {
+      this.minesUnderAttack.delete(mineId);
+      // Process queued unstakes for defenders at this mine
+      this.processQueuedUnstakesForMine(mineId);
+    } else {
+      this.minesUnderAttack.set(mineId, current - 1);
+    }
+    console.log(`[StakeManager] Mine ${mineId} attack ended (remaining: ${Math.max(0, current - 1)})`);
+  }
+
+  /**
+   * Process queued unstakes for a wallet
+   */
+  private processQueuedUnstakes(walletAddress: string): void {
+    const queue = this.unstakeQueue.get(walletAddress);
+    if (!queue || queue.length === 0) return;
+
+    // Check if wallet still has any blocking conditions
+    const activeRaids = this.activeRaidsByWallet.get(walletAddress);
+    if (activeRaids && activeRaids.size > 0) return;
+
+    const state = this.getMinerState(walletAddress);
+    if (state.currentExpeditionId) return;
+
+    console.log(`[StakeManager] Processing ${queue.length} queued unstakes for ${walletAddress}`);
+
+    // Process all queued unstakes
+    for (const request of queue) {
+      // Check if mine is still under attack
+      const attackCount = this.minesUnderAttack.get(request.mineId) || 0;
+      if (attackCount > 0 && request.reason === 'raid_defender') {
+        continue; // Keep in queue
+      }
+
+      this.processUnstake(request.walletAddress, request.mineId, request.amount);
+    }
+
+    // Clear processed requests (keep ones still blocked)
+    const remaining = queue.filter(r => {
+      if (r.reason === 'raid_defender') {
+        const attackCount = this.minesUnderAttack.get(r.mineId) || 0;
+        return attackCount > 0;
+      }
+      return false;
+    });
+
+    if (remaining.length > 0) {
+      this.unstakeQueue.set(walletAddress, remaining);
+    } else {
+      this.unstakeQueue.delete(walletAddress);
+    }
+  }
+
+  /**
+   * Process queued unstakes for defenders at a specific mine
+   */
+  private processQueuedUnstakesForMine(mineId: string): void {
+    console.log(`[StakeManager] Processing queued unstakes for mine ${mineId}`);
+
+    for (const [walletAddress, queue] of this.unstakeQueue) {
+      const mineRequests = queue.filter(r => r.mineId === mineId && r.reason === 'raid_defender');
+      
+      for (const request of mineRequests) {
+        this.processUnstake(request.walletAddress, request.mineId, request.amount);
+      }
+
+      // Remove processed requests
+      const remaining = queue.filter(r => !(r.mineId === mineId && r.reason === 'raid_defender'));
+      if (remaining.length > 0) {
+        this.unstakeQueue.set(walletAddress, remaining);
+      } else {
+        this.unstakeQueue.delete(walletAddress);
+      }
+    }
+  }
+
+  /**
+   * Get queued unstakes for a wallet
+   */
+  getQueuedUnstakes(walletAddress: string): UnstakeRequest[] {
+    return this.unstakeQueue.get(walletAddress) || [];
+  }
+
+  /**
+   * Check if wallet has any queued unstakes
+   */
+  hasQueuedUnstakes(walletAddress: string): boolean {
+    const queue = this.unstakeQueue.get(walletAddress);
+    return queue ? queue.length > 0 : false;
+  }
+
+  /**
+   * Force process all expired queue items (safety valve)
+   */
+  processExpiredQueueItems(): void {
+    const now = Date.now();
+
+    for (const [walletAddress, queue] of this.unstakeQueue) {
+      const expired = queue.filter(
+        r => now - r.requestedAt.getTime() > this.MAX_QUEUE_WAIT_MS
+      );
+
+      for (const request of expired) {
+        console.log(
+          `[StakeManager] Force processing expired unstake for ${walletAddress} ` +
+          `(waited ${Math.floor((now - request.requestedAt.getTime()) / 1000)}s)`
+        );
+        this.processUnstake(request.walletAddress, request.mineId, request.amount);
+      }
+
+      // Remove expired from queue
+      const remaining = queue.filter(
+        r => now - r.requestedAt.getTime() <= this.MAX_QUEUE_WAIT_MS
+      );
+
+      if (remaining.length > 0) {
+        this.unstakeQueue.set(walletAddress, remaining);
+      } else {
+        this.unstakeQueue.delete(walletAddress);
+      }
+    }
   }
 
   /**
