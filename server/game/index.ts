@@ -19,7 +19,15 @@ export {
   getStakeManager, 
   resetStakeManager,
 } from './stake-manager';
-export type { UnstakeRequest, UnstakeResult } from './stake-manager';
+export type { UnstakeResult } from './stake-manager';
+
+// Bet Escrow Manager (v2.9)
+export {
+  BetEscrowManager,
+  getBetEscrowManager,
+  resetBetEscrowManager,
+} from './bet-escrow';
+export type { BetRecord, RaidBetPool, EscrowResolution, BetStatus } from './bet-escrow';
 
 // Cooldown Manager
 export { 
