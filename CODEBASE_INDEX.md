@@ -2,9 +2,9 @@
 
 > Complete file-by-file documentation for the Black Gold Interactive Mining Globe platform
 
-**Last Updated**: January 7, 2026  
-**Version**: 2.6 (Privy Wallet Integration + Resource Styling)  
-**Total Files**: 68+ TypeScript/TSX files
+**Last Updated**: January 8, 2026  
+**Version**: 2.6 (Privy Wallet Integration + Resource Styling + Game Docs)  
+**Total Files**: 70+ TypeScript/TSX files
 
 ---
 
@@ -266,18 +266,32 @@ PrivyProvider        ← Outer: Provides Privy context
 
 ## Documentation (docs/)
 
+### Core Documentation
+
 | File | Purpose |
 |------|---------|
 | `INDEX.md` | Main project documentation |
+| `GAME_MECHANICS.md` | **NEW v2.6** Complete game rules, mechanics, and player guide |
+| `ECONOMICS.md` | **NEW v2.6** Tokenomics, sustainability analysis, earnings estimates |
 | `DEPLOYMENT.md` | Step-by-step deployment guide for Vercel + Railway |
-| `DEVNET_SETUP.md` | **NEW** Devnet testing environment setup |
-| `HELIUS_SETUP.md` | **NEW** Helius API configuration guide |
-| `SECURITY_CHECKLIST.md` | **NEW** Security testing checklist and verification |
-| `SECURITY.md` | Security architecture overview |
-| `SECURITY_VERIFICATION.md` | Proof verification algorithm details |
-| `PARALLEL_AGENTS.md` | Guide for multi-agent development |
-| `FRONTEND_INDEX.md` | Frontend component documentation |
+
+### Technical Guides
+
+| File | Purpose |
+|------|---------|
+| `DEVNET_SETUP.md` | Devnet testing environment setup |
+| `HELIUS_SETUP.md` | Helius API configuration guide |
 | `SOLANA_INTEGRATION.md` | Solana blockchain integration details |
+| `FRONTEND_INDEX.md` | Frontend component documentation |
+| `PARALLEL_AGENTS.md` | Guide for multi-agent development |
+
+### Security
+
+| File | Purpose |
+|------|---------|
+| `SECURITY.md` | Security architecture overview |
+| `SECURITY_CHECKLIST.md` | Security testing checklist and verification |
+| `SECURITY_VERIFICATION.md` | Proof verification algorithm details |
 
 ---
 
@@ -326,6 +340,9 @@ PrivyProvider        ← Outer: Provides Privy context
 ---
 
 ## Game Mechanics
+
+> 📖 **For complete game rules and player guide, see [docs/GAME_MECHANICS.md](docs/GAME_MECHANICS.md)**  
+> 💰 **For tokenomics and economics analysis, see [docs/ECONOMICS.md](docs/ECONOMICS.md)**
 
 ### Resource Types & Discovery Names
 
