@@ -8,6 +8,45 @@
 
 ---
 
+## ⚠️ TODO: Review Before Launch
+
+> **These values need review - numbers may be too low for mainnet launch**
+
+### 1. Reward Distribution Numbers
+- [ ] **Base reward per discovery**: Currently 100 COAL - may need 500-1000+
+- [ ] **Resource multipliers**: Coal 1.0x, Silver 1.2x, Oil 1.3x, Gold 1.5x
+- [ ] **Finder/Vault split**: Currently 70/30 - consider 60/40 or 80/20?
+- [ ] **File**: `server/game/reward-orchestrator.ts` lines 47-56
+
+### 2. Holder Requirement Tiers
+- [ ] **Dynamic scaling logic**: Currently % of supply based on market cap
+- [ ] **Consider**: Fixed token amounts OR higher percentages at launch
+- [ ] **Genesis tier**: 0.5% at <$10K MC - is this too low/high?
+- [ ] **File**: `config/holder-tiers.ts`
+
+### 3. Staking Tiers
+- [ ] **Tier thresholds**: [0, 100, 500, 1000, 5000] COAL - too low?
+- [ ] **Consider**: [0, 1000, 5000, 10000, 50000] for mainnet
+- [ ] **Multipliers**: 1.0x to 3.0x hashrate boost - balanced?
+- [ ] **File**: `server/game/types.ts` lines 23-29
+
+### 4. Syndicate Creation Cost
+- [ ] **Current cost**: 1,000 COAL (burned)
+- [ ] **Consider**: 5,000-10,000 COAL for more exclusivity
+- [ ] **File**: `server/game/types.ts` line 208
+
+### 5. Mine Count & Distribution
+- [ ] **Current**: 20 mines (5 per resource type)
+- [ ] **Consider**: More/fewer mines for player distribution
+- [ ] **File**: `config/mines.ts`
+
+### 6. Discovery Times
+- [ ] **Coal**: 5 min, **Silver**: 8 min, **Oil**: 10 min, **Gold**: 20 min
+- [ ] **Consider**: Longer times for higher rewards, or shorter for engagement
+- [ ] **File**: `config/mines.ts` lines 52-89
+
+---
+
 ## Table of Contents
 
 1. [Project Structure](#project-structure)
