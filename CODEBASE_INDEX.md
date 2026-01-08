@@ -1,29 +1,60 @@
-# Black Gold v2.8 - Codebase Index
+# Black Gold v2.9 - Codebase Index
 
 > Complete file-by-file documentation for the Black Gold Interactive Mining Globe platform
 
 **Last Updated**: January 8, 2026  
-**Version**: 2.8 (WebSocket Mining Integration)  
-**Total Files**: 72+ TypeScript/TSX files
+**Version**: 2.9 (Quarry + IOU + BetEscrow Architecture)  
+**Total Files**: 74+ TypeScript/TSX files
 
 ---
 
-## 📋 Recent Changes (v2.8)
+## 📋 Recent Changes (v2.9)
 
-### WebSocket Mining Integration
-- **`app/page.tsx`** - Full mining flow integration:
-  - Imports and uses `useGameSocket` and `useMining` hooks
-  - Auto-connects to game server when wallet connects
-  - Auto-joins mine when home mine is set
-  - Mining worker starts when work unit received
-  - Hashrate reported to server, solutions submitted for verification
-- **`app/hooks/useGameSocket.ts`** - Added `onWork` callback and `WorkUnit` export
-- Uses refs to avoid circular dependencies between hooks
+### Quarry Staking Infrastructure
+- **`scripts/deploy-quarry.ts`** - Deploy script for Quarry Protocol:
+  - Creates IOU-COAL token + MintWrapper
+  - Deploys Rewarder for reward distribution
+  - Creates Quarry for COAL staking
+  - Configures Minter for reward minting
+  - Outputs env vars for Railway/Vercel
+
+### Bet Escrow System (New File)
+- **`server/game/bet-escrow.ts`** - Raid bet management separate from staking:
+  - `BetEscrowManager` class for raid bets
+  - Bets locked during active raids
+  - Resolution: 90% burned, 10% to defenders
+  - Tracks bets by wallet, by raid
+
+### Stake Manager Updates
+- **`server/game/stake-manager.ts`** - Simplified for Quarry integration:
+  - Removed unstake queue (Quarry allows instant unstake)
+  - Added BetEscrow integration
+  - Added `isQuarryEnabled()` check
+  - Added `getLockedBetAmount()` from BetEscrow
+
+### Staking Service Updates
+- **`server/solana/staking.ts`** - Quarry SDK integration:
+  - `buildStakeTransaction()` - Build stake tx for user signing
+  - `buildUnstakeTransaction()` - Build unstake tx
+  - `buildClaimRewardsTransaction()` - Claim IOU-COAL
+  - `buildRedeemTransaction()` - Exchange IOU → real COAL
+  - `getUserStakeInfo()` - Query on-chain stake
+
+### Documentation Updates
+- **`docs/GAME_MECHANICS.md`** - v2.8:
+  - Updated Staking System section with Quarry architecture
+  - Added Bet Escrow System documentation
+  - Updated Attack Vectors & Mitigations
+
+### Previous Changes (v2.8)
+- WebSocket Mining Integration
+- `useGameSocket` and `useMining` hooks integration
+- Mining flow with work units and proof submission
 
 ### Previous Changes (v2.7)
-- **Devnet Testing Infrastructure**: Alpha test token on devnet
-- **Holder Verification**: Network-aware Helius API endpoints
-- **Documentation**: GAME_MECHANICS.md and ECONOMICS.md
+- Devnet Testing Infrastructure: Alpha test token
+- Holder Verification: Network-aware Helius API
+- Documentation: GAME_MECHANICS.md and ECONOMICS.md
 
 ---
 
@@ -262,7 +293,8 @@ PrivyProvider        ← Outer: Provides Privy context
 |------|-------|---------|---------|
 | `types.ts` | ~350 | `StakeTier`, `Expedition`, `RaidResult`, `MineState`, `Syndicate`, etc. | All game type definitions |
 | `mine-registry.ts` | ~350 | `MineRegistry`, `getMineRegistry` | 20 mine state management with resource-specific mechanics |
-| `stake-manager.ts` | ~300 | `StakeManager`, `getStakeManager` | Staking with tier multipliers and loyalty tracking |
+| `stake-manager.ts` | ~350 | `StakeManager`, `getStakeManager` | **v2.9** Quarry-integrated staking, BetEscrow coordination |
+| `bet-escrow.ts` | ~320 | `BetEscrowManager`, `getBetEscrowManager` | **NEW v2.9** Raid bet locking separate from staking |
 | `cooldowns.ts` | ~150 | `CooldownManager`, `getCooldownManager` | Cooldown enforcement |
 | `expedition-tracker.ts` | ~350 | `ExpeditionTracker`, `getExpeditionTracker` | Raid expedition lifecycle |
 | `raid-engine.ts` | ~350 | `RaidEngine`, `getRaidEngine` | Attack/defense calculations, bet burning, defender spoils |
@@ -270,17 +302,17 @@ PrivyProvider        ← Outer: Provides Privy context
 | `distribution-service.ts` | ~280 | `DistributionService`, `getDistributionService` | Hourly pool distribution weighted by contribution score |
 | `syndicate-manager.ts` | ~280 | `SyndicateManager`, `getSyndicateManager` | Alliance creation, join/leave, invitations |
 | `syndicate-raids.ts` | ~250 | `SyndicateRaids`, `getSyndicateRaids` | Coordinated raids with pooled attack power |
-| `reward-orchestrator.ts` | ~220 | `initRewardOrchestrator`, `handleNewDiscovery` | **NEW** Connects buyback→distribution flow |
+| `reward-orchestrator.ts` | ~220 | `initRewardOrchestrator`, `handleNewDiscovery` | Connects buyback→distribution flow |
 | `index.ts` | ~55 | Re-exports | Barrel exports |
 
 ### Solana Module (`server/solana/`)
 
 | File | Lines | Exports | Purpose |
 |------|-------|---------|---------|
-| `holder.ts` | ~230 | `verifyHolder`, `createConnection`, `getHeliusApiBase` | Token holder verification via Helius (v2.7: network-aware devnet/mainnet URLs) |
+| `holder.ts` | ~230 | `verifyHolder`, `createConnection`, `getHeliusApiBase` | Token holder verification via Helius (network-aware devnet/mainnet) |
 | `rewards.ts` | ~280 | `sendReward`, `queueReward` | SPL token reward distribution (security-hardened v2.2) |
 | `buyback.ts` | ~360 | `executeBuyback`, `shouldExecuteBuyback` | Automated SOL→COAL swap |
-| `staking.ts` | ~220 | `buildStakeTransaction`, `buildUnstakeTransaction` | **NEW** Quarry SDK on-chain staking |
+| `staking.ts` | ~330 | `buildStakeTransaction`, `buildClaimRewardsTransaction`, `buildRedeemTransaction`, `getUserStakeInfo` | **v2.9** Quarry SDK staking with IOU token support |
 | `index.ts` | ~60 | Re-exports | Barrel exports |
 
 **Security Hardening (rewards.ts - v2.2):**
@@ -319,7 +351,8 @@ PrivyProvider        ← Outer: Provides Privy context
 | File | Lines | Purpose | Usage |
 |------|-------|---------|-------|
 | `buyback.ts` | ~215 | Standalone buyback service | `npm run buyback` |
-| `create-test-token.ts` | ~127 | **NEW v2.7** Create SPL test tokens on devnet | `npx ts-node scripts/create-test-token.ts` |
+| `create-test-token.ts` | ~127 | Create SPL test tokens on devnet | `npx tsx scripts/create-test-token.ts` |
+| `deploy-quarry.ts` | ~290 | **NEW v2.9** Deploy Quarry infrastructure (IOU + MintWrapper + Rewarder + Quarry) | `DEPLOYER_PRIVATE_KEY="..." npx tsx scripts/deploy-quarry.ts` |
 
 ---
 
@@ -330,8 +363,8 @@ PrivyProvider        ← Outer: Provides Privy context
 | File | Purpose |
 |------|---------|
 | `INDEX.md` | Main project documentation |
-| `GAME_MECHANICS.md` | **NEW v2.6** Complete game rules, mechanics, and player guide |
-| `ECONOMICS.md` | **NEW v2.6** Tokenomics, sustainability analysis, earnings estimates |
+| `GAME_MECHANICS.md` | **v2.8** Complete game rules, Quarry staking architecture, BetEscrow system |
+| `ECONOMICS.md` | Tokenomics, sustainability analysis, earnings estimates |
 | `DEPLOYMENT.md` | Step-by-step deployment guide for Vercel + Railway |
 
 ### Technical Guides

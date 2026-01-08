@@ -67,13 +67,24 @@ Go to **Variables** tab and add:
 PORT=8080
 ADMIN_SECRET=your-secure-password-here
 SOLANA_RPC_URL=https://api.mainnet-beta.solana.com
+SOLANA_NETWORK=mainnet-beta
 ```
 
-Optional (add later when ready):
+Optional - Quarry Staking (add after running deploy-quarry.ts):
+```
+QUARRY_MINT_WRAPPER=your-mint-wrapper-address
+QUARRY_REWARDER_ADDRESS=your-rewarder-address
+QUARRY_ADDRESS=your-quarry-address
+IOU_TOKEN_MINT=your-iou-token-mint
+BET_ESCROW_WALLET=your-escrow-wallet-address
+```
+
+Optional - Other (add later when ready):
 ```
 HELIUS_API_KEY=your-helius-key
 TOKEN_MINT_ADDRESS=your-token-mint
 REWARD_WALLET_PRIVATE_KEY=your-reward-wallet-key
+REDEEMER_WALLET_ADDRESS=your-redeemer-wallet
 ```
 
 ### 1.4 Deploy and Get URL
@@ -114,7 +125,15 @@ NEXT_PUBLIC_WS_URL=wss://your-railway-app.railway.app
 NEXT_PUBLIC_USE_MOCKS=false
 ```
 
-Optional (add when you have them):
+Optional - Quarry Staking (add after running deploy-quarry.ts):
+```
+NEXT_PUBLIC_QUARRY_ENABLED=true
+NEXT_PUBLIC_QUARRY_REWARDER=your-rewarder-address
+NEXT_PUBLIC_QUARRY_ADDRESS=your-quarry-address
+NEXT_PUBLIC_IOU_TOKEN_MINT=your-iou-token-mint
+```
+
+Optional - Other (add when you have them):
 ```
 NEXT_PUBLIC_PRIVY_APP_ID=your-privy-app-id
 NEXT_PUBLIC_SOLANA_RPC_URL=https://api.mainnet-beta.solana.com
@@ -157,22 +176,85 @@ In Privy Dashboard:
 
 ---
 
-## Step 4: Verify Deployment
+## Step 4: Deploy Quarry Staking Infrastructure
 
-### 4.1 Test Frontend
+> **Optional**: Only needed if you want on-chain Quarry staking
+
+### 4.1 Prerequisites
+
+- Solana wallet with devnet/mainnet SOL (~2 SOL)
+- Private key in base58 format
+- Token already created (via Pump.fun or `create-test-token.ts`)
+
+### 4.2 Run Deploy Script
+
+From the `black-gold` directory:
+
+```bash
+DEPLOYER_PRIVATE_KEY="your-base58-private-key" npx tsx scripts/deploy-quarry.ts
+```
+
+### 4.3 What Gets Deployed
+
+The script creates:
+1. **IOU-COAL Token** - Reward token with MintWrapper
+2. **MintWrapper** - Controls IOU token minting
+3. **Rewarder** - Manages reward distribution
+4. **Quarry** - Staking pool for COAL tokens
+
+### 4.4 Update Environment Variables
+
+The script outputs environment variables to add:
+
+**Railway:**
+```
+QUARRY_MINT_WRAPPER=...
+QUARRY_REWARDER_ADDRESS=...
+QUARRY_ADDRESS=...
+IOU_TOKEN_MINT=...
+```
+
+**Vercel:**
+```
+NEXT_PUBLIC_QUARRY_ENABLED=true
+NEXT_PUBLIC_QUARRY_REWARDER=...
+NEXT_PUBLIC_QUARRY_ADDRESS=...
+NEXT_PUBLIC_IOU_TOKEN_MINT=...
+```
+
+### 4.5 Architecture Overview
+
+```
+┌──────────────────────────────────────────────┐
+│  QUARRY STAKING FLOW                         │
+├──────────────────────────────────────────────┤
+│  1. User stakes COAL → Quarry                │
+│  2. User earns IOU-COAL over time            │
+│  3. User claims IOU-COAL → wallet            │
+│  4. User redeems IOU-COAL → real COAL        │
+│     (Redeemer funded by buyback service)     │
+│  5. User can unstake COAL anytime (instant)  │
+└──────────────────────────────────────────────┘
+```
+
+---
+
+## Step 5: Verify Deployment
+
+### 5.1 Test Frontend
 
 1. Open your Vercel URL
 2. Check that the globe loads with continent outlines
 3. Click on mine markers
 4. Check browser console for errors
 
-### 4.2 Test WebSocket Connection
+### 5.2 Test WebSocket Connection
 
 1. Open browser DevTools → Network → WS
 2. You should see a WebSocket connection to your Railway URL
 3. If connected, you'll see ping/pong messages
 
-### 4.3 Test Admin Console
+### 5.3 Test Admin Console
 
 1. Go to `https://your-vercel-url.vercel.app/admin`
 2. Enter your `ADMIN_SECRET` password
@@ -191,6 +273,10 @@ In Privy Dashboard:
 | `NEXT_PUBLIC_USE_MOCKS` | No | Set to `false` for production |
 | `NEXT_PUBLIC_SOLANA_RPC_URL` | No | Custom Solana RPC |
 | `ADMIN_SECRET` | ✅ Yes | Admin console password |
+| `NEXT_PUBLIC_QUARRY_ENABLED` | No | Enable Quarry staking UI |
+| `NEXT_PUBLIC_QUARRY_REWARDER` | No | Quarry rewarder address |
+| `NEXT_PUBLIC_QUARRY_ADDRESS` | No | Quarry staking pool address |
+| `NEXT_PUBLIC_IOU_TOKEN_MINT` | No | IOU reward token mint |
 
 ### Railway (Backend)
 
@@ -199,9 +285,16 @@ In Privy Dashboard:
 | `PORT` | ✅ Yes | Usually `8080` |
 | `ADMIN_SECRET` | No | For server admin functions |
 | `SOLANA_RPC_URL` | No | Solana RPC endpoint |
+| `SOLANA_NETWORK` | No | `devnet` or `mainnet-beta` |
 | `HELIUS_API_KEY` | No | For holder verification |
 | `TOKEN_MINT_ADDRESS` | No | Your SPL token mint |
 | `REWARD_WALLET_PRIVATE_KEY` | No | For reward distribution |
+| `QUARRY_MINT_WRAPPER` | No | Quarry MintWrapper address |
+| `QUARRY_REWARDER_ADDRESS` | No | Quarry Rewarder address |
+| `QUARRY_ADDRESS` | No | Quarry staking pool address |
+| `IOU_TOKEN_MINT` | No | IOU reward token mint |
+| `BET_ESCROW_WALLET` | No | Escrow wallet for raid bets |
+| `REDEEMER_WALLET_ADDRESS` | No | Wallet for IOU→COAL redemption |
 
 ---
 

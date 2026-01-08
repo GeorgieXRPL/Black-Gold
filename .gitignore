@@ -30,8 +30,46 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# ===========================================
+# SECURITY - NEVER COMMIT THESE
+# ===========================================
+
+# Environment files (contain secrets)
+.env
+.env.*
+.env.local
+.env.development
+.env.production
+!.env.example
+
+# Private keys and wallets
+*.key
+*.pem
+*.p12
+*.pfx
+*-keypair.json
+*wallet*.json
+*secret*.json
+*private*.json
+
+# Solana keypairs
+id.json
+*.keypair
+devnet-keypair.json
+mainnet-keypair.json
+
+# Editor/IDE secrets
+.idea/
+.vscode/settings.json
+.vscode/launch.json
+
+# OS generated
+.DS_Store
+Thumbs.db
+
+# ===========================================
+# END SECURITY
+# ===========================================
 
 # vercel
 .vercel
@@ -39,3 +77,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Logs
+logs/
+*.log
+
+# Cache
+.cache/
+.turbo/

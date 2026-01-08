@@ -1,8 +1,9 @@
 # ⛏️ Black Gold Game Mechanics
 
-> **Version**: 2.6  
+> **Version**: 2.8  
 > **Last Updated**: January 2026  
-> **Status**: Production Ready
+> **Status**: Production Ready (Devnet)
+> **Staking**: Quarry Protocol + IOU Token Architecture
 
 ## Table of Contents
 
@@ -210,6 +211,53 @@ Your Share = (Your Score / Total Scores) × Vault Balance
 
 ## Staking System
 
+### Architecture: Quarry + IOU + Redeemer
+
+Black Gold uses the audited **Quarry Protocol** for on-chain staking:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│              QUARRY STAKING ARCHITECTURE                        │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  USER FLOW:                                                     │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │ 1. STAKE      User stakes COAL tokens in Quarry         │   │
+│  │    └─→ Tokens locked on-chain (audited smart contract)  │   │
+│  │                                                          │   │
+│  │ 2. EARN       User earns IOU-COAL over time             │   │
+│  │    └─→ MintWrapper mints IOU-COAL based on stake        │   │
+│  │                                                          │   │
+│  │ 3. CLAIM      User claims IOU-COAL rewards              │   │
+│  │    └─→ IOU tokens sent to user's wallet                 │   │
+│  │                                                          │   │
+│  │ 4. REDEEM     User exchanges IOU-COAL → real COAL       │   │
+│  │    └─→ Redeemer (funded by buyback) gives real COAL     │   │
+│  │                                                          │   │
+│  │ 5. UNSTAKE    User can unstake ANYTIME (instant)        │   │
+│  │    └─→ COAL returned immediately to wallet              │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                 │
+│  COMPONENTS:                                                    │
+│  • COAL Token:     Pump.fun token (burned mint authority)      │
+│  • IOU-COAL Token: Reward token (MintWrapper controls)         │
+│  • Quarry:         On-chain staking program                    │
+│  • Redeemer:       Exchanges IOU-COAL for real COAL            │
+│  • Buyback:        Funds Redeemer with SOL→COAL swaps          │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Why Quarry + IOU Token?
+
+| Challenge | Solution |
+|-----------|----------|
+| Pump.fun burns mint authority | IOU token has separate mint authority |
+| Need audited staking | Quarry Protocol is battle-tested |
+| Want instant unstaking | Quarry supports immediate withdrawal |
+| Need to distribute rewards | IOU tokens minted based on stake |
+| Convert rewards to real COAL | Redeemer funded by buyback service |
+
 ### Stake Tiers
 
 | Tier | Min Stake | Hashrate Boost | Defense Boost |
@@ -223,57 +271,44 @@ Your Share = (Your Score / Total Scores) × Vault Balance
 ### Staking Benefits
 
 1. **Hashrate Multiplier** - Find discoveries faster
-2. **Defense Power** - Protect against raids
+2. **Defense Power** - Protect against raids (based on real-time stake)
 3. **Vault Share** - Larger slice of hourly distribution
 4. **Home Base Bonus** - +50% defense power at home mine
+5. **Instant Unstake** - No lockup periods (bets are separate)
 
-### Unstake Queue System
+### Bet Escrow System (Separate from Staking)
 
-To prevent mid-raid exploits, unstaking is queued during active events:
+Raid bets are handled separately from staking to prevent exploits:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                   UNSTAKE QUEUE SYSTEM                          │
+│              BET ESCROW SYSTEM (FOR RAIDS)                      │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  User requests unstake                                          │
-│         │                                                       │
-│         ▼                                                       │
-│  ┌──────────────────┐                                          │
-│  │ Check conditions │                                          │
-│  └────────┬─────────┘                                          │
-│           │                                                     │
-│     ┌─────┴─────┐                                              │
-│     │           │                                               │
-│     ▼           ▼                                               │
-│  ┌──────┐   ┌────────────────┐                                 │
-│  │ Free │   │ Event Active   │                                 │
-│  └───┬──┘   └────────┬───────┘                                 │
-│      │               │                                          │
-│      ▼               ▼                                          │
-│  ┌────────┐   ┌─────────────────┐                              │
-│  │ INSTANT│   │ QUEUE for later │                              │
-│  │ unstake│   │ (max 15 min)    │                              │
-│  └────────┘   └─────────────────┘                              │
-│                      │                                          │
-│                      ▼                                          │
-│              ┌──────────────┐                                  │
-│              │ Event ends   │                                  │
-│              │ → Auto-process│                                 │
-│              └──────────────┘                                  │
+│  STAKING ≠ BETTING                                              │
+│  • Quarry Stake: Can unstake anytime (affects defense power)   │
+│  • Raid Bets: Locked until raid resolves (escrow)              │
 │                                                                 │
-│  Queue Triggers:                                                │
-│  • User is attacking (raid in progress)                        │
-│  • User's mine is under attack                                 │
-│  • User has active expedition                                  │
+│  BET FLOW:                                                      │
+│  1. User places raid bet → COAL sent to escrow wallet          │
+│  2. Bet LOCKED until raid ends (no escape)                     │
+│  3. Raid resolves:                                              │
+│     • Win: Bet returned + share of stolen rewards              │
+│     • Lose: 90% burned 🔥, 10% to defenders                    │
+│                                                                 │
+│  WHY SEPARATE?                                                  │
+│  • Attackers can't escape losing bets mid-raid                 │
+│  • Defenders can freely adjust stake (still risk bets)         │
+│  • Clean separation of concerns                                 │
+│  • Auditable bet tracking                                       │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**Why?** Prevents:
-- Attackers withdrawing bets when raid looks bad
-- Defenders fleeing when raid starts
-- Gaming the system by timing unstakes
+**Key Insight**: You can unstake from Quarry anytime, but your raid bets remain locked until the raid ends. This allows:
+- Strategic stake rebalancing between mines
+- No "stuck tokens" for defensive staking
+- Clear consequences for raid participation
 
 ---
 
@@ -583,11 +618,29 @@ Genesis    Expansion    Velocity      Mass
 | Attack | Mitigation |
 |--------|------------|
 | Sybil mining | Holder requirement + hashrate proportional rewards |
-| Raid griefing | Cooldowns + defense advantage + unstake queue |
+| Raid griefing | Cooldowns + defense advantage + bet escrow |
 | Whale domination | Hashrate matters more than stake |
 | Bot mining | Rate limiting + proof verification + anti-cheat |
-| Flash unstake | Unstake queue during active events |
+| Flash bet escape | Bet escrow locks bets until raid ends |
+| IOU manipulation | Redeemer has limited COAL (buyback funded) |
+| Stake gaming | Quarry on-chain, real-time defense calculation |
 | Collusion | Transparency + on-chain verification |
+
+### IOU Token Safety
+
+The IOU token system has several anti-gaming measures:
+
+1. **Capped Supply**: MintWrapper enforces hardcap on IOU-COAL
+2. **Burn on Redeem**: IOU-COAL burned when exchanged for real COAL
+3. **Buyback Funding**: Redeemer only has COAL from buyback service
+4. **Rate Limiting**: Redemption rate limited to prevent drain
+
+### Bet Escrow Security
+
+1. **Locked on Entry**: Bet COAL transferred to escrow on raid start
+2. **No Early Exit**: Cannot retrieve bets while raid is active
+3. **Transparent**: All bets tracked on-chain with signatures
+4. **Fair Distribution**: Defender spoils weighted by stake
 
 ---
 

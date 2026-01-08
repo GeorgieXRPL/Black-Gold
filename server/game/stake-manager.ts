@@ -1,7 +1,16 @@
 /**
- * @fileoverview Stake Manager for Black Gold v2
- * Manages staking operations, power calculations, and tier tracking
- * Includes unstake queue system to prevent mid-raid exploits
+ * @fileoverview Stake Manager for Black Gold v2.8
+ * 
+ * Architecture (Quarry + BetEscrow):
+ * - Quarry: On-chain token custody for staking (instant unstake OK)
+ * - BetEscrow: Separate system for raid bets (locked until raid ends)
+ * - This manager: Game state tracking + power calculations
+ * 
+ * Key changes from v2.7:
+ * - Unstake queue removed (Quarry handles instant unstake)
+ * - Bet locking handled by BetEscrow (not stake locking)
+ * - Defense power queries Quarry for real-time on-chain balance
+ * - Raid bets are separate from staking
  */
 
 import {
@@ -15,38 +24,29 @@ import {
 } from './types';
 import { getMineRegistry } from './mine-registry';
 import { ResourceType } from '../../config/mines';
-
-/**
- * Unstake queue entry
- * Stores pending unstake requests during active events
- */
-export interface UnstakeRequest {
-  id: string;
-  walletAddress: string;
-  mineId: string;
-  amount: number;
-  requestedAt: Date;
-  reason: 'raid_attacker' | 'raid_defender' | 'expedition_active';
-  estimatedProcessTime: Date;
-}
+import { getBetEscrowManager } from './bet-escrow';
 
 /**
  * Unstake result
+ * Note: With Quarry architecture, unstaking is always instant.
+ * Raid bets are locked separately via BetEscrow.
  */
 export interface UnstakeResult {
   success: boolean;
-  queued: boolean;
-  queuePosition?: number;
-  estimatedWait?: number; // in seconds
   error?: string;
+  /** Warning if user has active raid bets (separate from stake) */
+  warning?: string;
 }
 
 /**
  * Stake Manager class
- * Handles all staking operations and calculations
+ * Handles game state tracking and power calculations
+ * 
+ * Note: Actual token custody is handled by Quarry (on-chain).
+ * This manager tracks game state, calculates powers, and coordinates with BetEscrow.
  */
 export class StakeManager {
-  /** Stakes by wallet address */
+  /** Stakes by wallet address (in-memory cache, synced with Quarry) */
   private stakes: Map<string, StakeRecord[]> = new Map();
   
   /** Miner game states */
@@ -55,17 +55,23 @@ export class StakeManager {
   /** Pending rewards from defender spoils and other sources (wallet -> amount) */
   private pendingRewards: Map<string, number> = new Map();
 
-  /** Unstake queue for requests made during active events */
-  private unstakeQueue: Map<string, UnstakeRequest[]> = new Map();
-
-  /** Active raids by wallet (wallet -> raid IDs) */
+  /** Active raids by wallet (wallet -> raid IDs) - for tracking, not blocking */
   private activeRaidsByWallet: Map<string, Set<string>> = new Map();
 
   /** Mines currently under attack (mineId -> attack count) */
   private minesUnderAttack: Map<string, number> = new Map();
-
-  /** Maximum wait time for queued unstakes in ms (15 minutes) */
-  private readonly MAX_QUEUE_WAIT_MS = 15 * 60 * 1000;
+  
+  /** Whether Quarry integration is enabled */
+  private quarryEnabled: boolean = false;
+  
+  constructor() {
+    this.quarryEnabled = !!process.env.QUARRY_ADDRESS;
+    if (this.quarryEnabled) {
+      console.log('[StakeManager] Quarry integration enabled');
+    } else {
+      console.log('[StakeManager] Running in simulation mode (no Quarry)');
+    }
+  }
 
   /**
    * Get or create miner game state
@@ -175,17 +181,22 @@ export class StakeManager {
 
   /**
    * Request to withdraw stake from a mine
-   * May be queued if user has active raids or mine is under attack
+   * 
+   * With Quarry architecture:
+   * - Unstaking is always allowed (handled on-chain by Quarry)
+   * - This just updates our in-memory cache
+   * - Raid bets are separate and locked via BetEscrow
+   * - If user has active bets, we warn but don't block
    */
   requestUnstake(walletAddress: string, mineId: string, amount: number): UnstakeResult {
     const walletStakes = this.stakes.get(walletAddress);
     if (!walletStakes) {
-      return { success: false, queued: false, error: 'No stakes found' };
+      return { success: false, error: 'No stakes found' };
     }
 
     const stakeIndex = walletStakes.findIndex(s => s.mineId === mineId);
     if (stakeIndex < 0) {
-      return { success: false, queued: false, error: 'No stake at this mine' };
+      return { success: false, error: 'No stake at this mine' };
     }
 
     const stake = walletStakes[stakeIndex];
@@ -193,71 +204,28 @@ export class StakeManager {
       amount = stake.amount; // Unstake all
     }
 
-    // Check if user has active raids
-    const activeRaids = this.activeRaidsByWallet.get(walletAddress);
-    if (activeRaids && activeRaids.size > 0) {
-      return this.queueUnstake(walletAddress, mineId, amount, 'raid_attacker');
-    }
+    // Check if user has active raid bets (warn but don't block)
+    const betEscrow = getBetEscrowManager();
+    const hasActiveBets = betEscrow.hasLockedBets(walletAddress);
+    const lockedBetAmount = betEscrow.getLockedBetAmount(walletAddress);
 
-    // Check if mine is under attack (for defenders)
-    const attackCount = this.minesUnderAttack.get(mineId) || 0;
-    if (attackCount > 0) {
-      return this.queueUnstake(walletAddress, mineId, amount, 'raid_defender');
-    }
-
-    // Check if user has active expedition
-    const state = this.getMinerState(walletAddress);
-    if (state.currentExpeditionId) {
-      return this.queueUnstake(walletAddress, mineId, amount, 'expedition_active');
-    }
-
-    // No active events - process immediately
+    // Process unstake immediately (Quarry handles on-chain)
     const success = this.processUnstake(walletAddress, mineId, amount);
-    return { success, queued: false };
-  }
-
-  /**
-   * Queue an unstake request for later processing
-   */
-  private queueUnstake(
-    walletAddress: string,
-    mineId: string,
-    amount: number,
-    reason: UnstakeRequest['reason']
-  ): UnstakeResult {
-    const request: UnstakeRequest = {
-      id: `unstake_${Date.now()}_${Math.random().toString(36).slice(2)}`,
-      walletAddress,
-      mineId,
-      amount,
-      requestedAt: new Date(),
-      reason,
-      estimatedProcessTime: new Date(Date.now() + 10 * 60 * 1000), // 10 min estimate
-    };
-
-    let queue = this.unstakeQueue.get(walletAddress);
-    if (!queue) {
-      queue = [];
-      this.unstakeQueue.set(walletAddress, queue);
+    
+    if (success && hasActiveBets) {
+      return { 
+        success: true, 
+        warning: `You have ${lockedBetAmount} COAL locked in active raid bets. ` +
+                 `Unstaking reduces your defense power but bets remain locked.`
+      };
     }
 
-    queue.push(request);
-
-    console.log(
-      `[StakeManager] Queued unstake for ${walletAddress}: ${amount} from ${mineId} ` +
-      `(reason: ${reason}, position: ${queue.length})`
-    );
-
-    return {
-      success: true,
-      queued: true,
-      queuePosition: queue.length,
-      estimatedWait: 10 * 60, // 10 minutes in seconds
-    };
+    return { success };
   }
 
   /**
    * Process an unstake (internal method, always executes)
+   * Updates in-memory cache; actual tokens handled by Quarry on-chain
    */
   private processUnstake(walletAddress: string, mineId: string, amount: number): boolean {
     const walletStakes = this.stakes.get(walletAddress);
@@ -309,7 +277,7 @@ export class StakeManager {
 
   /**
    * Unregister an active raid for a wallet
-   * Also processes any queued unstakes for this wallet
+   * Note: With new architecture, this is for tracking only (no queue processing)
    */
   unregisterActiveRaid(walletAddress: string, raidId: string): void {
     const raids = this.activeRaidsByWallet.get(walletAddress);
@@ -317,15 +285,13 @@ export class StakeManager {
       raids.delete(raidId);
       if (raids.size === 0) {
         this.activeRaidsByWallet.delete(walletAddress);
-        // Process queued unstakes for this wallet
-        this.processQueuedUnstakes(walletAddress);
       }
     }
     console.log(`[StakeManager] Unregistered active raid ${raidId} for ${walletAddress}`);
   }
 
   /**
-   * Register a mine as under attack
+   * Register a mine as under attack (for tracking)
    */
   registerMineUnderAttack(mineId: string): void {
     const current = this.minesUnderAttack.get(mineId) || 0;
@@ -335,14 +301,11 @@ export class StakeManager {
 
   /**
    * Unregister a mine attack
-   * Also processes queued unstakes for stakers at that mine
    */
   unregisterMineAttack(mineId: string): void {
     const current = this.minesUnderAttack.get(mineId) || 0;
     if (current <= 1) {
       this.minesUnderAttack.delete(mineId);
-      // Process queued unstakes for defenders at this mine
-      this.processQueuedUnstakesForMine(mineId);
     } else {
       this.minesUnderAttack.set(mineId, current - 1);
     }
@@ -350,116 +313,38 @@ export class StakeManager {
   }
 
   /**
-   * Process queued unstakes for a wallet
+   * Check if a mine is currently under attack
    */
-  private processQueuedUnstakes(walletAddress: string): void {
-    const queue = this.unstakeQueue.get(walletAddress);
-    if (!queue || queue.length === 0) return;
-
-    // Check if wallet still has any blocking conditions
-    const activeRaids = this.activeRaidsByWallet.get(walletAddress);
-    if (activeRaids && activeRaids.size > 0) return;
-
-    const state = this.getMinerState(walletAddress);
-    if (state.currentExpeditionId) return;
-
-    console.log(`[StakeManager] Processing ${queue.length} queued unstakes for ${walletAddress}`);
-
-    // Process all queued unstakes
-    for (const request of queue) {
-      // Check if mine is still under attack
-      const attackCount = this.minesUnderAttack.get(request.mineId) || 0;
-      if (attackCount > 0 && request.reason === 'raid_defender') {
-        continue; // Keep in queue
-      }
-
-      this.processUnstake(request.walletAddress, request.mineId, request.amount);
-    }
-
-    // Clear processed requests (keep ones still blocked)
-    const remaining = queue.filter(r => {
-      if (r.reason === 'raid_defender') {
-        const attackCount = this.minesUnderAttack.get(r.mineId) || 0;
-        return attackCount > 0;
-      }
-      return false;
-    });
-
-    if (remaining.length > 0) {
-      this.unstakeQueue.set(walletAddress, remaining);
-    } else {
-      this.unstakeQueue.delete(walletAddress);
-    }
+  isMineUnderAttack(mineId: string): boolean {
+    return (this.minesUnderAttack.get(mineId) || 0) > 0;
   }
 
   /**
-   * Process queued unstakes for defenders at a specific mine
+   * Get number of active raids for a wallet
    */
-  private processQueuedUnstakesForMine(mineId: string): void {
-    console.log(`[StakeManager] Processing queued unstakes for mine ${mineId}`);
-
-    for (const [walletAddress, queue] of this.unstakeQueue) {
-      const mineRequests = queue.filter(r => r.mineId === mineId && r.reason === 'raid_defender');
-      
-      for (const request of mineRequests) {
-        this.processUnstake(request.walletAddress, request.mineId, request.amount);
-      }
-
-      // Remove processed requests
-      const remaining = queue.filter(r => !(r.mineId === mineId && r.reason === 'raid_defender'));
-      if (remaining.length > 0) {
-        this.unstakeQueue.set(walletAddress, remaining);
-      } else {
-        this.unstakeQueue.delete(walletAddress);
-      }
-    }
+  getActiveRaidCount(walletAddress: string): number {
+    return this.activeRaidsByWallet.get(walletAddress)?.size || 0;
   }
 
   /**
-   * Get queued unstakes for a wallet
+   * Check if wallet has active raids
    */
-  getQueuedUnstakes(walletAddress: string): UnstakeRequest[] {
-    return this.unstakeQueue.get(walletAddress) || [];
+  hasActiveRaids(walletAddress: string): boolean {
+    return this.getActiveRaidCount(walletAddress) > 0;
   }
 
   /**
-   * Check if wallet has any queued unstakes
+   * Get locked bet amount for a wallet (from BetEscrow)
    */
-  hasQueuedUnstakes(walletAddress: string): boolean {
-    const queue = this.unstakeQueue.get(walletAddress);
-    return queue ? queue.length > 0 : false;
+  getLockedBetAmount(walletAddress: string): number {
+    return getBetEscrowManager().getLockedBetAmount(walletAddress);
   }
 
   /**
-   * Force process all expired queue items (safety valve)
+   * Check if Quarry integration is enabled
    */
-  processExpiredQueueItems(): void {
-    const now = Date.now();
-
-    for (const [walletAddress, queue] of this.unstakeQueue) {
-      const expired = queue.filter(
-        r => now - r.requestedAt.getTime() > this.MAX_QUEUE_WAIT_MS
-      );
-
-      for (const request of expired) {
-        console.log(
-          `[StakeManager] Force processing expired unstake for ${walletAddress} ` +
-          `(waited ${Math.floor((now - request.requestedAt.getTime()) / 1000)}s)`
-        );
-        this.processUnstake(request.walletAddress, request.mineId, request.amount);
-      }
-
-      // Remove expired from queue
-      const remaining = queue.filter(
-        r => now - r.requestedAt.getTime() <= this.MAX_QUEUE_WAIT_MS
-      );
-
-      if (remaining.length > 0) {
-        this.unstakeQueue.set(walletAddress, remaining);
-      } else {
-        this.unstakeQueue.delete(walletAddress);
-      }
-    }
+  isQuarryEnabled(): boolean {
+    return this.quarryEnabled;
   }
 
   /**

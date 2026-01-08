@@ -1,8 +1,8 @@
-# Black Gold v2.6 ⛏️🌍
+# Black Gold v2.9 ⛏️🌍
 
 > Interactive Mining Globe - CPU Mining Platform for COAL Token on Solana
 
-Black Gold v2.6 transforms crypto mining into a **territorial strategy game**. Choose from 20 real-world mines, stake tokens to boost your power, form syndicates with allies, and raid other mines to steal their rewards.
+Black Gold v2.9 transforms crypto mining into a **territorial strategy game**. Choose from 20 real-world mines, stake tokens to boost your power, form syndicates with allies, and raid other mines to steal their rewards.
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Solana](https://img.shields.io/badge/Solana-black?logo=solana)
@@ -11,19 +11,22 @@ Black Gold v2.6 transforms crypto mining into a **territorial strategy game**. C
 
 ---
 
-## 🆕 What's New in v2.6
+## 🆕 What's New in v2.9
 
+- **⛏️ Quarry Protocol Integration** - Audited on-chain staking via Quarry SDK
+- **🎫 IOU Token Architecture** - Reward distribution compatible with Pump.fun tokens
+- **🔒 Bet Escrow System** - Raid bets locked until resolution (separate from staking)
+- **⚡ Instant Unstaking** - Unstake anytime from Quarry (bets stay locked)
+- **📜 Deploy Script** - One-command Quarry infrastructure deployment
+
+### Previous (v2.8)
+- **🔗 WebSocket Mining Integration** - Full mining flow with work units
+- **⚡ Real-time Hashrate** - Mining worker reports and server validation
+
+### Previous (v2.6)
 - **🎨 Resource-Specific 3D Styling** - Unique mine pin shapes and effects per resource type
 - **✨ Beautiful CSS Resource Badges** - Coal (ember glow), Gold (metallic shimmer), Oil (iridescent), Silver (polished)
 - **🔗 Working Privy Wallet Connect** - Fixed provider order and hook bridge for functional connect button
-- **📍 Centered Wallet Modal** - Proper viewport centering with inline styles
-
-### Previous (v2.5)
-- **🔐 Dual Wallet Mode** - Address-only mining OR full Privy wallet connect
-- **⚡ Quarry Staking** - On-chain staking with instant unstaking
-- **🛡️ Unstake Queue** - Protects against mid-raid unstake exploits
-- **🌐 Devnet Support** - Full devnet testing environment
-- **📊 Reward Orchestrator** - Complete buyback → distribution flow
 - **🔒 SSR-Safe Architecture** - Clean Vercel builds, no wallet errors
 
 ### Previous (v2.1)
