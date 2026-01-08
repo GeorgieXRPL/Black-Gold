@@ -1,31 +1,29 @@
-# Black Gold v2.7 - Codebase Index
+# Black Gold v2.8 - Codebase Index
 
 > Complete file-by-file documentation for the Black Gold Interactive Mining Globe platform
 
 **Last Updated**: January 8, 2026  
-**Version**: 2.7 (Devnet Testing + Holder Verification + Balance Display)  
+**Version**: 2.8 (WebSocket Mining Integration)  
 **Total Files**: 72+ TypeScript/TSX files
 
 ---
 
-## 📋 Recent Changes (v2.7)
+## 📋 Recent Changes (v2.8)
 
-### Devnet Testing Infrastructure
-- **`scripts/create-test-token.ts`** - NEW: Script to create SPL test tokens on devnet
-- **Alpha Test Token**: `9QWCzb5pMfkTFeLcWy9RJrBUqzBqE4dUPLnjcptchCf7` (devnet)
+### WebSocket Mining Integration
+- **`app/page.tsx`** - Full mining flow integration:
+  - Imports and uses `useGameSocket` and `useMining` hooks
+  - Auto-connects to game server when wallet connects
+  - Auto-joins mine when home mine is set
+  - Mining worker starts when work unit received
+  - Hashrate reported to server, solutions submitted for verification
+- **`app/hooks/useGameSocket.ts`** - Added `onWork` callback and `WorkUnit` export
+- Uses refs to avoid circular dependencies between hooks
 
-### Holder Verification Fixes
-- **`app/api/verify-holder/route.ts`** - Fixed Helius API URL for devnet (`api-devnet.helius.xyz`)
-- **`server/solana/holder.ts`** - Added network-aware Helius endpoint selection
-
-### Wallet State Improvements
-- **`app/components/WalletEntry.tsx`** - Added `tokenBalance`, `isEligible`, `verificationLoading` to state
-- **`app/page.tsx`** - Balance now derived from holder verification (blockchain state)
-- Removed manual `setWalletBalance` - balance auto-updates from verification
-
-### Documentation
-- **`docs/GAME_MECHANICS.md`** - NEW: Complete player guide with rules and diagrams
-- **`docs/ECONOMICS.md`** - NEW: Tokenomics analysis and sustainability model
+### Previous Changes (v2.7)
+- **Devnet Testing Infrastructure**: Alpha test token on devnet
+- **Holder Verification**: Network-aware Helius API endpoints
+- **Documentation**: GAME_MECHANICS.md and ECONOMICS.md
 
 ---
 
