@@ -24,9 +24,7 @@
     "@solana-program/system": "^0.10.0",
     "@solana-program/token": "^0.9.0",
     "@solana/kit": "^5.1.0",
-    "@solana/spl-token": "^0.4.14",
     "@solana/web3.js": "^1.98.4",
-    "bs58": "^6.0.0",
     "framer-motion": "^12.24.7",
     "ioredis": "^5.9.0",
     "next": "16.1.1",
@@ -41,6 +39,7 @@
     "zod": "^4.3.5"
   },
   "devDependencies": {
+    "@solana/spl-token": "^0.4.14",
     "@tailwindcss/postcss": "^4",
     "@types/lodash": "^4.17.21",
     "@types/node": "^20",
@@ -50,6 +49,7 @@
     "@types/topojson-client": "^3.1.5",
     "@types/uuid": "^10.0.0",
     "@types/ws": "^8.18.1",
+    "bs58": "^6.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.1.1",
     "tailwindcss": "^4",

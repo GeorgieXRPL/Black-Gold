@@ -27,21 +27,35 @@ interface HolderVerificationResponse {
 }
 
 /**
+ * Get the correct Helius API base URL based on network
+ */
+function getHeliusApiBase(): string {
+  const isDevnet = process.env.SOLANA_NETWORK === 'devnet';
+  return isDevnet 
+    ? 'https://api-devnet.helius.xyz' 
+    : 'https://api.helius.xyz';
+}
+
+/**
  * Fetch token balance from Helius API
  */
 async function getTokenBalance(walletAddress: string): Promise<number> {
   const mintAddress = TOKEN_CONFIG.MINT_ADDRESS;
   
   // Token not launched yet - allow everyone
-  if (mintAddress === 'TBD') {
+  if (mintAddress === 'TBD' || mintAddress === 'DEVNET_TEST_TOKEN') {
+    console.log('[API] Token not configured, allowing all holders');
     return Infinity;
   }
   
   // Use Helius API if available
   if (RPC_CONFIG.HELIUS_API_KEY) {
     try {
+      const heliusBase = getHeliusApiBase();
+      console.log(`[API] Fetching balance from ${heliusBase} for mint ${mintAddress}`);
+      
       const response = await fetch(
-        `https://api.helius.xyz/v0/addresses/${walletAddress}/balances?api-key=${RPC_CONFIG.HELIUS_API_KEY}`,
+        `${heliusBase}/v0/addresses/${walletAddress}/balances?api-key=${RPC_CONFIG.HELIUS_API_KEY}`,
         { next: { revalidate: 60 } } // Cache for 60 seconds
       );
       

@@ -48,9 +48,8 @@ export default function Home() {
   const [userStakes, setUserStakes] = useState<Map<string, number>>(
     USE_MOCK_DATA ? new Map(DEMO_USER.stakes) : new Map()
   );
-  const [walletBalance, setWalletBalance] = useState(
-    USE_MOCK_DATA ? DEMO_USER.walletBalance : 0
-  );
+  // walletBalance is now derived from walletState.tokenBalance
+  const walletBalance = USE_MOCK_DATA ? DEMO_USER.walletBalance : walletState.tokenBalance;
   const [loyaltyDays, setLoyaltyDays] = useState(
     USE_MOCK_DATA ? DEMO_USER.loyaltyDays : 0
   );
@@ -65,6 +64,9 @@ export default function Home() {
     isConnected: false,
     canStake: false,
     canRaid: false,
+    tokenBalance: 0,
+    isEligible: false,
+    verificationLoading: false,
   });
 
   // Handle wallet state changes
@@ -233,7 +235,13 @@ export default function Home() {
               {walletState.isConnected && (
                 <div className="hidden sm:flex items-center gap-2">
                   <span className="text-coal-400 text-sm">Balance:</span>
-                  <span className="text-ember-400 font-bold">{walletBalance.toLocaleString()} COAL</span>
+                  {walletState.verificationLoading ? (
+                    <span className="text-coal-500 text-sm animate-pulse">Loading...</span>
+                  ) : (
+                    <span className="text-ember-400 font-bold">
+                      {walletBalance.toLocaleString()} {process.env.NEXT_PUBLIC_SOLANA_NETWORK === 'devnet' ? 'ALPHA' : 'COAL'}
+                    </span>
+                  )}
                 </div>
               )}
               

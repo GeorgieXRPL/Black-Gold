@@ -20,6 +20,12 @@ export interface WalletEntryState {
   isConnected: boolean;
   canStake: boolean;
   canRaid: boolean;
+  /** Token balance from holder verification */
+  tokenBalance: number;
+  /** Whether wallet is eligible to mine */
+  isEligible: boolean;
+  /** Whether holder verification is loading */
+  verificationLoading: boolean;
 }
 
 interface WalletEntryProps {
@@ -65,6 +71,11 @@ export function WalletEntry({ onWalletChange, compact = false }: WalletEntryProp
   const effectiveAddress = wallet.walletAddress || manualAddress;
   const displayAddress = effectiveAddress ? formatAddress(effectiveAddress) : null;
 
+  // Get holder verification data
+  const { verification, loading: verificationLoading } = wallet.holderVerification;
+  const tokenBalance = verification?.balance ?? 0;
+  const isEligible = verification?.isEligible ?? false;
+
   // Build state object for parent
   const state: WalletEntryState = {
     mode,
@@ -73,13 +84,16 @@ export function WalletEntry({ onWalletChange, compact = false }: WalletEntryProp
     isConnected: mode !== 'disconnected',
     canStake: mode === 'full-connect',
     canRaid: mode === 'full-connect',
+    tokenBalance,
+    isEligible,
+    verificationLoading,
   };
 
-  // Sync wallet state with parent when Privy connection changes
+  // Sync wallet state with parent when Privy connection changes OR verification updates
   useEffect(() => {
     // Only sync when we have a Privy wallet connection or disconnection
     if (wallet.isConnected && wallet.walletAddress) {
-      console.log('[WalletEntry] Privy wallet connected:', wallet.walletAddress);
+      console.log('[WalletEntry] Privy wallet connected:', wallet.walletAddress, 'Balance:', tokenBalance);
       onWalletChange?.({
         mode: 'full-connect',
         walletAddress: wallet.walletAddress,
@@ -87,6 +101,9 @@ export function WalletEntry({ onWalletChange, compact = false }: WalletEntryProp
         isConnected: true,
         canStake: true,
         canRaid: true,
+        tokenBalance,
+        isEligible,
+        verificationLoading,
       });
     } else if (!wallet.isConnected && !manualAddress && mode === 'full-connect') {
       // Wallet disconnected from Privy
@@ -98,9 +115,12 @@ export function WalletEntry({ onWalletChange, compact = false }: WalletEntryProp
         isConnected: false,
         canStake: false,
         canRaid: false,
+        tokenBalance: 0,
+        isEligible: false,
+        verificationLoading: false,
       });
     }
-  }, [wallet.isConnected, wallet.walletAddress, wallet.displayAddress, manualAddress, mode, onWalletChange]);
+  }, [wallet.isConnected, wallet.walletAddress, wallet.displayAddress, manualAddress, mode, onWalletChange, tokenBalance, isEligible, verificationLoading]);
 
   /**
    * Handle manual address submission
@@ -130,6 +150,9 @@ export function WalletEntry({ onWalletChange, compact = false }: WalletEntryProp
       isConnected: true,
       canStake: false,
       canRaid: false,
+      tokenBalance: 0, // Will be updated by verification
+      isEligible: false,
+      verificationLoading: true,
     });
   }, [addressInput, onWalletChange]);
 

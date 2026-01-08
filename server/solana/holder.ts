@@ -48,6 +48,15 @@ export function getMarketCap(): number {
 }
 
 /**
+ * Get the correct Helius API base URL based on network
+ */
+function getHeliusApiBase(): string {
+  return RPC_CONFIG.IS_DEVNET
+    ? 'https://api-devnet.helius.xyz'
+    : 'https://api.helius.xyz';
+}
+
+/**
  * Get token balance for a wallet using Helius API
  * @param walletAddress - Wallet to check
  * @returns Token balance (in token units, not lamports)
@@ -55,16 +64,19 @@ export function getMarketCap(): number {
 async function getTokenBalance(walletAddress: string): Promise<number> {
   const mintAddress = TOKEN_CONFIG.MINT_ADDRESS;
   
-  if (mintAddress === 'TBD') {
-    console.log('[Holder] Token not launched yet, allowing all holders');
+  if (mintAddress === 'TBD' || mintAddress === 'DEVNET_TEST_TOKEN') {
+    console.log('[Holder] Token not configured, allowing all holders');
     return Infinity; // Allow everyone during testing
   }
 
   try {
     // Use Helius DAS API for efficient token balance lookup
     if (RPC_CONFIG.HELIUS_API_KEY) {
+      const heliusBase = getHeliusApiBase();
+      console.log(`[Holder] Fetching balance from ${heliusBase} for mint ${mintAddress}`);
+      
       const response = await fetch(
-        `https://api.helius.xyz/v0/addresses/${walletAddress}/balances?api-key=${RPC_CONFIG.HELIUS_API_KEY}`
+        `${heliusBase}/v0/addresses/${walletAddress}/balances?api-key=${RPC_CONFIG.HELIUS_API_KEY}`
       );
       
       if (!response.ok) {
