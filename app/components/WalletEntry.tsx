@@ -183,6 +183,9 @@ export function WalletEntry({ onWalletChange, compact = false }: WalletEntryProp
       isConnected: false,
       canStake: false,
       canRaid: false,
+      tokenBalance: 0,
+      isEligible: false,
+      verificationLoading: false,
     });
   }, [mode, wallet, onWalletChange]);
 
