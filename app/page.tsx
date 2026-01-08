@@ -151,14 +151,18 @@ export default function Home() {
     // Log signature for server verification (in production, send to server)
     console.log('[Stake] Amount:', amount, 'Signature:', signature.slice(0, 20) + '...');
     
-    // TODO: In production, verify signature on server before updating state
+    // TODO: In production:
+    // 1. Send stake tx to blockchain
+    // 2. Verify signature on server
+    // 3. After tx confirms, holder verification will auto-refresh balance
     setUserStakes(prev => {
       const newStakes = new Map(prev);
       const current = newStakes.get(selectedMineId) || 0;
       newStakes.set(selectedMineId, current + amount);
       return newStakes;
     });
-    setWalletBalance(prev => prev - amount);
+    // Note: walletBalance is derived from holder verification (blockchain state)
+    // It will update automatically when verification refreshes after the tx
     setShowStakingPanel(false);
   }, [selectedMineId]);
 
@@ -168,14 +172,18 @@ export default function Home() {
     // Log signature for server verification (in production, send to server)
     console.log('[Unstake] Amount:', amount, 'Signature:', signature.slice(0, 20) + '...');
     
-    // TODO: In production, verify signature on server before updating state
+    // TODO: In production:
+    // 1. Send unstake tx to blockchain (may be queued during raids)
+    // 2. Verify signature on server
+    // 3. After tx confirms, holder verification will auto-refresh balance
     setUserStakes(prev => {
       const newStakes = new Map(prev);
       const current = newStakes.get(selectedMineId) || 0;
       newStakes.set(selectedMineId, Math.max(0, current - amount));
       return newStakes;
     });
-    setWalletBalance(prev => prev + amount);
+    // Note: walletBalance is derived from holder verification (blockchain state)
+    // It will update automatically when verification refreshes after the tx
     setShowStakingPanel(false);
   }, [selectedMineId]);
 
