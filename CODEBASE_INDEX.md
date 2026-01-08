@@ -1,10 +1,31 @@
-# Black Gold v2.6 - Codebase Index
+# Black Gold v2.7 - Codebase Index
 
 > Complete file-by-file documentation for the Black Gold Interactive Mining Globe platform
 
 **Last Updated**: January 8, 2026  
-**Version**: 2.6 (Privy Wallet Integration + Resource Styling + Game Docs)  
-**Total Files**: 70+ TypeScript/TSX files
+**Version**: 2.7 (Devnet Testing + Holder Verification + Balance Display)  
+**Total Files**: 72+ TypeScript/TSX files
+
+---
+
+## 📋 Recent Changes (v2.7)
+
+### Devnet Testing Infrastructure
+- **`scripts/create-test-token.ts`** - NEW: Script to create SPL test tokens on devnet
+- **Alpha Test Token**: `9QWCzb5pMfkTFeLcWy9RJrBUqzBqE4dUPLnjcptchCf7` (devnet)
+
+### Holder Verification Fixes
+- **`app/api/verify-holder/route.ts`** - Fixed Helius API URL for devnet (`api-devnet.helius.xyz`)
+- **`server/solana/holder.ts`** - Added network-aware Helius endpoint selection
+
+### Wallet State Improvements
+- **`app/components/WalletEntry.tsx`** - Added `tokenBalance`, `isEligible`, `verificationLoading` to state
+- **`app/page.tsx`** - Balance now derived from holder verification (blockchain state)
+- Removed manual `setWalletBalance` - balance auto-updates from verification
+
+### Documentation
+- **`docs/GAME_MECHANICS.md`** - NEW: Complete player guide with rules and diagrams
+- **`docs/ECONOMICS.md`** - NEW: Tokenomics analysis and sustainability model
 
 ---
 
@@ -148,7 +169,7 @@ black-gold/
 
 | File | Lines | Exports | Purpose |
 |------|-------|---------|---------|
-| `WalletEntry.tsx` | ~350 | `WalletEntry`, `WalletEntryState` | **NEW** Dual-mode wallet entry (address-only or Privy connect) |
+| `WalletEntry.tsx` | ~470 | `WalletEntry`, `WalletEntryState` | Dual-mode wallet entry with holder verification state (v2.7: added tokenBalance, isEligible, verificationLoading) |
 | `MiningPanel.tsx` | ~180 | `MiningPanel` | Mining controls (v1 style) |
 | `StatsCard.tsx` | ~110 | `StatsCard` | Network statistics display |
 | `DiscoveryFeed.tsx` | ~120 | `DiscoveryFeed` | Live resource discovery feed (Coal Veins, Gold Nuggets, etc.) |
@@ -207,7 +228,7 @@ PrivyProvider        ← Outer: Provides Privy context
 
 | File | Lines | Method | Purpose |
 |------|-------|--------|---------|
-| `verify-holder/route.ts` | ~140 | `GET` | Verifies wallet holds required token % |
+| `verify-holder/route.ts` | ~185 | `GET` | Verifies wallet holds required token % (v2.7: network-aware Helius API) |
 | `status/route.ts` | ~55 | `GET` | **NEW** System status and service health check |
 | `auth/nonce/route.ts` | ~45 | `POST` | Generate nonce for wallet signature |
 | `auth/verify/route.ts` | ~75 | `POST` | Verify signed wallet actions |
@@ -258,7 +279,7 @@ PrivyProvider        ← Outer: Provides Privy context
 
 | File | Lines | Exports | Purpose |
 |------|-------|---------|---------|
-| `holder.ts` | ~180 | `verifyHolder`, `createConnection` | Token holder verification via Helius |
+| `holder.ts` | ~230 | `verifyHolder`, `createConnection`, `getHeliusApiBase` | Token holder verification via Helius (v2.7: network-aware devnet/mainnet URLs) |
 | `rewards.ts` | ~280 | `sendReward`, `queueReward` | SPL token reward distribution (security-hardened v2.2) |
 | `buyback.ts` | ~360 | `executeBuyback`, `shouldExecuteBuyback` | Automated SOL→COAL swap |
 | `staking.ts` | ~220 | `buildStakeTransaction`, `buildUnstakeTransaction` | **NEW** Quarry SDK on-chain staking |
@@ -300,6 +321,7 @@ PrivyProvider        ← Outer: Provides Privy context
 | File | Lines | Purpose | Usage |
 |------|-------|---------|-------|
 | `buyback.ts` | ~215 | Standalone buyback service | `npm run buyback` |
+| `create-test-token.ts` | ~127 | **NEW v2.7** Create SPL test tokens on devnet | `npx ts-node scripts/create-test-token.ts` |
 
 ---
 
@@ -663,5 +685,5 @@ score = (hashrate × 0.4) + (stakeAmount × 0.3) + (loyaltyBonus × 0.3)
 | Server Verification | 2 | ~780 |
 | Server Core | 2 | ~820 |
 | Config | 3 | ~440 |
-| Scripts | 1 | ~215 |
-| **Total** | **59** | **~11,860** |
+| Scripts | 2 | ~342 |
+| **Total** | **60** | **~11,990** |
