@@ -1,16 +1,31 @@
-# Black Gold v2.9 - Codebase Index
+# Black Gold v2.9.1 - Codebase Index
 
 > Complete file-by-file documentation for the Black Gold Interactive Mining Globe platform
 
 **Last Updated**: January 8, 2026  
-**Version**: 2.9 (Quarry + IOU + BetEscrow Architecture)  
+**Version**: 2.9.1 (Devnet Testing Mode)  
 **Total Files**: 74+ TypeScript/TSX files
 
 ---
 
-## 📋 Recent Changes (v2.9)
+## 📋 Recent Changes (v2.9.1)
 
-### Quarry Staking Infrastructure
+### Devnet Testing Mode
+- **`app/api/verify-holder/route.ts`** - Added devnet bypass for testing:
+  - `IS_DEVNET` flag detects `SOLANA_NETWORK=devnet`
+  - `DEVNET_CONFIG.BYPASS_HOLDER_CHECK` skips holder requirements
+  - `DEVNET_CONFIG.SIMULATED_MARKET_CAP` returns $5K (Genesis tier)
+  - Fallback handlers ensure testing works without Helius/Jupiter
+  - All devnet blocks marked with `TODO [MAINNET]: Remove for production`
+
+### Build Fixes
+- **`tsconfig.json`** - Added `scripts/` to exclude (fixes Vercel build)
+- **`server/game/index.ts`** - Removed deleted `UnstakeRequest` export, added BetEscrow exports
+- **`.gitignore`** - Enhanced security entries (keypairs, wallets, secrets)
+
+### Previous Changes (v2.9)
+
+#### Quarry Staking Infrastructure
 - **`scripts/deploy-quarry.ts`** - Deploy script for Quarry Protocol:
   - Creates IOU-COAL token + MintWrapper
   - Deploys Rewarder for reward distribution
