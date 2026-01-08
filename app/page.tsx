@@ -4,11 +4,13 @@
  * @fileoverview Main page for Black Gold v2 Interactive Mining Globe
  */
 
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { MINES, getMineById, MineStats, ResourceType, RESOURCE_COLORS } from './lib/mines';
 import { HomeBase, MineDetails, StakingPanel, ExpeditionPanel, RaidFeed } from './components/game';
 import { EmberParticles, WalletEntry, WalletEntryState } from './components';
+import { useGameSocket, GameEvent, WorkUnit } from './hooks/useGameSocket';
+import { useMining } from './hooks/useMining';
 import { 
   MOCK_EVENTS, 
   DEMO_USER, 
@@ -70,6 +72,80 @@ export default function Home() {
   // walletBalance is derived from walletState.tokenBalance (must be after walletState declaration)
   const walletBalance = USE_MOCK_DATA ? DEMO_USER.walletBalance : walletState.tokenBalance;
 
+  // Track current work unit for mining
+  const currentWorkRef = useRef<WorkUnit | null>(null);
+  const isMiningRef = useRef(isMining);
+  
+  // Keep ref in sync with state
+  useEffect(() => {
+    isMiningRef.current = isMining;
+  }, [isMining]);
+
+  // WebSocket URL from environment
+  const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8080';
+
+  // Refs to hold latest callback functions (avoids circular deps)
+  const sendHashrateRef = useRef<(rate: number) => void>(() => {});
+  const submitProofRef = useRef<(workId: string, nonce: number, hash: string) => void>(() => {});
+  const startMiningRef = useRef<(work: WorkUnit) => void>(() => {});
+
+  // Mining web worker hook - defined first
+  const mining = useMining({
+    cores: typeof navigator !== 'undefined' ? (navigator.hardwareConcurrency || 4) : 4,
+    onHashrate: useCallback((rate: number) => {
+      setHashrate(rate);
+      sendHashrateRef.current(rate);
+    }, []),
+    onSolution: useCallback((workId: string, nonce: number, hash: string) => {
+      console.log('[Mining] Solution found!', { workId, nonce, hash: hash.slice(0, 16) });
+      submitProofRef.current(workId, nonce, hash);
+    }, []),
+  });
+
+  // Update startMining ref
+  useEffect(() => {
+    startMiningRef.current = mining.startMining;
+  }, [mining.startMining]);
+
+  // Game event handler for raid feed
+  const handleGameEvent = useCallback((event: GameEvent) => {
+    setRaidEvents(prev => [event, ...prev].slice(0, 50));
+  }, []);
+
+  // Handle work unit received from server
+  const handleWorkReceived = useCallback((work: WorkUnit) => {
+    console.log('[Game] Work received:', work.id, 'for discovery #', work.discoveryNumber);
+    currentWorkRef.current = work;
+    
+    // If we're supposed to be mining, start the worker with this work
+    if (isMiningRef.current) {
+      startMiningRef.current(work);
+    }
+  }, []);
+
+  // Game WebSocket connection
+  const gameSocket = useGameSocket({
+    url: wsUrl,
+    walletAddress: walletState.walletAddress,
+    cores: typeof navigator !== 'undefined' ? (navigator.hardwareConcurrency || 4) : 4,
+    onEvent: handleGameEvent,
+    onWork: handleWorkReceived,
+  });
+
+  // Update refs with gameSocket functions
+  useEffect(() => {
+    sendHashrateRef.current = (rate: number) => {
+      if (gameSocket.status === 'connected') {
+        gameSocket.sendHashrate(rate);
+      }
+    };
+    submitProofRef.current = (workId: string, nonce: number, hash: string) => {
+      if (gameSocket.status === 'connected') {
+        gameSocket.submitProof(workId, nonce, hash);
+      }
+    };
+  }, [gameSocket]);
+
   // Handle wallet state changes
   const handleWalletChange = useCallback((state: WalletEntryState) => {
     setWalletState(state);
@@ -107,27 +183,50 @@ export default function Home() {
       setMineStats(generateMockMineStats());
     } else {
       // In production, stats come from WebSocket connection
-      // TODO: Connect to game server WebSocket for real stats
+      if (gameSocket.mineStats.size > 0) {
+        setMineStats(gameSocket.mineStats);
+      }
     }
-  }, []);
+  }, [gameSocket.mineStats]);
 
-  // Simulate hashrate when mining
+  // Connect to game server when wallet is connected and mine is selected
   useEffect(() => {
-    if (isMining) {
+    if (!USE_MOCK_DATA && walletState.isConnected && walletState.walletAddress) {
+      if (gameSocket.status === 'disconnected') {
+        console.log('[Game] Connecting to game server...');
+        gameSocket.connect();
+      }
+    }
+  }, [walletState.isConnected, walletState.walletAddress, gameSocket]);
+
+  // Join mine when selected (after connected)
+  useEffect(() => {
+    if (!USE_MOCK_DATA && gameSocket.status === 'connected' && homeMineId) {
+      if (gameSocket.currentMineId !== homeMineId) {
+        console.log('[Game] Joining mine:', homeMineId);
+        gameSocket.joinMine(homeMineId);
+      }
+    }
+  }, [gameSocket, homeMineId]);
+
+  // Simulate hashrate when mining (mock mode only)
+  useEffect(() => {
+    if (USE_MOCK_DATA && isMining) {
       const interval = setInterval(() => {
-        if (USE_MOCK_DATA) {
-          // Use simulated hashrate in mock mode
-          setHashrate(simulateHashrate(150000));
-        } else {
-          // In production, hashrate comes from Web Worker
-          // TODO: Get real hashrate from mining Web Worker
-        }
+        setHashrate(simulateHashrate(150000));
       }, 1000);
       return () => clearInterval(interval);
-    } else {
+    } else if (!isMining) {
       setHashrate(0);
     }
   }, [isMining]);
+
+  // Real hashrate comes from mining hook (non-mock mode)
+  useEffect(() => {
+    if (!USE_MOCK_DATA) {
+      setHashrate(mining.hashrate);
+    }
+  }, [mining.hashrate]);
 
   // Handlers
   const handleMineSelect = useCallback((mineId: string) => {
@@ -142,8 +241,31 @@ export default function Home() {
   }, [selectedMineId]);
 
   const handleStartMining = useCallback(() => {
-    setIsMining(prev => !prev);
-  }, []);
+    if (USE_MOCK_DATA) {
+      // Mock mode - just toggle state
+      setIsMining(prev => !prev);
+      return;
+    }
+
+    // Real mining mode
+    if (isMining) {
+      // Stop mining
+      mining.stopMining();
+      setIsMining(false);
+    } else {
+      // Start mining - need to be connected and have work
+      if (gameSocket.status !== 'connected') {
+        console.warn('[Mining] Cannot start - not connected to game server');
+        return;
+      }
+      
+      // Request work by joining/rejoining mine
+      if (homeMineId) {
+        gameSocket.joinMine(homeMineId);
+      }
+      setIsMining(true);
+    }
+  }, [isMining, mining, gameSocket, homeMineId]);
 
   const handleStake = useCallback((amount: number, signature: string) => {
     if (!selectedMineId) return;

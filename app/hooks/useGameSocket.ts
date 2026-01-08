@@ -49,6 +49,18 @@ export interface GlobalStats {
   activeRaids: number;
 }
 
+/** Work unit from server */
+export interface WorkUnit {
+  id: string;
+  discoveryHeader: string;
+  target: string;
+  nonceStart: number;
+  nonceEnd: number;
+  timestamp: number;
+  discoveryNumber: number;
+  mineId: string;
+}
+
 /** Hook options */
 interface UseGameSocketOptions {
   url: string;
@@ -56,6 +68,7 @@ interface UseGameSocketOptions {
   cores?: number;
   onEvent?: (event: GameEvent) => void;
   onRaidResult?: (result: RaidResult) => void;
+  onWork?: (work: WorkUnit) => void;
 }
 
 /** Hook return type */
@@ -83,6 +96,7 @@ export function useGameSocket({
   cores = 1,
   onEvent,
   onRaidResult,
+  onWork,
 }: UseGameSocketOptions): UseGameSocketReturn {
   const [status, setStatus] = useState<ConnectionStatus>('disconnected');
   const [globalStats, setGlobalStats] = useState<GlobalStats | null>(null);
@@ -126,6 +140,9 @@ export function useGameSocket({
         case 'work':
           // Work assignment from pool
           console.log('[WS] Work received:', data.payload);
+          if (onWork) {
+            onWork(data.payload as WorkUnit);
+          }
           break;
 
         case 'discovery_found':
@@ -193,7 +210,7 @@ export function useGameSocket({
     } catch (err) {
       console.error('[WS] Failed to parse message:', err);
     }
-  }, [onEvent, onRaidResult]);
+  }, [onEvent, onRaidResult, onWork]);
 
   const connect = useCallback(() => {
     if (!walletAddress) return;
