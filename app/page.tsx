@@ -48,8 +48,6 @@ export default function Home() {
   const [userStakes, setUserStakes] = useState<Map<string, number>>(
     USE_MOCK_DATA ? new Map(DEMO_USER.stakes) : new Map()
   );
-  // walletBalance is now derived from walletState.tokenBalance
-  const walletBalance = USE_MOCK_DATA ? DEMO_USER.walletBalance : walletState.tokenBalance;
   const [loyaltyDays, setLoyaltyDays] = useState(
     USE_MOCK_DATA ? DEMO_USER.loyaltyDays : 0
   );
@@ -68,6 +66,9 @@ export default function Home() {
     isEligible: false,
     verificationLoading: false,
   });
+
+  // walletBalance is derived from walletState.tokenBalance (must be after walletState declaration)
+  const walletBalance = USE_MOCK_DATA ? DEMO_USER.walletBalance : walletState.tokenBalance;
 
   // Handle wallet state changes
   const handleWalletChange = useCallback((state: WalletEntryState) => {
