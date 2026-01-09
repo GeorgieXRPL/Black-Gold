@@ -206,8 +206,10 @@ export default function Home() {
       }
     }
     
-    // Add to raid feed
-    setRaidEvents(prev => [event, ...prev].slice(0, 50));
+    // Add to raid feed (but not discovery_pending - that's just for the overlay)
+    if (event.type !== 'discovery_pending') {
+      setRaidEvents(prev => [event as typeof prev[number], ...prev].slice(0, 50));
+    }
   }, [isMining, mining, walletState.walletAddress]);
 
   // Handle work unit received from server
