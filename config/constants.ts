@@ -63,21 +63,53 @@ export const RPC_CONFIG = {
 export const POOL_CONFIG = {
   /** WebSocket server port */
   PORT: parseInt(process.env.WEBSOCKET_PORT || '8080', 10),
-  /** Target barrel time in milliseconds (dynamic difficulty adjusts to this) */
-  TARGET_BARREL_TIME_MS: parseInt(process.env.TARGET_BARREL_TIME_MS || '900000', 10), // 15 min default
-  /** 
-   * Minimum difficulty - determines how many leading zeros required in hash
-   * 1 = any hash valid (too easy!)
-   * 256 = ~2 hex chars of leading zeros (good for testing)
-   * 65536 = ~4 hex chars of leading zeros (production)
+  
+  /**
+   * Baseline hashrate assumption for difficulty calculation (H/s)
+   * Used to calculate initial difficulty for a single miner
+   * Conservative estimate for mobile devices: ~5,000 H/s
+   * Average laptop: ~10,000 H/s
    */
-  MIN_DIFFICULTY: parseInt(process.env.MIN_DIFFICULTY || '256', 10),
-  /** Maximum difficulty */
-  MAX_DIFFICULTY: parseInt(process.env.MAX_DIFFICULTY || '1000000', 10),
+  BASELINE_HASHRATE: parseInt(process.env.BASELINE_HASHRATE || '5000', 10),
+  
+  /**
+   * Minimum difficulty - calibrated for real mining times
+   * 
+   * Formula: difficulty ≈ targetTimeSeconds × hashrate
+   * 
+   * For 5-minute Coal mines with single 5k H/s miner:
+   *   300 seconds × 5,000 H/s = 1,500,000 difficulty
+   * 
+   * Previous value of 256 was WAY too low (solutions in milliseconds!)
+   * 
+   * Resource target times from config/mines.ts:
+   * - Coal:   5 min  → ~1,500,000 base difficulty
+   * - Silver: 8 min  → ~2,400,000 base difficulty  
+   * - Oil:   10 min  → ~3,000,000 base difficulty
+   * - Gold:  20 min  → ~6,000,000 base difficulty
+   */
+  MIN_DIFFICULTY: parseInt(process.env.MIN_DIFFICULTY || '1500000', 10),
+  
+  /**
+   * Maximum difficulty - for scaling with many miners
+   * At 100 miners with 10k H/s each = 1M H/s network
+   * Gold mines (20 min): 1,200 sec × 1,000,000 H/s = 1.2 billion
+   * Cap at 500 million to prevent extreme values
+   */
+  MAX_DIFFICULTY: parseInt(process.env.MAX_DIFFICULTY || '500000000', 10),
+  
+  /**
+   * Target discovery time in milliseconds (fallback if mine doesn't specify)
+   * Each mine has its own baseDiscoveryTimeMs in config/mines.ts
+   * This is only used as a fallback for the global pool
+   */
+  TARGET_BARREL_TIME_MS: parseInt(process.env.TARGET_BARREL_TIME_MS || '300000', 10), // 5 min default (Coal)
+  
   /** Nonce range size per work unit */
-  NONCE_RANGE_SIZE: 1_000_000,
-  /** Work unit expiry time in ms */
-  WORK_EXPIRY_MS: 60_000, // 1 minute
+  NONCE_RANGE_SIZE: 10_000_000, // Increased for longer mining times
+  
+  /** Work unit expiry time in ms - increased for longer mining */
+  WORK_EXPIRY_MS: 5 * 60_000, // 5 minutes (longer than shortest discovery time)
 } as const;
 
 /** Rate limiting configuration */

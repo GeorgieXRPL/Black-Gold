@@ -1,6 +1,7 @@
 /**
  * @fileoverview Mining state management hook for Black Gold
- * Fixed: Stabilized worker initialization to prevent multiple re-initializations
+ * Uses inline blob workers to avoid Turbopack bundling issues
+ * Includes worker coordination to stop all workers when one finds a solution
  */
 
 'use client';
@@ -38,6 +39,160 @@ interface UseMiningReturn {
 }
 
 /**
+ * Inline worker code as a string - eliminates Turbopack bundling issues
+ * This code runs in a Web Worker context with no external dependencies
+ */
+const MINER_WORKER_CODE = `
+// Worker state
+let isRunning = false;
+let currentWorkId = null;
+let hashCount = 0;
+let lastHashrateUpdate = Date.now();
+
+// Convert Uint8Array to hex string
+function bytesToHex(bytes) {
+  return Array.from(bytes)
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+// Compute SHA-256 hash using Web Crypto API
+async function sha256(data) {
+  const encoder = new TextEncoder();
+  const dataBuffer = encoder.encode(data);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
+  return bytesToHex(new Uint8Array(hashBuffer));
+}
+
+// Compute double SHA-256 hash (Bitcoin-style)
+async function doubleSha256(data) {
+  const firstHash = await sha256(data);
+  return sha256(firstHash);
+}
+
+// Check if hash meets difficulty target
+function meetsTarget(hash, target) {
+  const normalizedHash = hash.toLowerCase().padStart(64, '0');
+  const normalizedTarget = target.toLowerCase().padStart(64, '0');
+  return normalizedHash < normalizedTarget;
+}
+
+// Create mining header from discovery header and nonce
+function createMiningHeader(discoveryHeader, nonce) {
+  return discoveryHeader + ':' + nonce.toString(16).padStart(16, '0');
+}
+
+// Main mining loop
+async function mine(workId, discoveryHeader, target, nonceStart, nonceEnd) {
+  isRunning = true;
+  currentWorkId = workId;
+  hashCount = 0;
+  lastHashrateUpdate = Date.now();
+
+  const BATCH_SIZE = 100; // Hashes per batch before yielding
+  const HASHRATE_INTERVAL = 1000; // Report hashrate every second
+
+  for (let nonce = nonceStart; nonce < nonceEnd && isRunning; nonce++) {
+    const header = createMiningHeader(discoveryHeader, nonce);
+    const hash = await doubleSha256(header);
+    hashCount++;
+
+    // Check if we found a valid solution
+    if (meetsTarget(hash, target)) {
+      self.postMessage({
+        type: 'solution',
+        workId: workId,
+        nonce: nonce,
+        hash: hash,
+      });
+      isRunning = false;
+      return;
+    }
+
+    // Report hashrate periodically
+    const now = Date.now();
+    if (now - lastHashrateUpdate >= HASHRATE_INTERVAL) {
+      const elapsed = (now - lastHashrateUpdate) / 1000;
+      const hashrate = Math.round(hashCount / elapsed);
+      
+      self.postMessage({
+        type: 'hashrate',
+        hashrate: hashrate,
+        hashCount: hashCount,
+      });
+      
+      hashCount = 0;
+      lastHashrateUpdate = now;
+    }
+
+    // Yield control periodically to allow message processing
+    if (nonce % BATCH_SIZE === 0) {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    }
+  }
+
+  // Work range complete without finding solution
+  if (isRunning) {
+    self.postMessage({
+      type: 'complete',
+      workId: workId,
+      hashesComputed: nonceEnd - nonceStart,
+    });
+  }
+
+  isRunning = false;
+  currentWorkId = null;
+}
+
+// Handle incoming messages from main thread
+self.onmessage = async function(event) {
+  const message = event.data;
+
+  switch (message.type) {
+    case 'start':
+      // Stop any existing work first
+      isRunning = false;
+      
+      // Start new mining work
+      await mine(
+        message.workId,
+        message.discoveryHeader,
+        message.target,
+        message.nonceStart,
+        message.nonceEnd
+      );
+      break;
+
+    case 'stop':
+      isRunning = false;
+      currentWorkId = null;
+      break;
+
+    default:
+      console.warn('[Worker] Unknown message type:', message.type);
+  }
+};
+
+// Signal that worker is ready
+self.postMessage({ type: 'ready' });
+`;
+
+/**
+ * Create a worker from inline code using Blob URL
+ * This approach works with any bundler (Webpack, Turbopack, Vite, etc.)
+ */
+function createInlineWorker(): Worker {
+  const blob = new Blob([MINER_WORKER_CODE], { type: 'application/javascript' });
+  const workerUrl = URL.createObjectURL(blob);
+  const worker = new Worker(workerUrl);
+  
+  // Clean up the blob URL when worker terminates
+  worker.addEventListener('error', () => URL.revokeObjectURL(workerUrl));
+  
+  return worker;
+}
+
+/**
  * Custom hook for managing CPU mining workers
  */
 export function useMining(options: UseMiningOptions): UseMiningReturn {
@@ -45,12 +200,16 @@ export function useMining(options: UseMiningOptions): UseMiningReturn {
   
   // Refs for workers and state that shouldn't trigger re-renders
   const workersRef = useRef<Worker[]>([]);
+  const workerUrlsRef = useRef<string[]>([]); // Track blob URLs for cleanup
   const currentWorkRef = useRef<WorkUnit | null>(null);
   const workersReadyRef = useRef<number>(0);
   const hashratesRef = useRef<Map<number, number>>(new Map());
   const isInitializedRef = useRef<boolean>(false);
   const isInitializingRef = useRef<boolean>(false);
   const coresRef = useRef<number>(cores);
+  
+  // CRITICAL: Track if a solution has been found to stop other workers
+  const solutionFoundRef = useRef<boolean>(false);
   
   // Refs for callbacks to prevent re-initialization
   const onHashrateRef = useRef(onHashrate);
@@ -73,8 +232,34 @@ export function useMining(options: UseMiningOptions): UseMiningReturn {
   const [workersCount, setWorkersCount] = useState(0);
 
   /**
-   * Create and initialize workers
-   * Uses refs for callbacks to prevent unnecessary re-initializations
+   * Stop all workers immediately
+   */
+  const stopAllWorkers = useCallback(() => {
+    workersRef.current.forEach(worker => {
+      worker.postMessage({ type: 'stop' });
+    });
+  }, []);
+
+  /**
+   * Clean up all workers and blob URLs
+   */
+  const cleanupWorkers = useCallback(() => {
+    console.log('[Mining] Cleaning up workers...');
+    workersRef.current.forEach(worker => worker.terminate());
+    workersRef.current = [];
+    
+    // Revoke all blob URLs to free memory
+    workerUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
+    workerUrlsRef.current = [];
+    
+    workersReadyRef.current = 0;
+    hashratesRef.current = new Map();
+    setWorkersReady(0);
+    setWorkersCount(0);
+  }, []);
+
+  /**
+   * Create and initialize workers using inline blob approach
    */
   const initWorkers = useCallback(() => {
     // Guard against multiple simultaneous initializations
@@ -90,24 +275,21 @@ export function useMining(options: UseMiningOptions): UseMiningReturn {
     }
     
     const targetCores = coresRef.current;
-    console.log(`[Mining] Initializing ${targetCores} workers...`);
+    console.log(`[Mining] Initializing ${targetCores} inline blob workers...`);
     isInitializingRef.current = true;
     
     // Clean up existing workers
-    workersRef.current.forEach(worker => worker.terminate());
-    workersRef.current = [];
-    workersReadyRef.current = 0;
-    hashratesRef.current = new Map();
-    setWorkersReady(0);
-    setWorkersCount(0);
+    cleanupWorkers();
     
-    // Create new workers
+    // Create new workers using inline blob approach
     for (let i = 0; i < targetCores; i++) {
       try {
-        const worker = new Worker(
-          new URL('../workers/miner.worker.js', import.meta.url)
-        );
+        // Create blob URL for worker
+        const blob = new Blob([MINER_WORKER_CODE], { type: 'application/javascript' });
+        const workerUrl = URL.createObjectURL(blob);
+        workerUrlsRef.current.push(workerUrl);
         
+        const worker = new Worker(workerUrl);
         const workerIndex = i; // Capture for closure
         
         worker.onmessage = (event: MessageEvent<WorkerMessage>) => {
@@ -131,20 +313,30 @@ export function useMining(options: UseMiningOptions): UseMiningReturn {
               setHashrate(totalRate);
               onHashrateRef.current?.(totalRate);
               setTotalHashes(prev => prev + (message.hashCount || 0));
-              
-              // Only log occasionally to reduce noise
-              if (Math.random() < 0.1) {
-                console.log(`[Mining] Total hashrate: ${totalRate} H/s`);
-              }
               break;
               
             case 'solution':
+              // CRITICAL: Check if another worker already found a solution
+              if (solutionFoundRef.current) {
+                console.log(`[Mining] Worker ${workerIndex} found solution but another worker already did, ignoring`);
+                return;
+              }
+              
+              // Mark solution as found BEFORE doing anything else
+              solutionFoundRef.current = true;
+              
               console.log(`[Mining] Worker ${workerIndex} found solution!`, {
                 workId: message.workId,
                 nonce: message.nonce,
                 hash: message.hash?.slice(0, 16) + '...'
               });
+              
+              // IMMEDIATELY stop all other workers
+              stopAllWorkers();
+              
+              // Submit the solution
               if (message.workId && message.nonce !== undefined && message.hash) {
+                console.log(`[Mining] Submitting solution from worker ${workerIndex}`);
                 onSolutionRef.current?.(message.workId, message.nonce, message.hash);
               }
               break;
@@ -162,7 +354,7 @@ export function useMining(options: UseMiningOptions): UseMiningReturn {
         };
         
         workersRef.current.push(worker);
-        console.log(`[Mining] Worker ${workerIndex} created`);
+        console.log(`[Mining] Worker ${workerIndex} created (inline blob)`);
       } catch (error) {
         console.error(`[Mining] Failed to create worker ${i}:`, error);
       }
@@ -171,8 +363,8 @@ export function useMining(options: UseMiningOptions): UseMiningReturn {
     setWorkersCount(workersRef.current.length);
     isInitializedRef.current = true;
     isInitializingRef.current = false;
-    console.log(`[Mining] Created ${workersRef.current.length}/${targetCores} workers`);
-  }, []); // No dependencies - uses refs
+    console.log(`[Mining] Created ${workersRef.current.length}/${targetCores} inline blob workers`);
+  }, [cleanupWorkers, stopAllWorkers]);
 
   /**
    * Start mining with given work
@@ -184,6 +376,9 @@ export function useMining(options: UseMiningOptions): UseMiningReturn {
       target: work.target?.slice(0, 16) + '...',
       nonceRange: `[${work.nonceStart}, ${work.nonceEnd})`
     });
+    
+    // Reset solution found flag for new work
+    solutionFoundRef.current = false;
     
     if (workersRef.current.length === 0) {
       console.log('[Mining] No workers exist, initializing...');
@@ -243,26 +438,24 @@ export function useMining(options: UseMiningOptions): UseMiningReturn {
    * Stop all mining workers
    */
   const stopMining = useCallback(() => {
-    workersRef.current.forEach(worker => {
-      worker.postMessage({ type: 'stop' });
-    });
+    console.log('[Mining] Stopping mining...');
+    stopAllWorkers();
     
     currentWorkRef.current = null;
+    solutionFoundRef.current = false;
     setStatus('idle');
     setHashrate(0);
     console.log('[Mining] Stopped');
-  }, []);
+  }, [stopAllWorkers]);
 
   /**
    * Pause mining
    */
   const pauseMining = useCallback(() => {
-    workersRef.current.forEach(worker => {
-      worker.postMessage({ type: 'stop' });
-    });
+    stopAllWorkers();
     setStatus('paused');
     console.log('[Mining] Paused');
-  }, []);
+  }, [stopAllWorkers]);
 
   /**
    * Resume mining with current work
@@ -292,12 +485,11 @@ export function useMining(options: UseMiningOptions): UseMiningReturn {
     }
     
     return () => {
-      console.log('[Mining] Cleaning up workers...');
-      workersRef.current.forEach(worker => worker.terminate());
-      workersRef.current = [];
+      console.log('[Mining] Unmounting, cleaning up workers...');
+      cleanupWorkers();
       isInitializedRef.current = false;
     };
-  }, [initWorkers]);
+  }, [initWorkers, cleanupWorkers]);
 
   return {
     status,

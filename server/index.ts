@@ -273,12 +273,16 @@ function handleJoinMine(
   clientInfo.currentMineId = payload.mineId;
 
   // Get or create pool manager for this mine
+  // Each mine has its own pool manager with mine-specific difficulty
   let poolManager = minePoolManagers.get(payload.mineId);
   if (!poolManager) {
-    poolManager = new PoolManager({
-      onDiscoveryFound: (result) => handleDiscoveryFound(payload.mineId, result),
-      onStatsUpdate: () => {}, // Handled globally
-    });
+    poolManager = new PoolManager(
+      {
+        onDiscoveryFound: (result) => handleDiscoveryFound(payload.mineId, result),
+        onStatsUpdate: () => {}, // Handled globally
+      },
+      payload.mineId // Pass mine ID for mine-specific difficulty
+    );
     poolManager.start();
     minePoolManagers.set(payload.mineId, poolManager);
   }

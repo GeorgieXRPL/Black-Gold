@@ -30,10 +30,14 @@ import {
 import {
   DifficultyState,
   createDifficultyState,
+  createDifficultyStateForMine,
   adjustDifficulty,
   updateHashrateEstimate,
+  difficultyToTarget,
+  calculateScaledDifficulty,
 } from './difficulty';
 import { POOL_CONFIG, RATE_LIMIT_CONFIG } from '../../config/constants';
+import { getMineRegistry } from '../game/mine-registry';
 
 /**
  * Extended miner info with WebSocket connection
@@ -84,22 +88,47 @@ export interface PoolEventHandlers {
 /**
  * Pool Manager class
  * Central coordinator for the mining pool operations
+ * Each mine has its own pool manager with mine-specific difficulty
  */
 export class PoolManager {
   private state: PoolState;
   private eventHandlers: PoolEventHandlers;
   private cleanupInterval: ReturnType<typeof setInterval> | null = null;
   private statsInterval: ReturnType<typeof setInterval> | null = null;
+  private mineId: string | null = null;
 
   /**
    * Creates a new PoolManager instance
    * @param eventHandlers - Optional event handlers for pool events
+   * @param mineId - Optional mine ID for mine-specific difficulty
    */
-  constructor(eventHandlers: PoolEventHandlers = {}) {
+  constructor(eventHandlers: PoolEventHandlers = {}, mineId?: string) {
+    this.mineId = mineId || null;
+    
+    // Get mine-specific difficulty if mine ID provided
+    let difficultyState: DifficultyState;
+    if (mineId) {
+      const registry = getMineRegistry();
+      const mine = registry.getMine(mineId);
+      if (mine) {
+        // Use mine's target discovery time for difficulty
+        difficultyState = createDifficultyStateForMine(mine.definition.baseDiscoveryTimeMs);
+        console.log(
+          `[PoolManager] Created for mine ${mineId}: ` +
+          `difficulty=${difficultyState.current.toLocaleString()}, ` +
+          `target time=${mine.definition.baseDiscoveryTimeMs / 60000}min`
+        );
+      } else {
+        difficultyState = createDifficultyState();
+      }
+    } else {
+      difficultyState = createDifficultyState();
+    }
+    
     this.state = {
       miners: new Map(),
       workTracker: createWorkTracker(),
-      difficultyState: createDifficultyState(),
+      difficultyState,
       rateLimits: new Map(),
       ipTrackers: new Map(),
       totalDiscoveries: 0,
@@ -335,16 +364,26 @@ export class PoolManager {
   /**
    * Assigns new work to a miner
    * @param walletAddress - Miner's wallet address
+   * @param mineId - Optional mine ID for mine-specific difficulty
+   * @param mineTarget - Optional mine-specific target hex string
    */
-  public assignWork(walletAddress: string): void {
+  public assignWork(walletAddress: string, mineId?: string, mineTarget?: string): void {
     const miner = this.state.miners.get(walletAddress);
     if (!miner) return;
+
+    // Use mine-specific target if provided, otherwise fall back to global
+    const target = mineTarget || this.state.difficultyState.target;
 
     const { work, tracker } = generateWork(
       this.state.workTracker,
       walletAddress,
-      this.state.difficultyState.target
+      target
     );
+
+    // Set the mine ID on the work unit
+    if (mineId) {
+      work.mineId = mineId;
+    }
 
     this.state.workTracker = tracker;
     miner.activeWorkIds.add(work.id);
@@ -356,7 +395,8 @@ export class PoolManager {
 
     console.log(
       `[PoolManager] Assigned work ${work.id} to ${walletAddress} ` +
-        `[${work.nonceStart}, ${work.nonceEnd})`
+        `[${work.nonceStart}, ${work.nonceEnd}) ` +
+        `target: ${target.substring(0, 12)}... (mine: ${mineId || 'global'})`
     );
   }
 

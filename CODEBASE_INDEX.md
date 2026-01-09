@@ -1,14 +1,79 @@
-# Black Gold v2.9.5 - Codebase Index
+# Black Gold v2.9.6 - Codebase Index
 
 > Complete file-by-file documentation for the Black Gold Interactive Mining Globe platform
 
 **Last Updated**: January 9, 2026  
-**Version**: 2.9.5 (Mining System Fixes)  
+**Version**: 2.9.6 (Mining System Overhaul)  
 **Total Files**: 75+ TypeScript/TSX/JS files
 
 ---
 
-## 📋 Recent Changes (v2.9.5)
+## 📋 Recent Changes (v2.9.6)
+
+### Mining System Overhaul
+
+This release completely fixes the mining system with proper difficulty calibration and worker management.
+
+#### Inline Blob Workers (Turbopack Fix)
+- **`app/hooks/useMining.ts`** - Complete rewrite with inline blob workers:
+  - Worker code embedded as a string constant `MINER_WORKER_CODE`
+  - Creates workers from Blob URLs - works with any bundler
+  - Eliminates `importScripts` errors from Turbopack chunk splitting
+  - Properly cleans up Blob URLs on worker termination
+  - Added `solutionFoundRef` to coordinate workers
+
+#### Worker Coordination
+- **`app/hooks/useMining.ts`** - Fixed multiple solution submissions:
+  - When any worker finds a solution, immediately stops ALL workers
+  - `solutionFoundRef` flag prevents duplicate submissions
+  - Only the first valid solution is submitted to server
+  - Other workers stopped via `postMessage({ type: 'stop' })`
+  - Prevents "Invalid or expired work unit" errors
+
+#### Proper Difficulty Calibration
+- **`config/constants.ts`** - Completely recalibrated difficulty:
+  - `MIN_DIFFICULTY`: 256 → **1,500,000** (for 5-minute Coal mines)
+  - `MAX_DIFFICULTY`: 1,000,000 → **500,000,000** (for scaling)
+  - Added `BASELINE_HASHRATE`: 5,000 H/s (mobile estimate)
+  - `NONCE_RANGE_SIZE`: 1,000,000 → 10,000,000 (longer ranges)
+  - `WORK_EXPIRY_MS`: 60,000 → 300,000 (5 minutes)
+  
+  **Difficulty by Resource (at 5,000 H/s baseline):**
+  | Resource | Target Time | Base Difficulty |
+  |----------|-------------|-----------------|
+  | Coal     | 5 minutes   | ~1,500,000      |
+  | Silver   | 8 minutes   | ~2,400,000      |
+  | Oil      | 10 minutes  | ~3,000,000      |
+  | Gold     | 20 minutes  | ~6,000,000      |
+
+#### Per-Mine Difficulty System
+- **`server/pool/difficulty.ts`** - New per-mine difficulty functions:
+  - `createDifficultyStateForMine(targetTimeMs)` - Initialize with mine's target time
+  - `calculateBaseDifficulty(targetTimeMs)` - Base difficulty for single miner
+  - `calculateScaledDifficulty(targetTimeMs, networkHashrate)` - Scale with miners
+  - `recalculateDifficultyFromHashrate(state)` - Dynamic adjustment
+  - `getDifficultyInfo(state)` - Human-readable stats
+
+- **`server/game/mine-registry.ts`** - Per-mine difficulty tracking:
+  - Added `mineDifficultyStates` Map for per-mine difficulty states
+  - `createMineState()` now uses mine's `baseDiscoveryTimeMs`
+  - `getMineDifficultyState()` / `setMineDifficultyState()` accessors
+  - `recalculateMineDifficulty()` - Update on hashrate changes
+  - `getMineTarget()` / `getMineTargetTime()` - Access mine difficulty
+
+- **`server/pool/manager.ts`** - Mine-aware pool manager:
+  - Constructor accepts optional `mineId` parameter
+  - Uses mine-specific difficulty when creating initial state
+  - `assignWork()` accepts optional `mineId` and `mineTarget` params
+  - Logs mine-specific difficulty info
+
+- **`server/index.ts`** - Updated pool manager creation:
+  - Passes mine ID when creating per-mine pool managers
+  - Each mine now has properly calibrated difficulty
+
+---
+
+## 📋 Previous Changes (v2.9.5)
 
 ### Critical Mining Fixes
 
@@ -38,11 +103,7 @@
   - Mining button disabled on non-home mines
 
 #### Initial Difficulty Fix
-- **`config/constants.ts`** - Increased `MIN_DIFFICULTY` from 1 to 256:
-  - Difficulty 1 = all f's target = any hash valid (instant solutions!)
-  - Difficulty 256 = requires ~2 hex chars of leading zeros
-  - Prevents instant "solution found" spam
-- **`server/pool/difficulty.ts`** - Added logging for difficulty target
+- **`config/constants.ts`** - Previous MIN_DIFFICULTY changes (now superseded by v2.9.6)
 
 #### Next.js Configuration
 - **`next.config.ts`** - Added webpack fallback for crypto

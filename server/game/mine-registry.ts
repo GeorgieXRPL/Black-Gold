@@ -13,7 +13,17 @@ import {
   rollSilverSurgeMultiplier,
   rollGoldRushJackpot,
 } from './types';
-import { createDifficultyState, difficultyToTarget } from '../pool/difficulty';
+import { 
+  createDifficultyStateForMine, 
+  difficultyToTarget,
+  calculateScaledDifficulty,
+  DifficultyState,
+} from '../pool/difficulty';
+
+/**
+ * Per-mine difficulty states for dynamic adjustment
+ */
+const mineDifficultyStates: Map<string, DifficultyState> = new Map();
 
 /**
  * Creates initial discovery header for a mine
@@ -26,9 +36,20 @@ function createInitialDiscoveryHeader(mineId: string): string {
 
 /**
  * Creates the initial state for a mine
+ * Uses the mine's baseDiscoveryTimeMs to calculate appropriate difficulty
  */
 export function createMineState(definition: MineDefinition): MineState {
-  const diffState = createDifficultyState();
+  // Create difficulty state based on THIS mine's target discovery time
+  const diffState = createDifficultyStateForMine(definition.baseDiscoveryTimeMs);
+  
+  // Store the difficulty state for this mine
+  mineDifficultyStates.set(definition.id, diffState);
+  
+  console.log(
+    `[MineRegistry] ${definition.name} initialized: ` +
+    `target=${definition.baseDiscoveryTimeMs / 60000}min, ` +
+    `difficulty=${diffState.current.toLocaleString()}`
+  );
   
   return {
     definition,
@@ -48,6 +69,20 @@ export function createMineState(definition: MineDefinition): MineState {
     syndicateMultiplier: 1.0,
     silverSurgeMultiplier: 1.0,
   };
+}
+
+/**
+ * Get the difficulty state for a mine
+ */
+export function getMineDifficultyState(mineId: string): DifficultyState | undefined {
+  return mineDifficultyStates.get(mineId);
+}
+
+/**
+ * Update the difficulty state for a mine
+ */
+export function setMineDifficultyState(mineId: string, state: DifficultyState): void {
+  mineDifficultyStates.set(mineId, state);
 }
 
 /**
@@ -392,6 +427,61 @@ export class MineRegistry {
 
     mine.difficulty = difficulty;
     mine.target = target;
+  }
+
+  /**
+   * Recalculate difficulty for a mine based on current hashrate
+   * Should be called when miners join/leave or hashrate changes significantly
+   */
+  recalculateMineDifficulty(mineId: string): void {
+    const mine = this.mines.get(mineId);
+    if (!mine) return;
+
+    const diffState = mineDifficultyStates.get(mineId);
+    if (!diffState) return;
+
+    // Calculate new difficulty based on target time and current hashrate
+    const newDifficulty = calculateScaledDifficulty(
+      mine.definition.baseDiscoveryTimeMs,
+      mine.totalHashrate
+    );
+
+    const newTarget = difficultyToTarget(newDifficulty);
+
+    // Update mine state
+    mine.difficulty = newDifficulty;
+    mine.target = newTarget;
+
+    // Update difficulty state
+    const updatedDiffState: DifficultyState = {
+      ...diffState,
+      current: newDifficulty,
+      target: newTarget,
+      estimatedHashrate: mine.totalHashrate,
+    };
+    mineDifficultyStates.set(mineId, updatedDiffState);
+
+    console.log(
+      `[MineRegistry] ${mine.definition.name} difficulty recalculated: ` +
+      `${newDifficulty.toLocaleString()} (${mine.totalHashrate} H/s, ` +
+      `target: ${mine.definition.baseDiscoveryTimeMs / 60000}min)`
+    );
+  }
+
+  /**
+   * Get the current target hex string for a mine
+   */
+  getMineTarget(mineId: string): string | undefined {
+    const mine = this.mines.get(mineId);
+    return mine?.target;
+  }
+
+  /**
+   * Get the target discovery time for a mine (in ms)
+   */
+  getMineTargetTime(mineId: string): number | undefined {
+    const mine = this.mines.get(mineId);
+    return mine?.definition.baseDiscoveryTimeMs;
   }
 
   /**
