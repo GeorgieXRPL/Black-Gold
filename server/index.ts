@@ -5,7 +5,7 @@
  */
 
 import { WebSocket, WebSocketServer, RawData } from 'ws';
-import { IncomingMessage } from 'http';
+import { IncomingMessage, createServer, ServerResponse } from 'http';
 import {
   WSMessage,
   ConnectPayload,
@@ -108,6 +108,9 @@ const minePoolManagers = new Map<string, PoolManager>();
 
 /** WebSocket server instance */
 let wss: WebSocketServer;
+
+/** HTTP server instance (WebSocket attaches to this for Railway compatibility) */
+let httpServer: ReturnType<typeof createServer>;
 
 /** Rate limiter instance */
 let rateLimiter: RateLimiter;
@@ -783,8 +786,27 @@ export async function startServer(): Promise<WebSocketServer> {
     blockDurationMs: 300_000,
   });
 
+  // Create HTTP server for Railway compatibility
+  // Railway's proxy needs an HTTP server to properly upgrade to WebSocket
+  httpServer = createServer((req: IncomingMessage, res: ServerResponse) => {
+    // Health check endpoint
+    if (req.url === '/health') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ status: 'ok', server: 'Black Gold WebSocket' }));
+      return;
+    }
+    // For non-WebSocket requests, return upgrade required
+    res.writeHead(426, { 
+      'Content-Type': 'text/plain',
+      'Upgrade': 'websocket',
+      'Connection': 'Upgrade'
+    });
+    res.end('Upgrade Required - This is a WebSocket server');
+  });
+
+  // Attach WebSocket server to HTTP server
   wss = new WebSocketServer({
-    port,
+    server: httpServer,
     perMessageDeflate: false,
     maxPayload: 64 * 1024,
   });
@@ -838,9 +860,11 @@ export async function startServer(): Promise<WebSocketServer> {
     });
   }, 30000);
 
+  // Start HTTP server (WebSocket is attached to it)
   await new Promise<void>((resolve) => {
-    wss.on('listening', () => {
-      console.log(`[Server] WebSocket listening on ws://localhost:${port}`);
+    httpServer.listen(port, () => {
+      console.log(`[Server] HTTP + WebSocket listening on port ${port}`);
+      console.log(`[Server] Health check: http://localhost:${port}/health`);
       console.log('[Server] Ready for miners!');
       resolve();
     });
@@ -850,7 +874,9 @@ export async function startServer(): Promise<WebSocketServer> {
     console.log('\n[Server] Shutting down...');
     minePoolManagers.forEach((pm) => pm.stop());
     rateLimiter.stop();
-    wss.close(() => process.exit(0));
+    wss.close(() => {
+      httpServer.close(() => process.exit(0));
+    });
   };
 
   process.on('SIGINT', shutdown);
@@ -865,8 +891,13 @@ export async function stopServer(): Promise<void> {
     rateLimiter.stop();
   }
   if (wss) {
-    return new Promise((resolve) => {
+    await new Promise<void>((resolve) => {
       wss.close(() => resolve());
+    });
+  }
+  if (httpServer) {
+    await new Promise<void>((resolve) => {
+      httpServer.close(() => resolve());
     });
   }
 }
