@@ -38,6 +38,7 @@ import {
   ValidatedRallyPayload,
 } from './middleware/validate';
 import { getRateLimiter, RateLimiter } from './middleware/rateLimit';
+import { initRedisStore, getRedisStore, StoredDiscovery, StoredActivity } from './storage';
 
 /** Extended message types for v2 */
 export type GameMessageType = 
@@ -59,8 +60,11 @@ export type GameMessageType =
   | 'result'
   | 'error'
   | 'discovery_found'
+  | 'discovery_pending'
   | 'raid_result'
-  | 'game_event';
+  | 'game_event'
+  | 'get_activity'
+  | 'activity_feed';
 
 /** Extended connect payload for v2 */
 interface GameConnectPayload extends ConnectPayload {
@@ -309,10 +313,12 @@ function handleJoinMine(
 
 /**
  * Handles discovery found at a mine
+ * Called after the 30-second announcement delay completes
  */
 async function handleDiscoveryFound(mineId: string, result: BarrelResult): Promise<void> {
   const registry = getMineRegistry();
   const raidEngine = getRaidEngine();
+  const redisStore = getRedisStore();
   const mine = registry.getMine(mineId);
 
   if (!mine) return;
@@ -329,6 +335,37 @@ async function handleDiscoveryFound(mineId: string, result: BarrelResult): Promi
 
   // Update mine state
   registry.recordDiscoveryFound(mineId, result.hash);
+
+  // Store discovery in Redis for persistence
+  const storedDiscovery: StoredDiscovery = {
+    id: `${mineId}-${result.discoveryNumber}-${Date.now()}`,
+    mineId,
+    mineName: mine.definition.name,
+    resource: mine.definition.resource,
+    finderAddress: result.winner,
+    finderReward: result.finderShare,
+    vaultReward: result.vaultShare,
+    timestamp: Date.now(),
+    hash: result.hash,
+  };
+  await redisStore.storeDiscovery(storedDiscovery);
+
+  // Also store as global activity
+  const activity: StoredActivity = {
+    id: `activity-discovery-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    type: 'discovery',
+    mineId,
+    mineName: mine.definition.name,
+    walletAddress: result.winner,
+    details: {
+      discoveryNumber: result.discoveryNumber,
+      discoveryName: result.discoveryName,
+      finderReward: result.finderShare,
+      hash: result.hash.substring(0, 16),
+    },
+    timestamp: Date.now(),
+  };
+  await redisStore.storeActivity(activity);
 
   // Check for jackpot (gold mines)
   if (mine.definition.resource === 'gold' && mine.isJackpotActive) {
@@ -355,7 +392,7 @@ async function handleDiscoveryFound(mineId: string, result: BarrelResult): Promi
     }
   }
 
-  // Broadcast discovery found
+  // Broadcast discovery found (winner already revealed by pool manager)
   broadcastToMine(mineId, 'discovery_found', {
     ...result,
     mineId,
@@ -376,6 +413,12 @@ async function handleDiscoveryFound(mineId: string, result: BarrelResult): Promi
   });
 }
 
+// Track last known hashrate and recalculation time per mine for dynamic difficulty
+const lastMineHashrates: Map<string, number> = new Map();
+const lastDifficultyRecalc: Map<string, number> = new Map();
+const DIFFICULTY_RECALC_INTERVAL_MS = 10_000; // Minimum 10 seconds between recalcs
+const HASHRATE_CHANGE_THRESHOLD = 0.20; // 20% change triggers recalc
+
 /**
  * Handles hashrate update
  * Payload is pre-validated by Zod schema
@@ -392,7 +435,8 @@ function handleHashrate(
 
   const registry = getMineRegistry();
   const stakeManager = getStakeManager();
-  const poolManager = minePoolManagers.get(clientInfo.currentMineId);
+  const mineId = clientInfo.currentMineId;
+  const poolManager = minePoolManagers.get(mineId);
 
   if (!poolManager) return;
 
@@ -400,7 +444,7 @@ function handleHashrate(
   const effectiveHashrate = stakeManager.getEffectiveHashrate(
     clientInfo.walletAddress!,
     payload.hashrate,
-    clientInfo.currentMineId
+    mineId
   );
 
   // Update registry
@@ -414,6 +458,70 @@ function handleHashrate(
   poolManager.handleHashrateUpdate({
     walletAddress: clientInfo.walletAddress!,
     hashrate: effectiveHashrate,
+  });
+
+  // Dynamic difficulty adjustment based on actual network hashrate
+  const mine = registry.getMine(mineId);
+  if (!mine) return;
+
+  const currentTotalHashrate = mine.totalHashrate;
+  const lastHashrate = lastMineHashrates.get(mineId) || 0;
+  const lastRecalcTime = lastDifficultyRecalc.get(mineId) || 0;
+  const now = Date.now();
+
+  // Check if enough time has passed and hashrate changed significantly
+  const timeSinceLastRecalc = now - lastRecalcTime;
+  const hashrateChange = lastHashrate > 0 
+    ? Math.abs(currentTotalHashrate - lastHashrate) / lastHashrate 
+    : 1; // First update always triggers recalc
+
+  if (timeSinceLastRecalc >= DIFFICULTY_RECALC_INTERVAL_MS && hashrateChange >= HASHRATE_CHANGE_THRESHOLD) {
+    console.log(
+      `[Difficulty] Hashrate changed ${(hashrateChange * 100).toFixed(1)}% at ${mine.definition.name}: ` +
+      `${lastHashrate.toLocaleString()} → ${currentTotalHashrate.toLocaleString()} H/s`
+    );
+
+    // Recalculate difficulty
+    registry.recalculateMineDifficulty(mineId);
+    
+    // Update tracking
+    lastMineHashrates.set(mineId, currentTotalHashrate);
+    lastDifficultyRecalc.set(mineId, now);
+
+    // Broadcast new target to all miners at this mine
+    const newTarget = registry.getMineTarget(mineId);
+    if (newTarget) {
+      broadcastDifficultyUpdate(mineId, newTarget, mine.difficulty);
+    }
+  }
+}
+
+/**
+ * Broadcast difficulty update to all miners at a mine
+ */
+function broadcastDifficultyUpdate(mineId: string, newTarget: string, newDifficulty: number): void {
+  const poolManager = minePoolManagers.get(mineId);
+  if (!poolManager) return;
+
+  const miners = poolManager.getAllMiners();
+  
+  console.log(
+    `[Difficulty] Broadcasting new target to ${miners.length} miners at mine ${mineId}: ` +
+    `difficulty=${newDifficulty.toLocaleString()}, target=${newTarget.substring(0, 12)}...`
+  );
+
+  // Send updated difficulty info to all miners
+  miners.forEach(miner => {
+    sendMessage(miner.ws, 'game_event', {
+      type: 'difficulty_update',
+      mineId,
+      difficulty: newDifficulty,
+      target: newTarget,
+      message: 'Difficulty adjusted based on network hashrate',
+    });
+
+    // Assign new work with updated target
+    poolManager.assignWork(miner.walletAddress, mineId, newTarget);
   });
 }
 
@@ -434,6 +542,18 @@ async function handleSubmit(
   const poolManager = minePoolManagers.get(clientInfo.currentMineId);
   if (!poolManager) {
     sendError(ws, 'NO_POOL', 'Mine pool not initialized');
+    return;
+  }
+
+  // Check if mining is paused (pending discovery announcement)
+  if (poolManager.isMiningPaused()) {
+    const countdown = poolManager.getAnnouncementCountdown();
+    sendMessage(ws, 'result', {
+      success: false,
+      message: `Mining paused - winner announcement in ${Math.ceil((countdown || 0) / 1000)}s`,
+      paused: true,
+      countdown,
+    });
     return;
   }
 
@@ -656,6 +776,28 @@ function handleRallyDefense(
 }
 
 /**
+ * Handles request for activity feed (hydrates client on load/reconnect)
+ */
+async function handleGetActivity(ws: WebSocket): Promise<void> {
+  const redisStore = getRedisStore();
+  
+  if (!redisStore.isAvailable()) {
+    // Return empty activity if Redis is not available
+    sendMessage(ws, 'activity_feed', { activities: [], source: 'memory' });
+    return;
+  }
+
+  try {
+    const activities = await redisStore.getGlobalActivity(50);
+    sendMessage(ws, 'activity_feed', { activities, source: 'redis' });
+    console.log(`[WS] Sent ${activities.length} activities from Redis`);
+  } catch (error) {
+    console.error('[WS] Failed to get activity feed:', error);
+    sendMessage(ws, 'activity_feed', { activities: [], source: 'error' });
+  }
+}
+
+/**
  * Gets global network stats
  */
 function getGlobalStats(): GlobalNetworkStats {
@@ -691,11 +833,18 @@ async function handleMessage(
     return;
   }
 
-  // Rate limit check
-  const rateLimitResult = rateLimiter.check(clientInfo.ip, message.type);
-  if (!rateLimitResult.allowed) {
-    sendError(ws, 'RATE_LIMITED', rateLimitResult.error || 'Too many requests');
-    return;
+  // Rate limit check - exempt high-frequency message types
+  // hashrate: sent every second per worker (3 workers = 180/min)
+  // stats: informational queries
+  // join_mine: needs to work for reconnection
+  const RATE_LIMIT_EXEMPT_TYPES = ['hashrate', 'stats', 'join_mine'];
+  
+  if (!RATE_LIMIT_EXEMPT_TYPES.includes(message.type)) {
+    const rateLimitResult = rateLimiter.check(clientInfo.ip, message.type);
+    if (!rateLimitResult.allowed) {
+      sendError(ws, 'RATE_LIMITED', rateLimitResult.error || 'Too many requests');
+      return;
+    }
   }
 
   // Log with sanitized data
@@ -749,6 +898,10 @@ async function handleMessage(
       handleRallyDefense(ws, validation.data as ValidatedRallyPayload, clientInfo);
       break;
 
+    case 'get_activity':
+      await handleGetActivity(ws);
+      break;
+
     default:
       sendError(ws, 'UNKNOWN_TYPE', `Unknown message type: ${sanitizeForLog(message.type)}`);
   }
@@ -785,6 +938,9 @@ export async function startServer(): Promise<WebSocketServer> {
   console.log(`[Server] Starting on port ${port}...`);
   console.log(`[Server] Loaded ${MINES.length} mines`);
   console.log('[Server] Validation and rate limiting enabled');
+
+  // Initialize Redis for persistence (gracefully degrades if unavailable)
+  await initRedisStore();
 
   // Initialize game systems
   getMineRegistry();

@@ -50,6 +50,15 @@ export interface ConnectedMiner extends Miner {
 }
 
 /**
+ * Pending discovery awaiting announcement
+ */
+export interface PendingDiscovery {
+  result: BarrelResult;
+  announceAt: number;
+  timer: NodeJS.Timeout;
+}
+
+/**
  * Pool manager state
  */
 export interface PoolState {
@@ -57,6 +66,8 @@ export interface PoolState {
   miners: Map<string, ConnectedMiner>;
   /** Work unit tracker */
   workTracker: WorkTracker;
+  /** Pending discovery awaiting announcement (null if mining normally) */
+  pendingDiscovery: PendingDiscovery | null;
   /** Difficulty state */
   difficultyState: DifficultyState;
   /** Rate limit tracking by wallet */
@@ -128,6 +139,7 @@ export class PoolManager {
     this.state = {
       miners: new Map(),
       workTracker: createWorkTracker(),
+      pendingDiscovery: null,
       difficultyState,
       rateLimits: new Map(),
       ipTrackers: new Map(),
@@ -164,6 +176,9 @@ export class PoolManager {
    */
   public stop(): void {
     console.log('[PoolManager] Stopping pool manager');
+
+    // Force-announce any pending discovery
+    this.forceAnnounce();
 
     if (this.cleanupInterval) {
       clearInterval(this.cleanupInterval);
@@ -456,8 +471,27 @@ export class PoolManager {
 
   // ============ Private Methods ============
 
+  // Announcement delay in milliseconds (30 seconds of suspense)
+  private static readonly ANNOUNCEMENT_DELAY_MS = 30_000;
+
   /**
-   * Handles a discovery
+   * Check if mining is currently paused (pending discovery announcement)
+   */
+  public isMiningPaused(): boolean {
+    return this.state.pendingDiscovery !== null;
+  }
+
+  /**
+   * Get time until announcement (in ms), or null if no pending discovery
+   */
+  public getAnnouncementCountdown(): number | null {
+    if (!this.state.pendingDiscovery) return null;
+    const remaining = this.state.pendingDiscovery.announceAt - Date.now();
+    return Math.max(0, remaining);
+  }
+
+  /**
+   * Handles a discovery with 30-second suspense delay
    * @param walletAddress - Winning miner's wallet
    * @param hash - Winning hash
    * @param nonce - Winning nonce
@@ -473,10 +507,10 @@ export class PoolManager {
     const discoveryNumber = workUnit.discoveryNumber;
 
     console.log(
-      `[PoolManager] ⛏️ DISCOVERY #${discoveryNumber} FOUND by ${walletAddress}!`
+      `[PoolManager] ⛏️ DISCOVERY #${discoveryNumber} FOUND! Starting 30s countdown...`
     );
 
-    // Create discovery result
+    // Create discovery result (winner kept private until announcement)
     const result: BarrelResult = {
       discoveryNumber,
       winner: walletAddress,
@@ -491,10 +525,6 @@ export class PoolManager {
       discoveryName: 'Seam', // Default, should be set by caller
     };
 
-    // Add to history
-    this.state.discoveryHistory.push(result);
-    this.state.totalDiscoveries++;
-
     // Calculate time since last discovery for difficulty adjustment
     const lastDiscoveryTime = this.state.difficultyState.lastDiscoveryTime;
     if (lastDiscoveryTime !== null) {
@@ -504,28 +534,104 @@ export class PoolManager {
         actualTime
       );
     } else {
-      // First discovery, just update the timestamp
       this.state.difficultyState = {
         ...this.state.difficultyState,
         lastDiscoveryTime: now.getTime(),
       };
     }
 
+    // Broadcast PENDING discovery (no winner revealed yet) to build suspense
+    const announceAt = Date.now() + PoolManager.ANNOUNCEMENT_DELAY_MS;
+    this.broadcastMessage('discovery_pending', {
+      discoveryNumber,
+      mineId: workUnit.mineId,
+      resource: result.resource,
+      discoveryName: result.discoveryName,
+      announceAt,
+      countdownSeconds: PoolManager.ANNOUNCEMENT_DELAY_MS / 1000,
+      message: '⛏️ A discovery has been found! Winner will be revealed in 30 seconds...',
+    });
+
+    // Set up the delayed announcement
+    const timer = setTimeout(() => {
+      this.announceDiscovery();
+    }, PoolManager.ANNOUNCEMENT_DELAY_MS);
+
+    // Store pending discovery
+    this.state.pendingDiscovery = {
+      result,
+      announceAt,
+      timer,
+    };
+
+    // Clear all active work - mining pauses during countdown
+    for (const miner of this.state.miners.values()) {
+      miner.activeWorkIds.clear();
+    }
+
+    console.log(
+      `[PoolManager] Mining paused at mine ${workUnit.mineId || 'global'}. ` +
+      `Winner will be announced at ${new Date(announceAt).toISOString()}`
+    );
+  }
+
+  /**
+   * Announce the pending discovery winner after the countdown
+   */
+  private async announceDiscovery(): Promise<void> {
+    if (!this.state.pendingDiscovery) {
+      console.warn('[PoolManager] announceDiscovery called but no pending discovery');
+      return;
+    }
+
+    const { result } = this.state.pendingDiscovery;
+
+    console.log(
+      `[PoolManager] 🎉 ANNOUNCING WINNER: ${result.winner} for discovery #${result.discoveryNumber}!`
+    );
+
+    // Add to history
+    this.state.discoveryHistory.push(result);
+    this.state.totalDiscoveries++;
+
     // Start new discovery work
-    this.state.workTracker = startNewBarrel(this.state.workTracker, hash);
+    this.state.workTracker = startNewBarrel(this.state.workTracker, result.hash);
 
-    // Broadcast discovery found to all miners
-    this.broadcastMessage('discovery_found', result);
+    // Clear pending discovery BEFORE broadcasting to allow new mining
+    this.state.pendingDiscovery = null;
 
-    // Notify event handler
+    // Broadcast the actual discovery with winner revealed
+    this.broadcastMessage('discovery_found', {
+      ...result,
+      announcement: true,
+      message: `🏆 ${result.winner.slice(0, 8)}...${result.winner.slice(-4)} found the discovery!`,
+    });
+
+    // Notify event handler for persistence, rewards, etc.
     if (this.eventHandlers.onDiscoveryFound) {
       await this.eventHandlers.onDiscoveryFound(result);
     }
 
-    // Assign new work to all miners
+    // Resume mining - assign new work to all miners
     for (const miner of this.state.miners.values()) {
-      miner.activeWorkIds.clear();
       this.assignWork(miner.walletAddress);
+    }
+
+    console.log(`[PoolManager] Mining resumed. New work assigned to ${this.state.miners.size} miners.`);
+  }
+
+  /**
+   * Force-announce a pending discovery (used when stopping the pool)
+   */
+  public forceAnnounce(): void {
+    if (this.state.pendingDiscovery) {
+      clearTimeout(this.state.pendingDiscovery.timer);
+      // Synchronously announce
+      const { result } = this.state.pendingDiscovery;
+      this.state.discoveryHistory.push(result);
+      this.state.totalDiscoveries++;
+      this.state.pendingDiscovery = null;
+      console.log(`[PoolManager] Force-announced discovery #${result.discoveryNumber}`);
     }
   }
 

@@ -111,6 +111,16 @@ export const InviteSyndicateSchema = z.object({
   targetWallet: SolanaAddressSchema,
 });
 
+/** Stats request message (no payload required) */
+export const StatsRequestSchema = z.object({
+  type: z.literal('stats'),
+});
+
+/** Activity feed request message (no payload required) */
+export const GetActivitySchema = z.object({
+  type: z.literal('get_activity'),
+});
+
 // ============================================================================
 // Union of all message types
 // ============================================================================
@@ -127,6 +137,8 @@ export const WSMessageSchema = z.discriminatedUnion('type', [
   RallyDefenseSchema,
   CreateSyndicateSchema,
   InviteSyndicateSchema,
+  StatsRequestSchema,
+  GetActivitySchema,
 ]);
 
 export type ValidatedWSMessage = z.infer<typeof WSMessageSchema>;

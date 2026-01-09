@@ -1,14 +1,79 @@
-# Black Gold v2.9.6 - Codebase Index
+# Black Gold v2.9.7 - Codebase Index
 
 > Complete file-by-file documentation for the Black Gold Interactive Mining Globe platform
 
 **Last Updated**: January 9, 2026  
-**Version**: 2.9.6 (Mining System Overhaul)  
+**Version**: 2.9.7 (Mining Experience Improvements)  
 **Total Files**: 75+ TypeScript/TSX/JS files
 
 ---
 
-## 📋 Recent Changes (v2.9.6)
+## 📋 Recent Changes (v2.9.7)
+
+### Mining Experience Improvements
+
+This release improves the mining experience with dynamic difficulty, Redis persistence, and a 30-second announcement delay.
+
+#### Rate Limiting Exemption
+- **`server/index.ts`** - Exempt high-frequency messages from rate limiting:
+  - `hashrate` messages no longer count toward rate limit (sent every second per worker)
+  - `stats` and `join_mine` messages also exempt
+  - Prevents rate limit errors with multi-core mining (3 workers = 180 messages/min)
+  - Only rate limits: `submit`, `stake`, `unstake`, `start_expedition`
+
+#### Dynamic Difficulty Adjustment
+- **`server/index.ts`** - Added real-time difficulty scaling:
+  - Tracks `lastMineHashrates` and `lastDifficultyRecalc` per mine
+  - Recalculates difficulty when hashrate changes by ≥20%
+  - Minimum 10 seconds between recalculations (`DIFFICULTY_RECALC_INTERVAL_MS`)
+  - Broadcasts `difficulty_update` event to all miners when target changes
+  - `broadcastDifficultyUpdate()` function sends new target and assigns fresh work
+
+#### Redis Persistence Layer (New)
+- **`server/storage/redis-store.ts`** - New file for persistent storage:
+  - `StoredDiscovery` - Discovery records with mine, finder, rewards, hash
+  - `StoredActivity` - Activity feed events (discoveries, raids, stakes)
+  - `StoredMineStats` - Per-mine statistics (totalDiscoveries, peakHashrate)
+  - Gracefully degrades if Redis unavailable
+  - Key structure: `blackgold:mine:{mineId}:discoveries`, `blackgold:activity:global`
+
+- **`server/storage/index.ts`** - Storage module barrel exports
+
+- **`server/index.ts`** - Integrated Redis storage:
+  - Calls `initRedisStore()` on startup
+  - Stores discoveries and activities in Redis on announcement
+  - Added `handleGetActivity()` handler for `get_activity` message
+  - New message types: `get_activity`, `activity_feed`, `discovery_pending`
+
+- **`server/middleware/validate.ts`** - Added validation schemas:
+  - `StatsRequestSchema` - For `stats` messages
+  - `GetActivitySchema` - For `get_activity` messages
+
+#### 30-Second Announcement Delay
+- **`server/pool/manager.ts`** - Suspense countdown before revealing winner:
+  - New `PendingDiscovery` interface for storing pending discoveries
+  - `isMiningPaused()` - Check if mine is in countdown
+  - `getAnnouncementCountdown()` - Time remaining until announcement
+  - On valid proof:
+    1. Broadcasts `discovery_pending` event (no winner revealed)
+    2. Pauses mining at that mine for 30 seconds
+    3. After countdown, broadcasts `discovery_found` with winner
+  - `forceAnnounce()` - Force-announce on pool shutdown
+  - Mining submissions return "paused" message during countdown
+
+- **`server/index.ts`** - Updated submit handler:
+  - Checks `poolManager.isMiningPaused()` before accepting proofs
+  - Returns countdown remaining if mining is paused
+
+#### Message Type Updates
+- **`server/index.ts`** - Added new message types:
+  - `discovery_pending` - Sent when discovery found (before winner reveal)
+  - `get_activity` - Client request for activity feed
+  - `activity_feed` - Server response with stored activities
+
+---
+
+## 📋 Previous Changes (v2.9.6)
 
 ### Mining System Overhaul
 
@@ -314,6 +379,9 @@ black-gold/
 │   │   └── rateLimit.ts          # Per-IP rate limiting
 │   ├── pool/                     # Mining pool logic
 │   ├── solana/                   # Blockchain integration
+│   ├── storage/                  # Persistence layer (v2.9.7)
+│   │   ├── redis-store.ts        # Redis persistence for activity/discoveries
+│   │   └── index.ts              # Storage module exports
 │   ├── verification/             # Security & proof validation
 │   ├── index.ts                  # Server entry point
 │   └── types.ts                  # Shared type definitions
@@ -445,17 +513,36 @@ PrivyProvider        ← Outer: Provides Privy context
 
 | File | Lines | Exports | Purpose |
 |------|-------|---------|---------|
-| `index.ts` | ~550 | `startServer`, `stopServer` | v2 WebSocket server with multi-mine and game support |
+| `index.ts` | ~650 | `startServer`, `stopServer` | v2 WebSocket server with multi-mine and game support |
 | `types.ts` | ~220 | All interfaces | Shared TypeScript interfaces |
+
+### Storage Module (`server/storage/`) - NEW v2.9.7
+
+| File | Lines | Exports | Purpose |
+|------|-------|---------|---------|
+| `redis-store.ts` | ~320 | `RedisStore`, `getRedisStore`, `initRedisStore`, `StoredDiscovery`, `StoredActivity`, `StoredMineStats` | Redis persistence for activity feed and discoveries |
+| `index.ts` | ~15 | Re-exports | Barrel exports |
+
+**Redis Keys:**
+- `blackgold:mine:{mineId}:discoveries` - List of recent discoveries (max 50)
+- `blackgold:mine:{mineId}:stats` - Hash with totalDiscoveries, lastDiscoveryTime, peakHashrate
+- `blackgold:mine:{mineId}:pending` - Pending discovery awaiting announcement
+- `blackgold:activity:global` - Global activity feed (max 100)
 
 ### Pool Module (`server/pool/`)
 
 | File | Lines | Exports | Purpose |
 |------|-------|---------|---------|
-| `manager.ts` | ~450 | `PoolManager`, `PoolState`, `ConnectedMiner` | Per-mine pool coordinator |
+| `manager.ts` | ~600 | `PoolManager`, `PoolState`, `ConnectedMiner`, `PendingDiscovery` | Per-mine pool coordinator with 30s announcement delay |
 | `work.ts` | ~180 | `WorkTracker`, `generateWork`, `validateWork` | Work unit generation |
 | `difficulty.ts` | ~120 | `DifficultyState`, `adjustDifficulty` | Dynamic difficulty adjustment |
 | `index.ts` | ~30 | Re-exports | Barrel exports |
+
+**PoolManager v2.9.7 Updates:**
+- `isMiningPaused()` - Check if mine is in countdown
+- `getAnnouncementCountdown()` - Time remaining until winner reveal
+- `forceAnnounce()` - Force-announce pending discovery on shutdown
+- `PendingDiscovery` interface - Stores pending discovery with timer
 
 ---
 
@@ -853,6 +940,7 @@ score = (hashrate × 0.4) + (stakeAmount × 0.3) + (loyaltyBonus × 0.3)
 | `CREATOR_WALLET_ADDRESS` | constants.ts | Yes |
 | `QUARRY_REWARDER_ADDRESS` | staking.ts | Yes (after setup) |
 | `QUARRY_ADDRESS` | staking.ts | Yes (after setup) |
+| `REDIS_URL` | redis-store.ts | No (degrades gracefully) |
 | `ADMIN_SECRET` | admin/layout.tsx | Yes |
 | `WEBSOCKET_PORT` | constants.ts | No (default 8080) |
 | `NEXT_PUBLIC_USE_MOCKS` | Frontend | No (default: false) |
