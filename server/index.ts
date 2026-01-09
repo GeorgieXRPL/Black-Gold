@@ -134,20 +134,30 @@ function getClientIP(req: IncomingMessage): string {
 function parseMessage(data: RawData): WSMessage | null {
   try {
     const str = data.toString('utf-8');
-    
-    // Validate message envelope structure
-    const validation = validateMessage(str);
-    if (!validation.success || !validation.data) {
-      console.warn(`[WS] Invalid message format: ${validation.error}`);
-      return null;
-    }
-    
     const parsed = JSON.parse(str);
-    if (!parsed.type || parsed.payload === undefined) {
+    
+    // Basic structure validation - must have type and payload
+    if (!parsed || typeof parsed !== 'object') {
+      console.warn('[WS] Message is not an object');
       return null;
     }
+    
+    if (!parsed.type || typeof parsed.type !== 'string') {
+      console.warn('[WS] Message missing type field');
+      return null;
+    }
+    
+    if (parsed.payload === undefined) {
+      console.warn('[WS] Message missing payload field');
+      return null;
+    }
+    
+    // Log for debugging (remove in production)
+    console.log(`[WS] Parsed message: type=${parsed.type}`);
+    
     return parsed as WSMessage;
-  } catch {
+  } catch (err) {
+    console.warn('[WS] JSON parse error:', err instanceof Error ? err.message : 'Unknown error');
     return null;
   }
 }

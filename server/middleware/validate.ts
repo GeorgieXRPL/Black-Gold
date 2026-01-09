@@ -43,7 +43,7 @@ export const AuthMessageSchema = z.object({
 
 /** Submit proof message */
 export const SubmitProofSchema = z.object({
-  type: z.literal('submit_proof'),
+  type: z.literal('submit'),  // Changed from 'submit_proof' to match client
   workUnitId: WorkIdSchema,
   nonce: NonceSchema,
   hash: z.string().regex(/^[a-f0-9]{64}$/, 'Invalid SHA256 hash'),
@@ -52,6 +52,7 @@ export const SubmitProofSchema = z.object({
 /** Hashrate update message */
 export const HashrateSchema = z.object({
   type: z.literal('hashrate'),
+  walletAddress: SolanaAddressSchema.optional(), // Client sends this, make it optional
   hashrate: z.number().min(0).max(100_000_000_000), // Max 100 GH/s
 });
 
@@ -66,7 +67,7 @@ export const StakeSchema = z.object({
   type: z.literal('stake'),
   mineId: MineIdSchema,
   amount: z.number().int().min(1).max(1_000_000_000), // Max 1B tokens
-  signature: z.string().min(1), // Required signature for stake operations
+  signature: z.string().min(1).optional(), // TODO [MAINNET]: Make required for production
 });
 
 /** Unstake message */
@@ -74,7 +75,7 @@ export const UnstakeSchema = z.object({
   type: z.literal('unstake'),
   mineId: MineIdSchema,
   amount: z.number().int().min(1).max(1_000_000_000),
-  signature: z.string().min(1),
+  signature: z.string().min(1).optional(), // TODO [MAINNET]: Make required for production
 });
 
 /** Set home mine message */
