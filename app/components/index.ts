@@ -12,3 +12,4 @@ export { HolderGate } from "./HolderGate";
 export { EmberParticles } from "./EmberParticles";
 export { WalletEntry } from "./WalletEntry";
 export type { WalletEntryState, WalletMode } from "./WalletEntry";
+export { CoreSelector } from "./CoreSelector";

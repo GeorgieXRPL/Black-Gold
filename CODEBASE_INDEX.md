@@ -1,14 +1,45 @@
-# Black Gold v2.9.2 - Codebase Index
+# Black Gold v2.9.3 - Codebase Index
 
 > Complete file-by-file documentation for the Black Gold Interactive Mining Globe platform
 
 **Last Updated**: January 9, 2026  
-**Version**: 2.9.2 (Railway WebSocket Fix)  
-**Total Files**: 74+ TypeScript/TSX files
+**Version**: 2.9.3 (Mining Flow + Core Selector)  
+**Total Files**: 75+ TypeScript/TSX files
 
 ---
 
-## 📋 Recent Changes (v2.9.2)
+## 📋 Recent Changes (v2.9.3)
+
+### Mining Flow Fixes
+- **`app/hooks/useMining.ts`** - Comprehensive mining worker improvements:
+  - Added detailed logging throughout worker lifecycle
+  - Fixed hashrate aggregation (per-worker tracking with Map)
+  - Added `workersReady` and `workersCount` state for UI feedback
+  - Improved worker initialization with retry logic
+  - Better error handling for worker creation failures
+  - Added browser environment check for SSR safety
+
+### Core Selector Component (New File)
+- **`app/components/CoreSelector.tsx`** - Mining settings modal:
+  - Slider to select 1 to max available CPU cores
+  - Quick select buttons (1 Core, Half, Max)
+  - Estimated hashrate display based on core count
+  - Performance impact descriptions
+  - Warning for max cores usage
+  - Responsive design with proper modal positioning
+
+### Page Updates
+- **`app/page.tsx`** - Mining integration improvements:
+  - Added core selector modal before mining starts
+  - Added WebSocket status indicator (Online/Connecting/Offline)
+  - Improved mining status display (Starting... vs hashrate)
+  - Shows worker count during mining
+  - Better logging throughout mining flow
+  - Stores selected core count in state
+
+---
+
+## 📋 Previous Changes (v2.9.2)
 
 ### Railway WebSocket Fix
 - **`server/index.ts`** - Fixed WebSocket for Railway proxy:
@@ -228,6 +259,7 @@ black-gold/
 | `DiscoveryFeed.tsx` | ~120 | `DiscoveryFeed` | Live resource discovery feed (Coal Veins, Gold Nuggets, etc.) |
 | `HolderGate.tsx` | ~140 | `HolderGate` | Holder verification status |
 | `EmberParticles.tsx` | ~70 | `EmberParticles` | Animated ember particle background |
+| `CoreSelector.tsx` | ~140 | `CoreSelector` | Mining core selection modal - lets users choose CPU cores |
 
 ### Providers (`app/providers/`)
 

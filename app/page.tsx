@@ -8,7 +8,7 @@ import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { MINES, getMineById, MineStats, ResourceType, RESOURCE_COLORS } from './lib/mines';
 import { HomeBase, MineDetails, StakingPanel, ExpeditionPanel, RaidFeed } from './components/game';
-import { EmberParticles, WalletEntry, WalletEntryState } from './components';
+import { EmberParticles, WalletEntry, WalletEntryState, CoreSelector } from './components';
 import { useGameSocket, GameEvent, WorkUnit } from './hooks/useGameSocket';
 import { useMining } from './hooks/useMining';
 import { 
@@ -55,6 +55,10 @@ export default function Home() {
   );
   const [showStakingPanel, setShowStakingPanel] = useState(false);
   const [showExpeditionPanel, setShowExpeditionPanel] = useState(false);
+  const [showCoreSelector, setShowCoreSelector] = useState(false);
+  const [selectedCores, setSelectedCores] = useState<number>(
+    typeof navigator !== 'undefined' ? Math.max(1, Math.floor((navigator.hardwareConcurrency || 4) / 2)) : 2
+  );
   const [expeditionTarget, setExpeditionTarget] = useState<string | null>(null);
   const [raidEvents, setRaidEvents] = useState(USE_MOCK_DATA ? MOCK_EVENTS : []);
   const [walletState, setWalletState] = useState<WalletEntryState>({
@@ -91,10 +95,11 @@ export default function Home() {
 
   // Mining web worker hook - defined first
   const mining = useMining({
-    cores: typeof navigator !== 'undefined' ? (navigator.hardwareConcurrency || 4) : 4,
+    cores: selectedCores,
     onHashrate: useCallback((rate: number) => {
       setHashrate(rate);
       sendHashrateRef.current(rate);
+      console.log(`[Mining] Hashrate update: ${rate} H/s (${(rate/1000).toFixed(1)} KH/s)`);
     }, []),
     onSolution: useCallback((workId: string, nonce: number, hash: string) => {
       console.log('[Mining] Solution found!', { workId, nonce, hash: hash.slice(0, 16) });
@@ -114,12 +119,21 @@ export default function Home() {
 
   // Handle work unit received from server
   const handleWorkReceived = useCallback((work: WorkUnit) => {
-    console.log('[Game] Work received:', work.id, 'for discovery #', work.discoveryNumber);
+    console.log('[Game] Work received:', {
+      id: work.id,
+      discoveryNumber: work.discoveryNumber,
+      mineId: work.mineId,
+      target: work.target?.slice(0, 16) + '...',
+      nonceRange: `[${work.nonceStart}, ${work.nonceEnd})`
+    });
     currentWorkRef.current = work;
     
     // If we're supposed to be mining, start the worker with this work
     if (isMiningRef.current) {
+      console.log('[Game] Mining is active, starting work...');
       startMiningRef.current(work);
+    } else {
+      console.log('[Game] Mining not active, work stored for later');
     }
   }, []);
 
@@ -250,22 +264,54 @@ export default function Home() {
     // Real mining mode
     if (isMining) {
       // Stop mining
+      console.log('[Mining] Stopping mining...');
       mining.stopMining();
       setIsMining(false);
     } else {
-      // Start mining - need to be connected and have work
-      if (gameSocket.status !== 'connected') {
-        console.warn('[Mining] Cannot start - not connected to game server');
-        return;
-      }
-      
-      // Request work by joining/rejoining mine
-      if (homeMineId) {
-        gameSocket.joinMine(homeMineId);
-      }
-      setIsMining(true);
+      // Show core selector before starting
+      setShowCoreSelector(true);
     }
-  }, [isMining, mining, gameSocket, homeMineId]);
+  }, [isMining, mining]);
+
+  // Handle core selection confirmation
+  const handleCoreSelectConfirm = useCallback((cores: number) => {
+    console.log(`[Mining] User selected ${cores} cores`);
+    setSelectedCores(cores);
+    setShowCoreSelector(false);
+    
+    // Start mining - need to be connected and have work
+    if (gameSocket.status !== 'connected') {
+      console.warn('[Mining] Cannot start - not connected to game server');
+      console.log('[Mining] WebSocket status:', gameSocket.status);
+      console.log('[Mining] Wallet address:', walletState.walletAddress);
+      // Try to connect
+      if (walletState.isConnected && walletState.walletAddress) {
+        console.log('[Mining] Attempting to connect to game server...');
+        gameSocket.connect();
+      }
+      return;
+    }
+    
+    console.log('[Mining] Starting mining process...');
+    console.log('[Mining] Home mine:', homeMineId);
+    console.log('[Mining] Current work:', currentWorkRef.current);
+    
+    // Request work by joining/rejoining mine
+    if (homeMineId) {
+      console.log(`[Mining] Joining mine ${homeMineId} to request work...`);
+      gameSocket.joinMine(homeMineId);
+    }
+    
+    setIsMining(true);
+    
+    // If we already have work, start mining immediately
+    if (currentWorkRef.current) {
+      console.log('[Mining] Starting with existing work...');
+      mining.startMining(currentWorkRef.current);
+    } else {
+      console.log('[Mining] Waiting for work from server...');
+    }
+  }, [gameSocket, homeMineId, mining, walletState]);
 
   const handleStake = useCallback((amount: number, signature: string) => {
     if (!selectedMineId) return;
@@ -379,10 +425,37 @@ export default function Home() {
               {/* Mining status */}
               {isMining && (
                 <div className="flex items-center gap-2 bg-ember-900/50 border border-ember-700 px-3 py-1.5 rounded-lg">
-                  <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                  <div className={`w-2 h-2 rounded-full ${hashrate > 0 ? 'bg-green-400 animate-pulse' : 'bg-yellow-400 animate-bounce'}`} />
                   <span className="text-ember-300 text-sm font-mono">
-                    {(hashrate / 1000).toFixed(1)} KH/s
+                    {hashrate > 0 
+                      ? `${(hashrate / 1000).toFixed(1)} KH/s`
+                      : 'Starting...'
+                    }
                   </span>
+                  {mining.workersReady > 0 && (
+                    <span className="text-coal-500 text-xs">
+                      ({mining.workersReady}/{selectedCores} workers)
+                    </span>
+                  )}
+                </div>
+              )}
+              
+              {/* WebSocket status indicator */}
+              {walletState.isConnected && !USE_MOCK_DATA && (
+                <div className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs ${
+                  gameSocket.status === 'connected' 
+                    ? 'bg-green-900/30 text-green-400' 
+                    : gameSocket.status === 'connecting'
+                    ? 'bg-yellow-900/30 text-yellow-400'
+                    : 'bg-red-900/30 text-red-400'
+                }`}>
+                  <div className={`w-1.5 h-1.5 rounded-full ${
+                    gameSocket.status === 'connected' ? 'bg-green-400' :
+                    gameSocket.status === 'connecting' ? 'bg-yellow-400 animate-pulse' :
+                    'bg-red-400'
+                  }`} />
+                  {gameSocket.status === 'connected' ? 'Online' : 
+                   gameSocket.status === 'connecting' ? 'Connecting...' : 'Offline'}
                 </div>
               )}
               
@@ -606,6 +679,15 @@ export default function Home() {
             setShowExpeditionPanel(false);
             setExpeditionTarget(null);
           }}
+        />
+      )}
+
+      {/* Core Selector Modal */}
+      {showCoreSelector && (
+        <CoreSelector
+          onConfirm={handleCoreSelectConfirm}
+          onCancel={() => setShowCoreSelector(false)}
+          currentCores={selectedCores}
         />
       )}
     </main>
