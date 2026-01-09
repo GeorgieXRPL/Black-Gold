@@ -453,6 +453,23 @@ export class PoolManager {
   }
 
   /**
+   * Invalidate all active work for all miners
+   * Called when difficulty changes to prevent old easy work from being valid
+   */
+  public invalidateAllWork(): void {
+    console.log(`[PoolManager] Invalidating all active work for ${this.state.miners.size} miners`);
+    
+    for (const miner of this.state.miners.values()) {
+      // Invalidate each work unit in the tracker
+      for (const workId of miner.activeWorkIds) {
+        this.state.workTracker = invalidateWork(this.state.workTracker, workId);
+      }
+      // Clear the miner's active work
+      miner.activeWorkIds.clear();
+    }
+  }
+
+  /**
    * Gets current difficulty state
    * @returns Current difficulty state
    */

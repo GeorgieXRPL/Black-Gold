@@ -380,23 +380,43 @@ export function useMining(options: UseMiningOptions): UseMiningReturn {
     // Reset solution found flag for new work
     solutionFoundRef.current = false;
     
-    if (workersRef.current.length === 0) {
-      console.log('[Mining] No workers exist, initializing...');
+    // Check if we need to (re)initialize workers
+    const needsInit = !isInitializedRef.current || workersRef.current.length === 0;
+    const needsReinit = workersRef.current.length !== coresRef.current;
+    
+    if (needsInit || needsReinit) {
+      const reason = needsInit ? 'no workers' : `worker count mismatch (${workersRef.current.length} vs ${coresRef.current} cores)`;
+      console.log(`[Mining] Initializing workers: ${reason}`);
       initWorkers();
+      
       // Workers need time to initialize - schedule mining start
+      // Use a longer timeout to ensure workers are ready
       setTimeout(() => {
-        if (workersRef.current.length > 0) {
-          startMining(work);
+        if (workersRef.current.length > 0 && workersReadyRef.current >= workersRef.current.length) {
+          console.log(`[Mining] Workers ready (${workersReadyRef.current}/${workersRef.current.length}), starting work...`);
+          distributeWork(work);
+        } else if (workersRef.current.length > 0) {
+          console.log(`[Mining] Waiting for workers... (${workersReadyRef.current}/${workersRef.current.length} ready)`);
+          // Wait a bit more
+          setTimeout(() => distributeWork(work), 300);
         } else {
           console.error('[Mining] Failed to initialize workers');
         }
-      }, 500);
+      }, 200);
       return;
     }
     
+    distributeWork(work);
+  }, [initWorkers]);
+
+  /**
+   * Distribute work to existing workers
+   */
+  const distributeWork = useCallback((work: WorkUnit) => {
     const activeWorkers = workersRef.current.length;
-    if (activeWorkers < coresRef.current) {
-      console.warn(`[Mining] Only ${activeWorkers}/${coresRef.current} workers available`);
+    if (activeWorkers === 0) {
+      console.error('[Mining] No workers available to distribute work');
+      return;
     }
     
     currentWorkRef.current = work;
@@ -432,7 +452,7 @@ export function useMining(options: UseMiningOptions): UseMiningReturn {
     });
     
     console.log(`[Mining] Started mining discovery #${work.discoveryNumber} with ${activeWorkers} workers`);
-  }, [initWorkers]);
+  }, []);
 
   /**
    * Stop all mining workers
@@ -467,29 +487,30 @@ export function useMining(options: UseMiningOptions): UseMiningReturn {
   }, [startMining]);
 
   // Update cores ref when cores prop changes
+  // But DON'T reinitialize workers while mining - use existing workers
   useEffect(() => {
     if (coresRef.current !== cores) {
-      console.log(`[Mining] Cores changed from ${coresRef.current} to ${cores}`);
+      console.log(`[Mining] Cores updated: ${coresRef.current} → ${cores}`);
       coresRef.current = cores;
-      // Re-initialize workers if already initialized
-      if (isInitializedRef.current && !isInitializingRef.current) {
-        initWorkers();
+      // Only reinit if we're idle (not mining)
+      // If mining, the change will apply on next startMining call
+      if (status === 'idle' && isInitializedRef.current && !isInitializingRef.current) {
+        console.log('[Mining] Idle, will reinit workers on next start');
+        isInitializedRef.current = false; // Mark for reinit on next start
       }
     }
-  }, [cores, initWorkers]);
+  }, [cores, status]);
 
-  // Initialize workers once on mount
+  // DON'T auto-initialize workers on mount
+  // Workers are initialized lazily when startMining is first called
+  // This prevents the double-init issue when user selects cores
   useEffect(() => {
-    if (!isInitializedRef.current && !isInitializingRef.current) {
-      initWorkers();
-    }
-    
     return () => {
       console.log('[Mining] Unmounting, cleaning up workers...');
       cleanupWorkers();
       isInitializedRef.current = false;
     };
-  }, [initWorkers, cleanupWorkers]);
+  }, [cleanupWorkers]);
 
   return {
     status,

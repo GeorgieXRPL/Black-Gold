@@ -392,16 +392,8 @@ async function handleDiscoveryFound(mineId: string, result: BarrelResult): Promi
     }
   }
 
-  // Broadcast discovery found (winner already revealed by pool manager)
-  broadcastToMine(mineId, 'discovery_found', {
-    ...result,
-    mineId,
-    mineName: mine.definition.name,
-    resource: mine.definition.resource,
-    rewardMultiplier: registry.getRewardMultiplier(mineId),
-  });
-
-  // Also broadcast globally for raid feed
+  // NOTE: PoolManager already broadcasts 'discovery_found' to miners at this mine
+  // We only broadcast the global game_event for the activity feed / other mines
   broadcastToAll('game_event', {
     type: 'discovery_found',
     mineId,
@@ -498,6 +490,7 @@ function handleHashrate(
 
 /**
  * Broadcast difficulty update to all miners at a mine
+ * Invalidates all old work to prevent easy solutions from being accepted
  */
 function broadcastDifficultyUpdate(mineId: string, newTarget: string, newDifficulty: number): void {
   const poolManager = minePoolManagers.get(mineId);
@@ -510,14 +503,18 @@ function broadcastDifficultyUpdate(mineId: string, newTarget: string, newDifficu
     `difficulty=${newDifficulty.toLocaleString()}, target=${newTarget.substring(0, 12)}...`
   );
 
-  // Send updated difficulty info to all miners
+  // IMPORTANT: Invalidate all old work before assigning new work
+  // This prevents miners from submitting solutions found with easier targets
+  poolManager.invalidateAllWork();
+
+  // Send updated difficulty info and new work to all miners
   miners.forEach(miner => {
     sendMessage(miner.ws, 'game_event', {
       type: 'difficulty_update',
       mineId,
       difficulty: newDifficulty,
       target: newTarget,
-      message: 'Difficulty adjusted based on network hashrate',
+      message: 'Difficulty adjusted - new work assigned',
     });
 
     // Assign new work with updated target
