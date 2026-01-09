@@ -7,7 +7,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { MINES, getMineById, MineStats, ResourceType, RESOURCE_COLORS } from './lib/mines';
-import { HomeBase, MineDetails, StakingPanel, ExpeditionPanel, RaidFeed } from './components/game';
+import { HomeBase, MineDetails, StakingPanel, ExpeditionPanel, RaidFeed, DiscoveryPopup, PendingDiscoveryOverlay } from './components/game';
 import { EmberParticles, WalletEntry, WalletEntryState, CoreSelector } from './components';
 import { useGameSocket, GameEvent, WorkUnit } from './hooks/useGameSocket';
 import { useMining } from './hooks/useMining';
@@ -73,6 +73,29 @@ export default function Home() {
     verificationLoading: false,
   });
 
+  // Discovery popup state
+  const [pendingDiscovery, setPendingDiscovery] = useState<{
+    discoveryNumber: number;
+    mineName: string;
+    resource: string;
+    announceAt: number;
+  } | null>(null);
+  
+  const [discoveryPopup, setDiscoveryPopup] = useState<{
+    isOpen: boolean;
+    isWinner: boolean;
+    data: {
+      discoveryNumber: number;
+      discoveryName: string;
+      resource: string;
+      mineName: string;
+      winner?: string;
+      finderReward?: number;
+      vaultReward?: number;
+      hash?: string;
+    } | null;
+  }>({ isOpen: false, isWinner: false, data: null });
+
   // walletBalance is derived from walletState.tokenBalance (must be after walletState declaration)
   const walletBalance = USE_MOCK_DATA ? DEMO_USER.walletBalance : walletState.tokenBalance;
 
@@ -112,10 +135,80 @@ export default function Home() {
     startMiningRef.current = mining.startMining;
   }, [mining.startMining]);
 
-  // Game event handler for raid feed
+  // Game event handler for raid feed and discovery notifications
   const handleGameEvent = useCallback((event: GameEvent) => {
+    console.log('[Game] Event received:', event.type, event);
+    
+    // Handle discovery pending (30-second countdown)
+    if (event.type === 'discovery_pending') {
+      const data = event as unknown as {
+        discoveryNumber: number;
+        mineId: string;
+        resource: string;
+        announceAt: number;
+      };
+      const mine = getMineById(data.mineId);
+      setPendingDiscovery({
+        discoveryNumber: data.discoveryNumber,
+        mineName: mine?.name || 'Unknown Mine',
+        resource: data.resource || 'coal',
+        announceAt: data.announceAt,
+      });
+      // Stop mining during countdown
+      if (isMining) {
+        mining.stopMining();
+        setHashrate(0);
+      }
+    }
+    
+    // Handle discovery found (winner revealed)
+    if (event.type === 'discovery_found') {
+      const data = event as unknown as {
+        discoveryNumber: number;
+        discoveryName?: string;
+        mineId: string;
+        mineName?: string;
+        resource: string;
+        winner: string;
+        finderShare?: number;
+        vaultShare?: number;
+        hash?: string;
+        announcement?: boolean;
+      };
+      
+      // Clear pending discovery overlay
+      setPendingDiscovery(null);
+      
+      // Show discovery popup
+      const mine = getMineById(data.mineId);
+      const isWinner = data.winner === walletState.walletAddress;
+      
+      setDiscoveryPopup({
+        isOpen: true,
+        isWinner,
+        data: {
+          discoveryNumber: data.discoveryNumber,
+          discoveryName: data.discoveryName || 'Discovery',
+          resource: data.resource || 'coal',
+          mineName: data.mineName || mine?.name || 'Unknown Mine',
+          winner: data.winner,
+          finderReward: data.finderShare,
+          vaultReward: data.vaultShare,
+          hash: data.hash,
+        },
+      });
+      
+      // Auto-close for non-winners after 5 seconds
+      if (!isWinner) {
+        setTimeout(() => {
+          setDiscoveryPopup(prev => ({ ...prev, isOpen: false }));
+        }, 5000);
+      }
+    }
+    
+    // Add to raid feed
     setRaidEvents(prev => [event, ...prev].slice(0, 50));
-  }, []);
+  }, [isMining, mining, walletState.walletAddress]);
 
   // Handle work unit received from server
   const handleWorkReceived = useCallback((work: WorkUnit) => {
@@ -696,6 +789,25 @@ export default function Home() {
           currentCores={selectedCores}
         />
       )}
+
+      {/* Pending Discovery Overlay - 30 second countdown */}
+      <PendingDiscoveryOverlay
+        isVisible={pendingDiscovery !== null}
+        discoveryNumber={pendingDiscovery?.discoveryNumber || 0}
+        mineName={pendingDiscovery?.mineName || ''}
+        resource={pendingDiscovery?.resource || 'coal'}
+        announceAt={pendingDiscovery?.announceAt || 0}
+        onComplete={() => setPendingDiscovery(null)}
+      />
+
+      {/* Discovery Popup - Winner or announcement */}
+      <DiscoveryPopup
+        isOpen={discoveryPopup.isOpen}
+        onClose={() => setDiscoveryPopup(prev => ({ ...prev, isOpen: false }))}
+        isWinner={discoveryPopup.isWinner}
+        discoveryData={discoveryPopup.data}
+        countdownSeconds={0}
+      />
     </main>
   );
 }

@@ -12,7 +12,7 @@ export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'er
 /** Game event types */
 export interface GameEvent {
   id: string;
-  type: 'raid_started' | 'raid_won' | 'raid_lost' | 'discovery_found' | 'jackpot' | 'vault_payout' | 'spoils_distributed';
+  type: 'raid_started' | 'raid_won' | 'raid_lost' | 'discovery_found' | 'discovery_pending' | 'jackpot' | 'vault_payout' | 'spoils_distributed';
   sourceMine?: string;
   targetMine?: string;
   sourceResource?: ResourceType;
@@ -26,6 +26,14 @@ export interface GameEvent {
   spoilsAmount?: number;
   burnedAmount?: number;
   timestamp: Date;
+  // Discovery pending specific fields
+  discoveryNumber?: number;
+  mineId?: string;
+  resource?: string;
+  announceAt?: number;
+  countdownSeconds?: number;
+  message?: string;
+  hash?: string;
 }
 
 /** Raid result from server */
@@ -145,11 +153,25 @@ export function useGameSocket({
           }
           break;
 
+        case 'discovery_pending':
+          // A discovery was found but winner not yet revealed (30s countdown)
+          console.log('[WS] Discovery pending:', data.payload);
+          if (onEvent) {
+            onEvent({
+              id: Date.now().toString(),
+              type: 'discovery_pending',
+              ...data.payload,
+              timestamp: new Date(),
+            });
+          }
+          break;
+
         case 'discovery_found':
           if (onEvent) {
             onEvent({
               id: Date.now().toString(),
               type: 'discovery_found',
+              ...data.payload,
               targetMine: data.payload.mineName,
               targetResource: data.payload.resource,
               winner: data.payload.winner,

@@ -82,6 +82,45 @@ export default function MineDetails({
         <p className="text-sm text-coal-300 mt-2">{mine.description}</p>
       </div>
 
+      {/* Vault Display - Shows available rewards */}
+      <div className="px-4 pt-4">
+        <div 
+          className="rounded-lg p-4 border-2 relative overflow-hidden"
+          style={{ 
+            borderColor: colors.glow,
+            background: `linear-gradient(135deg, ${colors.primary}30, transparent)`,
+          }}
+        >
+          {/* Animated glow effect */}
+          <div 
+            className="absolute inset-0 opacity-20 animate-pulse"
+            style={{ background: `radial-gradient(circle at center, ${colors.glow}, transparent 70%)` }}
+          />
+          
+          <div className="relative flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">🏦</span>
+                <span className="text-sm text-coal-400 uppercase font-bold">Mine Vault</span>
+              </div>
+              <p className="text-xs text-coal-500 mt-1">Available for distribution</p>
+            </div>
+            <div className="text-right">
+              <div className="text-3xl font-bold" style={{ color: colors.glow }}>
+                {(stats?.vaultBalance || 0).toLocaleString()}
+              </div>
+              <div className="text-sm text-coal-400">COAL</div>
+            </div>
+          </div>
+          
+          {/* Distribution info */}
+          <div className="relative mt-3 pt-3 border-t border-coal-700/50 flex justify-between text-xs text-coal-500">
+            <span>⏰ Distributed hourly</span>
+            <span>📊 Based on contribution</span>
+          </div>
+        </div>
+      </div>
+
       {/* Stats grid */}
       <div className="p-4 grid grid-cols-2 gap-4">
         <div className="bg-coal-800/50 rounded-lg p-3">
