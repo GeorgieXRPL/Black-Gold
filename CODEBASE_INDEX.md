@@ -1,14 +1,30 @@
-# Black Gold v2.9.3 - Codebase Index
+# Black Gold v2.9.4 - Codebase Index
 
 > Complete file-by-file documentation for the Black Gold Interactive Mining Globe platform
 
 **Last Updated**: January 9, 2026  
-**Version**: 2.9.3 (Mining Flow + Core Selector)  
+**Version**: 2.9.4 (WebSocket Validation Fix)  
 **Total Files**: 75+ TypeScript/TSX files
 
 ---
 
-## 📋 Recent Changes (v2.9.3)
+## 📋 Recent Changes (v2.9.4)
+
+### WebSocket Message Validation Fix
+- **`server/index.ts`** - Fixed message parsing:
+  - Updated `parseMessage()` to handle `{ type, payload, timestamp }` format
+  - Removed strict validation that rejected valid messages
+  - Added better error logging for debugging
+
+- **`server/middleware/validate.ts`** - Schema fixes:
+  - Changed `'submit_proof'` to `'submit'` to match client
+  - Added optional `walletAddress` to hashrate schema
+  - Made `signature` optional on stake/unstake for devnet testing
+  - Added `TODO [MAINNET]` comments for fields to re-enable
+
+---
+
+## 📋 Previous Changes (v2.9.3)
 
 ### Mining Flow Fixes
 - **`app/hooks/useMining.ts`** - Comprehensive mining worker improvements:
