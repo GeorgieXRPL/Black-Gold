@@ -1,16 +1,25 @@
-# Black Gold v2.9.1 - Codebase Index
+# Black Gold v2.9.2 - Codebase Index
 
 > Complete file-by-file documentation for the Black Gold Interactive Mining Globe platform
 
-**Last Updated**: January 8, 2026  
-**Version**: 2.9.1 (Devnet Testing Mode)  
+**Last Updated**: January 9, 2026  
+**Version**: 2.9.2 (Railway WebSocket Fix)  
 **Total Files**: 74+ TypeScript/TSX files
 
 ---
 
-## 📋 Recent Changes (v2.9.1)
+## 📋 Recent Changes (v2.9.2)
 
-### Devnet Testing Mode
+### Railway WebSocket Fix
+- **`server/index.ts`** - Fixed WebSocket for Railway proxy:
+  - Attached WebSocket server to HTTP server (required for Railway)
+  - Added `/health` endpoint for health checks
+  - Returns proper `426 Upgrade Required` for non-WS requests
+  - Browser WebSocket connections now work through Railway's edge proxy
+
+### Previous Changes (v2.9.1)
+
+#### Devnet Testing Mode
 - **`app/api/verify-holder/route.ts`** - Added devnet bypass for testing:
   - `IS_DEVNET` flag detects `SOLANA_NETWORK=devnet`
   - `DEVNET_CONFIG.BYPASS_HOLDER_CHECK` skips holder requirements
