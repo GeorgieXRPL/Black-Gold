@@ -18,8 +18,8 @@ const SolanaAddressSchema = z.string().regex(
 /** Nonce validation (hexadecimal number) */
 const NonceSchema = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
 
-/** Work ID validation (UUID format) */
-const WorkIdSchema = z.string().uuid();
+/** Work ID validation (32-char hex string from randomBytes(16).toString('hex')) */
+const WorkIdSchema = z.string().regex(/^[a-f0-9]{32}$/, 'Invalid work ID (expected 32-char hex)');
 
 /** Mine ID validation */
 const MineIdSchema = z.string().regex(/^(coal|gold|oil|silver)-[\w-]+$/, 'Invalid mine ID');

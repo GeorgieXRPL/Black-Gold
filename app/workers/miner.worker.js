@@ -1,24 +1,32 @@
 /**
  * @fileoverview Web Worker for CPU mining
+ * Pure JavaScript - no TypeScript, no external imports
  * Runs SHA-256 computations without blocking the main thread
  */
 
-// Import mining utilities - we'll inline them since workers have module issues
-// This is a self-contained worker
+// Worker state
+let isRunning = false;
+let currentWorkId = null;
+let hashCount = 0;
+let lastHashrateUpdate = Date.now();
 
 /**
  * Convert Uint8Array to hex string
+ * @param {Uint8Array} bytes 
+ * @returns {string}
  */
-function bytesToHex(bytes: Uint8Array): string {
+function bytesToHex(bytes) {
   return Array.from(bytes)
     .map(b => b.toString(16).padStart(2, '0'))
     .join('');
 }
 
 /**
- * Compute SHA-256 hash
+ * Compute SHA-256 hash using Web Crypto API
+ * @param {string} data 
+ * @returns {Promise<string>}
  */
-async function sha256(data: string): Promise<string> {
+async function sha256(data) {
   const encoder = new TextEncoder();
   const dataBuffer = encoder.encode(data);
   const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
@@ -26,88 +34,52 @@ async function sha256(data: string): Promise<string> {
 }
 
 /**
- * Compute double SHA-256 hash
+ * Compute double SHA-256 hash (Bitcoin-style)
+ * @param {string} data 
+ * @returns {Promise<string>}
  */
-async function doubleSha256(data: string): Promise<string> {
+async function doubleSha256(data) {
   const firstHash = await sha256(data);
   return sha256(firstHash);
 }
 
 /**
- * Check if hash meets target
+ * Check if hash meets difficulty target
+ * @param {string} hash 
+ * @param {string} target 
+ * @returns {boolean}
  */
-function meetsTarget(hash: string, target: string): boolean {
+function meetsTarget(hash, target) {
   const normalizedHash = hash.toLowerCase().padStart(64, '0');
   const normalizedTarget = target.toLowerCase().padStart(64, '0');
   return normalizedHash < normalizedTarget;
 }
 
 /**
- * Create mining header
+ * Create mining header from discovery header and nonce
+ * @param {string} discoveryHeader 
+ * @param {number} nonce 
+ * @returns {string}
  */
-function createMiningHeader(discoveryHeader: string, nonce: number): string {
+function createMiningHeader(discoveryHeader, nonce) {
   return `${discoveryHeader}:${nonce.toString(16).padStart(16, '0')}`;
 }
 
-// Worker state
-let isRunning = false;
-let currentWorkId: string | null = null;
-let hashCount = 0;
-let lastHashrateUpdate = Date.now();
-
-// Message types
-interface StartMessage {
-  type: 'start';
-  workId: string;
-  discoveryHeader: string;
-  target: string;
-  nonceStart: number;
-  nonceEnd: number;
-}
-
-interface StopMessage {
-  type: 'stop';
-}
-
-type WorkerMessage = StartMessage | StopMessage;
-
-interface HashrateBroadcast {
-  type: 'hashrate';
-  hashrate: number;
-  hashCount: number;
-}
-
-interface SolutionFound {
-  type: 'solution';
-  workId: string;
-  nonce: number;
-  hash: string;
-}
-
-interface WorkComplete {
-  type: 'complete';
-  workId: string;
-  hashesComputed: number;
-}
-
-type WorkerResponse = HashrateBroadcast | SolutionFound | WorkComplete;
-
 /**
  * Main mining loop
+ * @param {string} workId 
+ * @param {string} discoveryHeader 
+ * @param {string} target 
+ * @param {number} nonceStart 
+ * @param {number} nonceEnd 
  */
-async function mine(
-  workId: string,
-  discoveryHeader: string,
-  target: string,
-  nonceStart: number,
-  nonceEnd: number
-): Promise<void> {
+async function mine(workId, discoveryHeader, target, nonceStart, nonceEnd) {
   isRunning = true;
   currentWorkId = workId;
   hashCount = 0;
   lastHashrateUpdate = Date.now();
 
-  const BATCH_SIZE = 100; // Hashes per batch before checking messages
+  const BATCH_SIZE = 100; // Hashes per batch before yielding
   const HASHRATE_INTERVAL = 1000; // Report hashrate every second
 
   for (let nonce = nonceStart; nonce < nonceEnd && isRunning; nonce++) {
@@ -117,13 +89,12 @@ async function mine(
 
     // Check if we found a valid solution
     if (meetsTarget(hash, target)) {
-      const response: SolutionFound = {
+      self.postMessage({
         type: 'solution',
-        workId,
-        nonce,
-        hash,
-      };
-      self.postMessage(response);
+        workId: workId,
+        nonce: nonce,
+        hash: hash,
+      });
       isRunning = false;
       return;
     }
@@ -134,18 +105,17 @@ async function mine(
       const elapsed = (now - lastHashrateUpdate) / 1000;
       const hashrate = Math.round(hashCount / elapsed);
       
-      const response: HashrateBroadcast = {
+      self.postMessage({
         type: 'hashrate',
-        hashrate,
-        hashCount,
-      };
-      self.postMessage(response);
+        hashrate: hashrate,
+        hashCount: hashCount,
+      });
       
       hashCount = 0;
       lastHashrateUpdate = now;
     }
 
-    // Yield control periodically
+    // Yield control periodically to allow message processing
     if (nonce % BATCH_SIZE === 0) {
       await new Promise(resolve => setTimeout(resolve, 0));
     }
@@ -153,12 +123,11 @@ async function mine(
 
   // Work range complete without finding solution
   if (isRunning) {
-    const response: WorkComplete = {
+    self.postMessage({
       type: 'complete',
-      workId,
+      workId: workId,
       hashesComputed: nonceEnd - nonceStart,
-    };
-    self.postMessage(response);
+    });
   }
 
   isRunning = false;
@@ -166,17 +135,17 @@ async function mine(
 }
 
 /**
- * Handle incoming messages
+ * Handle incoming messages from main thread
  */
-self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
+self.onmessage = async function(event) {
   const message = event.data;
 
   switch (message.type) {
     case 'start':
-      // Stop any existing work
+      // Stop any existing work first
       isRunning = false;
       
-      // Start new work
+      // Start new mining work
       await mine(
         message.workId,
         message.discoveryHeader,
@@ -190,6 +159,9 @@ self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
       isRunning = false;
       currentWorkId = null;
       break;
+
+    default:
+      console.warn('[Worker] Unknown message type:', message.type);
   }
 };
 

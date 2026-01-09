@@ -57,7 +57,12 @@ export function difficultyToTarget(difficulty: number): string {
   const significant = Math.floor(remainder).toString(16).padStart(4, '0');
   const padding = 'f'.repeat(64 - zeros.length - significant.length);
   
-  return (zeros + significant + padding).substring(0, 64);
+  const target = (zeros + significant + padding).substring(0, 64);
+  
+  // Log for debugging
+  console.log(`[Difficulty] Difficulty ${safeDifficulty} -> Target ${target.substring(0, 8)}... (${leadingZeros} leading zeros)`);
+  
+  return target;
 }
 
 /**

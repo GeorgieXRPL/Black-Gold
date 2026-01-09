@@ -268,10 +268,16 @@ export default function Home() {
       mining.stopMining();
       setIsMining(false);
     } else {
+      // Check if home mine is set
+      if (!homeMineId) {
+        console.warn('[Mining] Cannot start - no home mine set');
+        alert('Please select a mine and set it as your Home Base before mining!');
+        return;
+      }
       // Show core selector before starting
       setShowCoreSelector(true);
     }
-  }, [isMining, mining]);
+  }, [isMining, mining, homeMineId]);
 
   // Handle core selection confirmation
   const handleCoreSelectConfirm = useCallback((cores: number) => {
@@ -595,7 +601,7 @@ export default function Home() {
                   userStake={userStakeAtSelected}
                   isHome={selectedMineId === homeMineId}
                   onSetHome={handleSetHome}
-                  onStartMining={walletState.isConnected ? handleStartMining : undefined}
+                  onStartMining={walletState.isConnected && selectedMineId === homeMineId ? handleStartMining : undefined}
                   onStake={walletState.canStake ? () => setShowStakingPanel(true) : undefined}
                   onRaid={walletState.canRaid ? handleOpenRaid : undefined}
                   isMining={isMining && selectedMineId === homeMineId}

@@ -1,14 +1,55 @@
-# Black Gold v2.9.4 - Codebase Index
+# Black Gold v2.9.5 - Codebase Index
 
 > Complete file-by-file documentation for the Black Gold Interactive Mining Globe platform
 
 **Last Updated**: January 9, 2026  
-**Version**: 2.9.4 (WebSocket Validation Fix)  
-**Total Files**: 75+ TypeScript/TSX files
+**Version**: 2.9.5 (Mining System Fixes)  
+**Total Files**: 75+ TypeScript/TSX/JS files
 
 ---
 
-## 📋 Recent Changes (v2.9.4)
+## 📋 Recent Changes (v2.9.5)
+
+### Critical Mining Fixes
+
+#### Work ID Validation Fix
+- **`server/middleware/validate.ts`** - Fixed work ID schema mismatch:
+  - Changed `WorkIdSchema` from `z.string().uuid()` to `z.string().regex(/^[a-f0-9]{32}$/)`
+  - Server generates 32-char hex IDs, validation now matches
+
+#### Worker Stability Improvements  
+- **`app/hooks/useMining.ts`** - Fixed multiple re-initialization bug:
+  - Added `isInitializedRef` and `isInitializingRef` guards
+  - Used refs for callbacks (`onHashrateRef`, `onSolutionRef`) to prevent dependency cycles
+  - Added `coresRef` to track core count changes
+  - Reduced console noise (only 10% of hashrate updates logged)
+
+#### Pure JavaScript Worker
+- **`app/workers/miner.worker.js`** - New file replacing TypeScript worker:
+  - Pure JavaScript, no TypeScript syntax
+  - No external imports - completely self-contained
+  - Fixes `importScripts` errors in production builds
+- **`app/workers/miner.worker.ts`** - Deleted (replaced by JS version)
+
+#### Home Mine Enforcement
+- **`app/page.tsx`** - Enforced home mine selection before mining:
+  - Added check for `homeMineId` in `handleStartMining`
+  - Shows alert if user tries to mine without setting home base
+  - Mining button disabled on non-home mines
+
+#### Initial Difficulty Fix
+- **`config/constants.ts`** - Increased `MIN_DIFFICULTY` from 1 to 256:
+  - Difficulty 1 = all f's target = any hash valid (instant solutions!)
+  - Difficulty 256 = requires ~2 hex chars of leading zeros
+  - Prevents instant "solution found" spam
+- **`server/pool/difficulty.ts`** - Added logging for difficulty target
+
+#### Next.js Configuration
+- **`next.config.ts`** - Added webpack fallback for crypto
+
+---
+
+## 📋 Previous Changes (v2.9.4)
 
 ### WebSocket Message Validation Fix
 - **`server/index.ts`** - Fixed message parsing:

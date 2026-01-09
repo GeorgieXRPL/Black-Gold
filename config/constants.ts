@@ -65,8 +65,13 @@ export const POOL_CONFIG = {
   PORT: parseInt(process.env.WEBSOCKET_PORT || '8080', 10),
   /** Target barrel time in milliseconds (dynamic difficulty adjusts to this) */
   TARGET_BARREL_TIME_MS: parseInt(process.env.TARGET_BARREL_TIME_MS || '900000', 10), // 15 min default
-  /** Minimum difficulty */
-  MIN_DIFFICULTY: parseInt(process.env.MIN_DIFFICULTY || '1', 10),
+  /** 
+   * Minimum difficulty - determines how many leading zeros required in hash
+   * 1 = any hash valid (too easy!)
+   * 256 = ~2 hex chars of leading zeros (good for testing)
+   * 65536 = ~4 hex chars of leading zeros (production)
+   */
+  MIN_DIFFICULTY: parseInt(process.env.MIN_DIFFICULTY || '256', 10),
   /** Maximum difficulty */
   MAX_DIFFICULTY: parseInt(process.env.MAX_DIFFICULTY || '1000000', 10),
   /** Nonce range size per work unit */
