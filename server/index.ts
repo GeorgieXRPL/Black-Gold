@@ -231,11 +231,11 @@ function broadcastToAllExceptMine<T>(mineId: string, type: string, payload: T): 
  * Handles the 'connect' message
  * Payload is pre-validated by Zod schema
  */
-function handleConnect(
+async function handleConnect(
   ws: WebSocket,
   payload: ValidatedConnectPayload,
   clientInfo: ClientConnection
-): void {
+): Promise<void> {
   // Payload already validated by Zod - walletAddress and cores are guaranteed valid
 
   clientInfo.walletAddress = payload.walletAddress;
@@ -245,19 +245,23 @@ function handleConnect(
   const stakeManager = getStakeManager();
   stakeManager.getMinerState(payload.walletAddress);
 
+  // Restore home mine from Redis if available
+  const restoredHomeMine = await stakeManager.restoreHomeMine(payload.walletAddress);
+
   // If a mineId was provided, join that mine
   if (payload.mineId) {
     handleJoinMine(ws, { type: 'join_mine', mineId: payload.mineId }, clientInfo);
   }
 
-  // Send welcome response with global stats
+  // Send welcome response with global stats and restored home mine
   sendMessage(ws, 'result', {
     success: true,
     message: 'Connected to Black Gold v2',
     mines: MINES.map(m => ({ id: m.id, name: m.name, resource: m.resource })),
+    homeMineId: restoredHomeMine || null,
   });
 
-  console.log(`[WS] Client authenticated: ${sanitizeForLog(payload.walletAddress)}`);
+  console.log(`[WS] Client authenticated: ${sanitizeForLog(payload.walletAddress)}${restoredHomeMine ? ` (home: ${restoredHomeMine})` : ''}`);
 }
 
 /**
@@ -283,8 +287,21 @@ function handleJoinMine(
   }
 
   // Leave current mine if any
-  if (clientInfo.currentMineId && clientInfo.currentMineId !== payload.mineId) {
+  const previousMineId = clientInfo.currentMineId;
+  if (previousMineId && previousMineId !== payload.mineId) {
     registry.removeMiner(clientInfo.walletAddress!, 0);
+    
+    // Notify miners at the previous mine that someone left
+    const previousMine = registry.getMine(previousMineId);
+    if (previousMine) {
+      broadcastToMine(previousMineId, 'miner_left', {
+        mineId: previousMineId,
+        mineName: previousMine.definition.name,
+        minerCount: previousMine.activeMiners.size,
+        totalHashrate: previousMine.totalHashrate,
+        walletPrefix: clientInfo.walletAddress!.slice(0, 8),
+      });
+    }
   }
 
   // Join new mine
@@ -312,6 +329,7 @@ function handleJoinMine(
     cores: 1, // Will be updated with hashrate
   }, clientInfo.ip);
 
+  // Send success response to the joining miner
   sendMessage(ws, 'result', {
     success: true,
     message: `Joined ${mine.definition.name}`,
@@ -321,6 +339,16 @@ function handleJoinMine(
       hashrate: mine.totalHashrate,
       discoveries: mine.totalDiscoveries,
     },
+  });
+
+  // Broadcast to ALL miners at this mine (including the one who just joined)
+  // so everyone's UI updates immediately with the new miner count
+  broadcastToMine(payload.mineId, 'miner_joined', {
+    mineId: payload.mineId,
+    mineName: mine.definition.name,
+    minerCount: mine.activeMiners.size,
+    totalHashrate: mine.totalHashrate,
+    walletPrefix: clientInfo.walletAddress!.slice(0, 8),
   });
 
   console.log(`[WS] ${sanitizeForLog(clientInfo.walletAddress || '')} joined ${mine.definition.name}`);
@@ -908,7 +936,7 @@ async function handleMessage(
 
   switch (message.type) {
     case 'connect':
-      handleConnect(ws, validation.data as ValidatedConnectPayload, clientInfo);
+      await handleConnect(ws, validation.data as ValidatedConnectPayload, clientInfo);
       break;
 
     case 'join_mine':
@@ -964,11 +992,25 @@ function handleClose(ws: WebSocket, clientInfo: ClientConnection): void {
 
   if (clientInfo.walletAddress) {
     const registry = getMineRegistry();
+    const previousMineId = clientInfo.currentMineId;
+    
     registry.removeMiner(clientInfo.walletAddress, 0);
 
-    if (clientInfo.currentMineId) {
-      const poolManager = minePoolManagers.get(clientInfo.currentMineId);
+    if (previousMineId) {
+      const poolManager = minePoolManagers.get(previousMineId);
       poolManager?.handleDisconnect(clientInfo.walletAddress);
+      
+      // Broadcast miner_left to remaining miners at the mine
+      const mine = registry.getMine(previousMineId);
+      if (mine) {
+        broadcastToMine(previousMineId, 'miner_left', {
+          mineId: previousMineId,
+          mineName: mine.definition.name,
+          minerCount: mine.activeMiners.size,
+          totalHashrate: mine.totalHashrate,
+          walletPrefix: clientInfo.walletAddress.slice(0, 8),
+        });
+      }
     }
   }
 

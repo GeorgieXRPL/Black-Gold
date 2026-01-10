@@ -797,9 +797,31 @@ export class PoolManager {
       await this.eventHandlers.onDiscoveryFound(resultWithShares as BarrelResult);
     }
 
-    // Resume mining - assign new work to all miners
+    // IMPORTANT: Recalculate difficulty BEFORE assigning new work
+    // This ensures the new target reflects current network hashrate
+    let newTarget: string | undefined;
+    if (this.mineId) {
+      const registry = getMineRegistry();
+      registry.recalculateMineDifficulty(this.mineId);
+      newTarget = registry.getMineTarget(this.mineId);
+      
+      // Also update local difficulty state to match
+      if (newTarget) {
+        const mine = registry.getMine(this.mineId);
+        if (mine) {
+          this.state.difficultyState.target = newTarget;
+          this.state.difficultyState.current = mine.difficulty;
+          console.log(
+            `[PoolManager] Difficulty recalculated for ${this.mineId}: ` +
+            `${mine.difficulty.toLocaleString()}, target: ${newTarget.substring(0, 12)}...`
+          );
+        }
+      }
+    }
+
+    // Resume mining - assign new work to all miners with updated difficulty
     for (const miner of this.state.miners.values()) {
-      this.assignWork(miner.walletAddress);
+      this.assignWork(miner.walletAddress, this.mineId || undefined, newTarget);
     }
 
     console.log(`[PoolManager] Mining resumed. New work assigned to ${this.state.miners.size} miners.`);

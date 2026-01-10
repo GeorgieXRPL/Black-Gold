@@ -150,7 +150,9 @@ export type WSMessageType =
   | 'spoils_distribution'
   | 'syndicate_action'
   | 'syndicate_raid'
-  | 'syndicate_update';
+  | 'syndicate_update'
+  | 'miner_joined'
+  | 'miner_left';
 
 /** WebSocket message envelope */
 export interface WSMessage<T = unknown> {

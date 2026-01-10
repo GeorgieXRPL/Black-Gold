@@ -25,6 +25,7 @@ import {
 import { getMineRegistry } from './mine-registry';
 import { ResourceType } from '../../config/mines';
 import { getBetEscrowManager } from './bet-escrow';
+import { getRedisStore } from '../storage/redis-store';
 
 /**
  * Unstake result
@@ -96,6 +97,7 @@ export class StakeManager {
 
   /**
    * Set a miner's home base
+   * Persists to Redis for session recovery
    */
   setHomeBase(walletAddress: string, mineId: string): boolean {
     const registry = getMineRegistry();
@@ -113,8 +115,38 @@ export class StakeManager {
     state.homeBaseJoinedAt = new Date();
     state.loyaltyDays = 0;
 
+    // Persist to Redis for session recovery
+    const redisStore = getRedisStore();
+    redisStore.setUserHomeMine(walletAddress, mineId).catch((err) => {
+      console.error('[StakeManager] Failed to persist home mine to Redis:', err);
+    });
+
     console.log(`[StakeManager] ${walletAddress} set home base to ${mine.definition.name}`);
     return true;
+  }
+
+  /**
+   * Restore a miner's home base from Redis
+   * Called when miner connects to restore their previous home mine
+   */
+  async restoreHomeMine(walletAddress: string): Promise<string | null> {
+    try {
+      const redisStore = getRedisStore();
+      const homeMineId = await redisStore.getUserHomeMine(walletAddress);
+      
+      if (homeMineId) {
+        const state = this.getMinerState(walletAddress);
+        state.homeBaseMineId = homeMineId;
+        state.activeMineId = homeMineId;
+        console.log(`[StakeManager] Restored home mine for ${walletAddress.slice(0, 8)}...: ${homeMineId}`);
+        return homeMineId;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('[StakeManager] Failed to restore home mine:', error);
+      return null;
+    }
   }
 
   /**

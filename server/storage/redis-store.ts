@@ -44,6 +44,7 @@ const MINE_DISCOVERIES_KEY = (mineId: string) => `${KEY_PREFIX}mine:${mineId}:di
 const MINE_STATS_KEY = (mineId: string) => `${KEY_PREFIX}mine:${mineId}:stats`;
 const GLOBAL_ACTIVITY_KEY = `${KEY_PREFIX}activity:global`;
 const PENDING_DISCOVERY_KEY = (mineId: string) => `${KEY_PREFIX}mine:${mineId}:pending`;
+const USER_HOME_MINE_KEY = (walletAddress: string) => `${KEY_PREFIX}user:${walletAddress}:home_mine`;
 
 // List limits
 const MAX_DISCOVERIES_PER_MINE = 50;
@@ -342,6 +343,60 @@ export class RedisStore {
     } catch (error) {
       console.error('[Redis] Failed to get all mine stats:', error);
       return new Map();
+    }
+  }
+
+  // ========================================
+  // User Preferences Storage
+  // ========================================
+
+  /**
+   * Set user's home mine preference
+   * @param walletAddress - User's wallet address
+   * @param mineId - Mine ID to set as home
+   */
+  async setUserHomeMine(walletAddress: string, mineId: string): Promise<void> {
+    if (!this.isAvailable()) return;
+
+    try {
+      const key = USER_HOME_MINE_KEY(walletAddress);
+      await this.redis!.set(key, mineId);
+      console.log(`[Redis] Set home mine for ${walletAddress.slice(0, 8)}... to ${mineId}`);
+    } catch (error) {
+      console.error('[Redis] Failed to set user home mine:', error);
+    }
+  }
+
+  /**
+   * Get user's home mine preference
+   * @param walletAddress - User's wallet address
+   * @returns Mine ID or null if not set
+   */
+  async getUserHomeMine(walletAddress: string): Promise<string | null> {
+    if (!this.isAvailable()) return null;
+
+    try {
+      const key = USER_HOME_MINE_KEY(walletAddress);
+      return await this.redis!.get(key);
+    } catch (error) {
+      console.error('[Redis] Failed to get user home mine:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Clear user's home mine preference
+   * @param walletAddress - User's wallet address
+   */
+  async clearUserHomeMine(walletAddress: string): Promise<void> {
+    if (!this.isAvailable()) return;
+
+    try {
+      const key = USER_HOME_MINE_KEY(walletAddress);
+      await this.redis!.del(key);
+      console.log(`[Redis] Cleared home mine for ${walletAddress.slice(0, 8)}...`);
+    } catch (error) {
+      console.error('[Redis] Failed to clear user home mine:', error);
     }
   }
 }

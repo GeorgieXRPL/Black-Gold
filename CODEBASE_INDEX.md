@@ -1,14 +1,61 @@
-# Black Gold v2.9.8 - Codebase Index
+# Black Gold v2.9.9 - Codebase Index
 
 > Complete file-by-file documentation for the Black Gold Interactive Mining Globe platform
 
-**Last Updated**: January 10, 2026  
-**Version**: 2.9.8 (Mining Fairness Overhaul)  
+**Last Updated**: January 11, 2026  
+**Version**: 2.9.9 (Multi-User Sync Fix)  
 **Total Files**: 75+ TypeScript/TSX/JS files
 
 ---
 
-## 📋 Recent Changes (v2.9.8)
+## 📋 Recent Changes (v2.9.9)
+
+### Multi-User Mining Sync and Persistence
+
+This release fixes difficulty scaling after discoveries, adds real-time miner join/leave broadcasts, and persists home mine selection in Redis.
+
+#### Difficulty Recalculation After Discovery
+- **`server/pool/manager.ts`** - Fixed difficulty not scaling after discoveries:
+  - `announceDiscovery()` now calls `MineRegistry.recalculateMineDifficulty()` BEFORE assigning new work
+  - Updates local `difficultyState.target` to match mine-specific target
+  - Passes updated target to `assignWork()` for all miners
+  - Prevents back-to-back fast discoveries with same easy target
+  - Ensures difficulty scales with network hashrate in real-time
+
+#### Miner Join/Leave Broadcasts
+- **`server/index.ts`** - Real-time miner presence updates:
+  - Added `broadcastToMine(mineId, type, payload)` helper function
+  - `handleJoinMine()` broadcasts `miner_joined` to all miners at the mine
+  - `handleClose()` broadcasts `miner_left` when miners disconnect
+  - Payload includes `minerCount`, `totalHashrate`, `walletPrefix`
+  - Miners see other miners immediately without refresh
+
+- **`server/types.ts`** - Added new message types:
+  - `miner_joined` - Broadcast when miner joins a mine
+  - `miner_left` - Broadcast when miner leaves/disconnects
+
+#### Home Mine Persistence in Redis
+- **`server/storage/redis-store.ts`** - User preference storage:
+  - Added `USER_HOME_MINE_KEY` for wallet-specific home mine
+  - `setUserHomeMine(wallet, mineId)` - Persist home mine selection
+  - `getUserHomeMine(wallet)` - Retrieve stored home mine
+  - `clearUserHomeMine(wallet)` - Remove preference
+  - Key pattern: `blackgold:user:{walletAddress}:home_mine`
+
+- **`server/game/stake-manager.ts`** - Integrated Redis persistence:
+  - `setHomeBase()` now persists to Redis asynchronously
+  - Added `restoreHomeMine(wallet)` async method for session recovery
+  - Home mine restored when miner reconnects
+
+- **`server/index.ts`** - Session recovery on connect:
+  - `handleConnect()` now async to await Redis lookup
+  - Calls `stakeManager.restoreHomeMine()` on connect
+  - Returns `homeMineId` in welcome response if found
+  - Client can auto-join restored home mine
+
+---
+
+## 📋 Previous Changes (v2.9.8)
 
 ### Mining Fairness Overhaul
 
@@ -582,6 +629,7 @@ PrivyProvider        ← Outer: Provides Privy context
 - `blackgold:mine:{mineId}:stats` - Hash with totalDiscoveries, lastDiscoveryTime, peakHashrate
 - `blackgold:mine:{mineId}:pending` - Pending discovery awaiting announcement
 - `blackgold:activity:global` - Global activity feed (max 100)
+- `blackgold:user:{walletAddress}:home_mine` - User's home mine preference (v2.9.9)
 
 ### Pool Module (`server/pool/`)
 
@@ -592,7 +640,7 @@ PrivyProvider        ← Outer: Provides Privy context
 | `difficulty.ts` | ~120 | `DifficultyState`, `adjustDifficulty` | Dynamic difficulty adjustment |
 | `index.ts` | ~30 | Re-exports | Barrel exports |
 
-**PoolManager v2.9.8 Updates:**
+**PoolManager v2.9.9 Updates:**
 - `isMiningPaused()` - Check if mine is in countdown
 - `getAnnouncementCountdown()` - Time remaining until winner reveal
 - `forceAnnounce()` - Force-announce pending discovery on shutdown
@@ -601,6 +649,7 @@ PrivyProvider        ← Outer: Provides Privy context
 - `calculateShares()` - Fair share distribution based on hash-seconds
 - `handleHashrateUpdate()` - Updates `miner.contribution` accumulator
 - Share calculation on discovery - 20% bonus for finder
+- **v2.9.9**: `announceDiscovery()` recalculates mine difficulty before assigning new work
 
 ---
 
