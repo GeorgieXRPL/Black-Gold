@@ -1,14 +1,68 @@
-# Black Gold v2.9.7 - Codebase Index
+# Black Gold v2.9.8 - Codebase Index
 
 > Complete file-by-file documentation for the Black Gold Interactive Mining Globe platform
 
-**Last Updated**: January 9, 2026  
-**Version**: 2.9.7 (Mining Experience Improvements)  
+**Last Updated**: January 10, 2026  
+**Version**: 2.9.8 (Mining Fairness Overhaul)  
 **Total Files**: 75+ TypeScript/TSX/JS files
 
 ---
 
-## 📋 Recent Changes (v2.9.7)
+## 📋 Recent Changes (v2.9.8)
+
+### Mining Fairness Overhaul
+
+This release implements share-based pool mining for fair reward distribution, fixes the core selector flow, and increases difficulty for realistic mining times.
+
+#### Share-Based Pool System (Fair Mining)
+- **`server/pool/manager.ts`** - New contribution tracking and share calculation:
+  - Track `hashSeconds` per miner (hashrate × time_mining)
+  - On discovery: calculate shares proportional to contribution
+  - Finder gets 20% bonus on top of their proportional share
+  - All active miners receive rewards, not just the finder
+  - Prevents high-end CPUs from monopolizing all rewards
+  - `MinerContribution` interface tracks `hashSeconds` and `lastUpdate`
+  - `calculateShares()` computes fair distribution percentages
+
+#### Increased Difficulty (5x)
+- **`config/constants.ts`** - Difficulty calibration for 8-20 minute solve times:
+  - `MIN_DIFFICULTY`: 1,500,000 → **7,500,000** (5x increase)
+  - `MAX_DIFFICULTY`: 500,000,000 → **2,000,000,000** (4x increase)
+  - `BASELINE_HASHRATE`: 5,000 → **25,000** H/s
+  - `NONCE_RANGE_SIZE`: 10,000,000 → **50,000,000** (5x larger)
+  - `WORK_EXPIRY_MS`: 300,000 → **600,000** (10 minutes)
+  - Mining now takes realistic 5-20 minutes per mine based on resource type
+
+#### Core Selector Flow Fix
+- **`app/page.tsx`** - Fixed mining start sequence:
+  - `handleStartMining()` now shows core selector popup first
+  - Mining only starts after user confirms core count
+  - Removed race condition where mining started before cores were set
+  - Workers initialized lazily on actual mining start
+
+- **`app/hooks/useMining.ts`** - Lazy worker initialization:
+  - Workers no longer auto-initialize on component mount
+  - `startMining()` checks if workers need initialization
+  - Uses `setTimeout` to wait for workers to be ready before distributing work
+  - Fixes "mining doesn't start on first click" bug
+
+#### Activity Feed Filtering
+- **`app/page.tsx`** - Cleaner activity feed:
+  - Filter out `discovery_pending` events from `raidEvents`
+  - Only show actual discoveries (seam, nugget, gusher, lode)
+  - Prevents duplicate/repeat notifications for miners
+  - `discovery_pending` only shown in countdown overlay, not feed
+
+#### Duplicate Broadcast Fix
+- **`server/index.ts`** - Removed duplicate `discovery_found` broadcasts:
+  - Added `broadcastToAllExceptMine()` function
+  - Global `game_event` broadcast excludes miners at the winning mine
+  - Miners at the mine receive event via `PoolManager` only
+  - Prevents "Seam found" appearing multiple times in feed
+
+---
+
+## 📋 Previous Changes (v2.9.7)
 
 ### Mining Experience Improvements
 
@@ -97,19 +151,19 @@ This release completely fixes the mining system with proper difficulty calibrati
 
 #### Proper Difficulty Calibration
 - **`config/constants.ts`** - Completely recalibrated difficulty:
-  - `MIN_DIFFICULTY`: 256 → **1,500,000** (for 5-minute Coal mines)
-  - `MAX_DIFFICULTY`: 1,000,000 → **500,000,000** (for scaling)
-  - Added `BASELINE_HASHRATE`: 5,000 H/s (mobile estimate)
-  - `NONCE_RANGE_SIZE`: 1,000,000 → 10,000,000 (longer ranges)
-  - `WORK_EXPIRY_MS`: 60,000 → 300,000 (5 minutes)
+  - `MIN_DIFFICULTY`: 256 → **7,500,000** (for 5-minute Coal mines, updated v2.9.8)
+  - `MAX_DIFFICULTY`: 1,000,000 → **2,000,000,000** (for scaling, updated v2.9.8)
+  - Added `BASELINE_HASHRATE`: 25,000 H/s (mid-range estimate, updated v2.9.8)
+  - `NONCE_RANGE_SIZE`: 1,000,000 → 50,000,000 (longer ranges, updated v2.9.8)
+  - `WORK_EXPIRY_MS`: 60,000 → 600,000 (10 minutes, updated v2.9.8)
   
-  **Difficulty by Resource (at 5,000 H/s baseline):**
+  **Difficulty by Resource (at 25,000 H/s baseline):**
   | Resource | Target Time | Base Difficulty |
   |----------|-------------|-----------------|
-  | Coal     | 5 minutes   | ~1,500,000      |
-  | Silver   | 8 minutes   | ~2,400,000      |
-  | Oil      | 10 minutes  | ~3,000,000      |
-  | Gold     | 20 minutes  | ~6,000,000      |
+  | Coal     | 5 minutes   | ~7,500,000      |
+  | Silver   | 8 minutes   | ~12,000,000     |
+  | Oil      | 10 minutes  | ~15,000,000     |
+  | Gold     | 20 minutes  | ~30,000,000     |
 
 #### Per-Mine Difficulty System
 - **`server/pool/difficulty.ts`** - New per-mine difficulty functions:
@@ -538,11 +592,15 @@ PrivyProvider        ← Outer: Provides Privy context
 | `difficulty.ts` | ~120 | `DifficultyState`, `adjustDifficulty` | Dynamic difficulty adjustment |
 | `index.ts` | ~30 | Re-exports | Barrel exports |
 
-**PoolManager v2.9.7 Updates:**
+**PoolManager v2.9.8 Updates:**
 - `isMiningPaused()` - Check if mine is in countdown
 - `getAnnouncementCountdown()` - Time remaining until winner reveal
 - `forceAnnounce()` - Force-announce pending discovery on shutdown
 - `PendingDiscovery` interface - Stores pending discovery with timer
+- `MinerContribution` tracking - `hashSeconds` and `lastUpdate` per miner
+- `calculateShares()` - Fair share distribution based on hash-seconds
+- `handleHashrateUpdate()` - Updates `miner.contribution` accumulator
+- Share calculation on discovery - 20% bonus for finder
 
 ---
 
@@ -718,9 +776,25 @@ PrivyProvider        ← Outer: Provides Privy context
 
 ### Reward Distribution System
 
-**Dual Reward Structure:**
-- **70% Instant** → Goes directly to the miner who finds the discovery
-- **30% Pooled** → Accumulates in the mine's vault for hourly distribution
+**Share-Based Pool Mining (v2.9.8):**
+
+All active miners receive rewards proportional to their contribution, ensuring fairness regardless of CPU power.
+
+**Per-Discovery Distribution:**
+- **Base Share** = hashrate × time_mining (hash-seconds)
+- **Finder Bonus** = +20% of their proportional share
+- All miners at the mine during discovery receive rewards
+
+**Example (100 COAL discovery):**
+| Miner | Hashrate | Time Mining | Hash-Seconds | Share % | Reward |
+|-------|----------|-------------|--------------|---------|--------|
+| Alice (finder) | 50K H/s | 10 min | 30M | 60% + 20% bonus | 72 COAL |
+| Bob | 25K H/s | 8 min | 12M | 24% | 24 COAL |
+| Carol | 10K H/s | 4 min | 2.4M | 4.8% | 4 COAL |
+
+**Vault Split (unchanged):**
+- **70%** → Distributed to miners via share-based system
+- **30%** → Accumulates in mine vault for hourly distribution
 
 **Hourly Pool Distribution (weighted by):**
 - Hashrate contribution at the mine
