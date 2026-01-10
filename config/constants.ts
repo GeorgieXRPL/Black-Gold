@@ -66,37 +66,45 @@ export const POOL_CONFIG = {
   
   /**
    * Baseline hashrate assumption for difficulty calculation (H/s)
-   * Used to calculate initial difficulty for a single miner
-   * Conservative estimate for mobile devices: ~5,000 H/s
-   * Average laptop: ~10,000 H/s
+   * Based on observed hashrates (15-50 KH/s from logs):
+   * - Low-end/mobile: ~10,000 H/s
+   * - Average laptop: ~25,000 H/s
+   * - High-end desktop: ~100,000+ H/s
+   * 
+   * Using 25,000 H/s as baseline for difficulty calculation
+   * This ensures discovery times are reasonable from the start
    */
-  BASELINE_HASHRATE: parseInt(process.env.BASELINE_HASHRATE || '5000', 10),
+  BASELINE_HASHRATE: parseInt(process.env.BASELINE_HASHRATE || '25000', 10),
   
   /**
-   * Minimum difficulty - calibrated for real mining times
+   * Minimum difficulty - calibrated for ACTUAL hashrates observed
    * 
-   * Formula: difficulty ≈ targetTimeSeconds × hashrate
+   * IMPORTANT: Logs show miners hitting 15-50 KH/s, not 5 KH/s!
    * 
-   * For 5-minute Coal mines with single 5k H/s miner:
-   *   300 seconds × 5,000 H/s = 1,500,000 difficulty
+   * Formula: difficulty = targetTimeSeconds × hashrate
    * 
-   * Previous value of 256 was WAY too low (solutions in milliseconds!)
+   * For 5-minute Coal mines with typical 25k H/s miner:
+   *   300 seconds × 25,000 H/s = 7,500,000 difficulty
    * 
-   * Resource target times from config/mines.ts:
-   * - Coal:   5 min  → ~1,500,000 base difficulty
-   * - Silver: 8 min  → ~2,400,000 base difficulty  
-   * - Oil:   10 min  → ~3,000,000 base difficulty
-   * - Gold:  20 min  → ~6,000,000 base difficulty
+   * For 8-minute Silver mines with typical 25k H/s miner:
+   *   480 seconds × 25,000 H/s = 12,000,000 difficulty
+   * 
+   * For 20-minute Gold mines with typical 25k H/s miner:
+   *   1200 seconds × 25,000 H/s = 30,000,000 difficulty
+   * 
+   * Setting MIN to 7.5M ensures Coal mines (fastest) take ~5 minutes
+   * at the baseline hashrate. Higher hashrate = shorter time until
+   * dynamic difficulty kicks in.
    */
-  MIN_DIFFICULTY: parseInt(process.env.MIN_DIFFICULTY || '1500000', 10),
+  MIN_DIFFICULTY: parseInt(process.env.MIN_DIFFICULTY || '7500000', 10),
   
   /**
    * Maximum difficulty - for scaling with many miners
-   * At 100 miners with 10k H/s each = 1M H/s network
-   * Gold mines (20 min): 1,200 sec × 1,000,000 H/s = 1.2 billion
-   * Cap at 500 million to prevent extreme values
+   * At 50 miners with 25k H/s each = 1.25M H/s network
+   * Gold mines (20 min): 1,200 sec × 1,250,000 H/s = 1.5 billion
+   * Cap at 2 billion to allow for growth
    */
-  MAX_DIFFICULTY: parseInt(process.env.MAX_DIFFICULTY || '500000000', 10),
+  MAX_DIFFICULTY: parseInt(process.env.MAX_DIFFICULTY || '2000000000', 10),
   
   /**
    * Target discovery time in milliseconds (fallback if mine doesn't specify)
@@ -106,10 +114,16 @@ export const POOL_CONFIG = {
   TARGET_BARREL_TIME_MS: parseInt(process.env.TARGET_BARREL_TIME_MS || '300000', 10), // 5 min default (Coal)
   
   /** Nonce range size per work unit */
-  NONCE_RANGE_SIZE: 10_000_000, // Increased for longer mining times
+  NONCE_RANGE_SIZE: 50_000_000, // Large range for higher hashrates
   
   /** Work unit expiry time in ms - increased for longer mining */
-  WORK_EXPIRY_MS: 5 * 60_000, // 5 minutes (longer than shortest discovery time)
+  WORK_EXPIRY_MS: 10 * 60_000, // 10 minutes (covers Gold mines)
+  
+  /**
+   * Announcement delay before revealing discovery winner (ms)
+   * Creates suspense for all miners while winner is revealed
+   */
+  ANNOUNCEMENT_DELAY_MS: parseInt(process.env.ANNOUNCEMENT_DELAY_MS || '30000', 10), // 30 seconds
 } as const;
 
 /** Rate limiting configuration */

@@ -40,6 +40,18 @@ import { POOL_CONFIG, RATE_LIMIT_CONFIG } from '../../config/constants';
 import { getMineRegistry } from '../game/mine-registry';
 
 /**
+ * Miner's contribution tracking for share-based rewards
+ */
+export interface MinerContribution {
+  /** Total hash-seconds contributed this period (hashrate × seconds) */
+  hashSeconds: number;
+  /** Last hashrate update timestamp */
+  lastUpdate: number;
+  /** Current hashrate for this miner */
+  hashrate: number;
+}
+
+/**
  * Extended miner info with WebSocket connection
  */
 export interface ConnectedMiner extends Miner {
@@ -47,6 +59,18 @@ export interface ConnectedMiner extends Miner {
   ws: WebSocket;
   /** Current work unit IDs assigned to this miner */
   activeWorkIds: Set<string>;
+  /** Contribution tracking for fair reward distribution */
+  contribution: MinerContribution;
+}
+
+/**
+ * Miner share for reward distribution
+ */
+export interface MinerShare {
+  walletAddress: string;
+  hashSeconds: number;
+  sharePercent: number;
+  reward: number;
 }
 
 /**
@@ -56,6 +80,8 @@ export interface PendingDiscovery {
   result: BarrelResult;
   announceAt: number;
   timer: NodeJS.Timeout;
+  /** Miner shares at time of discovery */
+  shares: MinerShare[];
 }
 
 /**
@@ -80,6 +106,8 @@ export interface PoolState {
   totalRewardsDistributed: number;
   /** Discovery history */
   discoveryHistory: BarrelResult[];
+  /** Start of current mining period (for share calculation) */
+  periodStartTime: number;
 }
 
 /**
@@ -146,6 +174,7 @@ export class PoolManager {
       totalDiscoveries: 0,
       totalRewardsDistributed: 0,
       discoveryHistory: [],
+      periodStartTime: Date.now(),
     };
     this.eventHandlers = eventHandlers;
   }
@@ -238,6 +267,11 @@ export class PoolManager {
       nonceRange: { start: 0, end: 0 }, // Will be set when work is assigned
       ws,
       activeWorkIds: new Set(),
+      contribution: {
+        hashSeconds: 0,
+        lastUpdate: Date.now(),
+        hashrate: 0,
+      },
     };
 
     this.state.miners.set(walletAddress, miner);
@@ -291,7 +325,7 @@ export class PoolManager {
   }
 
   /**
-   * Updates a miner's reported hashrate
+   * Updates a miner's reported hashrate and tracks contribution
    * @param payload - Hashrate update payload
    */
   public handleHashrateUpdate(payload: HashratePayload): void {
@@ -303,6 +337,20 @@ export class PoolManager {
       return;
     }
 
+    // Track contribution: accumulate hash-seconds since last update
+    const now = Date.now();
+    const secondsElapsed = (now - miner.contribution.lastUpdate) / 1000;
+    
+    // Add contribution (hashrate × time in seconds)
+    // Use the PREVIOUS hashrate for this interval (not the new one)
+    if (miner.contribution.hashrate > 0 && secondsElapsed > 0) {
+      miner.contribution.hashSeconds += miner.contribution.hashrate * secondsElapsed;
+    }
+    
+    // Update contribution tracking
+    miner.contribution.lastUpdate = now;
+    miner.contribution.hashrate = hashrate;
+    
     miner.hashrate = hashrate;
     miner.lastSeen = new Date();
 
@@ -488,8 +536,12 @@ export class PoolManager {
 
   // ============ Private Methods ============
 
-  // Announcement delay in milliseconds (30 seconds of suspense)
-  private static readonly ANNOUNCEMENT_DELAY_MS = 30_000;
+  // Announcement delay in milliseconds (configurable, default 30 seconds of suspense)
+  private static get ANNOUNCEMENT_DELAY_MS(): number {
+    // Import here to avoid circular dependency
+    const { POOL_CONFIG } = require('../../config/constants');
+    return POOL_CONFIG.ANNOUNCEMENT_DELAY_MS || 30_000;
+  }
 
   /**
    * Check if mining is currently paused (pending discovery announcement)
@@ -508,7 +560,87 @@ export class PoolManager {
   }
 
   /**
+   * Configuration for share-based reward distribution
+   * - Finder gets a 20% BONUS on top of their contribution share
+   * - This incentivizes finding solutions while still rewarding all contributors
+   */
+  private static readonly FINDER_BONUS_PERCENT = 20;
+
+  /**
+   * Calculate miner shares based on contribution during this mining period
+   * @returns Array of miner shares sorted by contribution (highest first)
+   */
+  private calculateMinerShares(): MinerShare[] {
+    const shares: MinerShare[] = [];
+    const now = Date.now();
+    
+    // Finalize all contributions up to now
+    for (const miner of this.state.miners.values()) {
+      const secondsElapsed = (now - miner.contribution.lastUpdate) / 1000;
+      if (miner.contribution.hashrate > 0 && secondsElapsed > 0) {
+        miner.contribution.hashSeconds += miner.contribution.hashrate * secondsElapsed;
+        miner.contribution.lastUpdate = now;
+      }
+    }
+    
+    // Calculate total hash-seconds
+    let totalHashSeconds = 0;
+    for (const miner of this.state.miners.values()) {
+      if (miner.contribution.hashSeconds > 0) {
+        totalHashSeconds += miner.contribution.hashSeconds;
+      }
+    }
+    
+    // Calculate each miner's share
+    for (const miner of this.state.miners.values()) {
+      if (miner.contribution.hashSeconds > 0 && totalHashSeconds > 0) {
+        const sharePercent = (miner.contribution.hashSeconds / totalHashSeconds) * 100;
+        shares.push({
+          walletAddress: miner.walletAddress,
+          hashSeconds: miner.contribution.hashSeconds,
+          sharePercent,
+          reward: 0, // Will be calculated when distributing rewards
+        });
+      }
+    }
+    
+    // Sort by contribution (highest first)
+    shares.sort((a, b) => b.hashSeconds - a.hashSeconds);
+    
+    console.log(
+      `[PoolManager] Share calculation: ${shares.length} miners, ` +
+      `total ${(totalHashSeconds / 1000).toFixed(1)}k hash-seconds`
+    );
+    
+    return shares;
+  }
+
+  /**
+   * Reset miner contributions for a new mining period
+   */
+  private resetContributions(): void {
+    const now = Date.now();
+    for (const miner of this.state.miners.values()) {
+      miner.contribution = {
+        hashSeconds: 0,
+        lastUpdate: now,
+        hashrate: miner.hashrate,
+      };
+    }
+    this.state.periodStartTime = now;
+    console.log('[PoolManager] Contributions reset for new mining period');
+  }
+
+  /**
+   * Get miner shares for external use (e.g., reward distribution)
+   */
+  public getMinerShares(): MinerShare[] {
+    return this.state.pendingDiscovery?.shares || this.calculateMinerShares();
+  }
+
+  /**
    * Handles a discovery with 30-second suspense delay
+   * Uses share-based reward system for fair distribution
    * @param walletAddress - Winning miner's wallet
    * @param hash - Winning hash
    * @param nonce - Winning nonce
@@ -524,8 +656,18 @@ export class PoolManager {
     const discoveryNumber = workUnit.discoveryNumber;
 
     console.log(
-      `[PoolManager] ⛏️ DISCOVERY #${discoveryNumber} FOUND! Starting 30s countdown...`
+      `[PoolManager] ⛏️ DISCOVERY #${discoveryNumber} FOUND! Starting countdown...`
     );
+
+    // Calculate miner shares BEFORE announcing (captures state at discovery time)
+    const shares = this.calculateMinerShares();
+    
+    // Log share distribution
+    const topMiners = shares.slice(0, 5);
+    console.log('[PoolManager] Top contributors:');
+    topMiners.forEach((s, i) => {
+      console.log(`  ${i + 1}. ${s.walletAddress.slice(0, 8)}... - ${s.sharePercent.toFixed(1)}%`);
+    });
 
     // Create discovery result (winner kept private until announcement)
     const result: BarrelResult = {
@@ -533,9 +675,9 @@ export class PoolManager {
       winner: walletAddress,
       hash,
       nonce,
-      totalReward: 0, // TODO: Calculate based on reward pool
-      finderShare: 0, // 70%
-      vaultShare: 0, // 30%
+      totalReward: 0, // Will be set by reward orchestrator
+      finderShare: 0, // Will include finder bonus
+      vaultShare: 0, // 30% to vault
       timestamp: now,
       mineId: workUnit.mineId,
       resource: 'coal', // Default, should be set by caller
@@ -574,11 +716,12 @@ export class PoolManager {
       this.announceDiscovery();
     }, PoolManager.ANNOUNCEMENT_DELAY_MS);
 
-    // Store pending discovery
+    // Store pending discovery WITH shares for later distribution
     this.state.pendingDiscovery = {
       result,
       announceAt,
       timer,
+      shares, // IMPORTANT: Store shares calculated at discovery time
     };
 
     // Clear all active work - mining pauses during countdown
@@ -588,12 +731,13 @@ export class PoolManager {
 
     console.log(
       `[PoolManager] Mining paused at mine ${workUnit.mineId || 'global'}. ` +
-      `Winner will be announced at ${new Date(announceAt).toISOString()}`
+      `Winner announced at ${new Date(announceAt).toISOString()}`
     );
   }
 
   /**
    * Announce the pending discovery winner after the countdown
+   * Uses share-based distribution to fairly reward all contributors
    */
   private async announceDiscovery(): Promise<void> {
     if (!this.state.pendingDiscovery) {
@@ -601,11 +745,18 @@ export class PoolManager {
       return;
     }
 
-    const { result } = this.state.pendingDiscovery;
+    const { result, shares } = this.state.pendingDiscovery;
 
     console.log(
       `[PoolManager] 🎉 ANNOUNCING WINNER: ${result.winner} for discovery #${result.discoveryNumber}!`
     );
+    
+    // Log share distribution for the announcement
+    console.log(`[PoolManager] 📊 Share-based distribution to ${shares.length} miners:`);
+    const finderShare = shares.find(s => s.walletAddress === result.winner);
+    if (finderShare) {
+      console.log(`  🏆 Finder ${result.winner.slice(0, 8)}... gets ${finderShare.sharePercent.toFixed(1)}% + ${PoolManager.FINDER_BONUS_PERCENT}% bonus`);
+    }
 
     // Add to history
     this.state.discoveryHistory.push(result);
@@ -616,17 +767,34 @@ export class PoolManager {
 
     // Clear pending discovery BEFORE broadcasting to allow new mining
     this.state.pendingDiscovery = null;
+    
+    // Reset contributions for the new mining period
+    this.resetContributions();
 
-    // Broadcast the actual discovery with winner revealed
+    // Broadcast the actual discovery with winner revealed AND shares included
     this.broadcastMessage('discovery_found', {
       ...result,
       announcement: true,
       message: `🏆 ${result.winner.slice(0, 8)}...${result.winner.slice(-4)} found the discovery!`,
+      shares: shares.map(s => ({
+        wallet: s.walletAddress.slice(0, 8) + '...' + s.walletAddress.slice(-4),
+        percent: s.sharePercent.toFixed(1),
+        isFinder: s.walletAddress === result.winner,
+      })),
+      finderBonus: PoolManager.FINDER_BONUS_PERCENT,
+      totalContributors: shares.length,
     });
 
-    // Notify event handler for persistence, rewards, etc.
+    // Notify event handler for persistence, rewards distribution, etc.
+    // Pass shares so the reward orchestrator can distribute proportionally
     if (this.eventHandlers.onDiscoveryFound) {
-      await this.eventHandlers.onDiscoveryFound(result);
+      // Attach shares to result for reward distribution
+      const resultWithShares = {
+        ...result,
+        shares,
+        finderBonus: PoolManager.FINDER_BONUS_PERCENT,
+      };
+      await this.eventHandlers.onDiscoveryFound(resultWithShares as BarrelResult);
     }
 
     // Resume mining - assign new work to all miners

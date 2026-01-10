@@ -213,6 +213,21 @@ function broadcastToAll<T>(type: string, payload: T): void {
 }
 
 /**
+ * Broadcasts to all clients EXCEPT those at a specific mine
+ * Used to avoid duplicate notifications when PoolManager already sent to mine
+ */
+function broadcastToAllExceptMine<T>(mineId: string, type: string, payload: T): void {
+  for (const [ws, info] of clientConnections) {
+    // Skip clients who are at the excluded mine - they already got the message
+    if (info.currentMineId === mineId) continue;
+    
+    if (ws.readyState === WebSocket.OPEN) {
+      sendMessage(ws, type, payload);
+    }
+  }
+}
+
+/**
  * Handles the 'connect' message
  * Payload is pre-validated by Zod schema
  */
@@ -311,9 +326,24 @@ function handleJoinMine(
   console.log(`[WS] ${sanitizeForLog(clientInfo.walletAddress || '')} joined ${mine.definition.name}`);
 }
 
+// Import reward orchestrator for share-based distribution
+import { handleNewDiscovery as processDiscoveryRewards } from './game/reward-orchestrator';
+
+/** Extended result type with shares from PoolManager */
+interface BarrelResultWithShares extends BarrelResult {
+  shares?: Array<{
+    walletAddress: string;
+    hashSeconds: number;
+    sharePercent: number;
+    reward: number;
+  }>;
+  finderBonus?: number;
+}
+
 /**
  * Handles discovery found at a mine
  * Called after the 30-second announcement delay completes
+ * Uses SHARE-BASED reward distribution for fairness
  */
 async function handleDiscoveryFound(mineId: string, result: BarrelResult): Promise<void> {
   const registry = getMineRegistry();
@@ -326,12 +356,33 @@ async function handleDiscoveryFound(mineId: string, result: BarrelResult): Promi
   const resource = mine.definition.resource;
   const discoveryEmoji = resource === 'coal' ? '⛏️' : resource === 'gold' ? '🥇' : resource === 'oil' ? '🛢️' : '🥈';
 
+  // Extract shares from extended result (if provided by PoolManager)
+  const resultWithShares = result as BarrelResultWithShares;
+  const shares = resultWithShares.shares;
+  const finderBonus = resultWithShares.finderBonus;
+
   console.log('═'.repeat(60));
   console.log(`${discoveryEmoji}  ${result.discoveryName || 'DISCOVERY'} #${result.discoveryNumber} at ${mine.definition.name}!`);
   console.log(`   Winner: ${result.winner}`);
   console.log(`   Hash:   ${result.hash.substring(0, 16)}...`);
-  console.log(`   Finder: +${result.finderShare} | Vault: +${result.vaultShare}`);
+  if (shares && shares.length > 0) {
+    console.log(`   📊 Share-based distribution to ${shares.length} miners`);
+  }
   console.log('═'.repeat(60));
+
+  // Process rewards with share-based distribution
+  const rewardResult = await processDiscoveryRewards(
+    mineId,
+    result.winner,
+    result.discoveryNumber,
+    shares,
+    finderBonus
+  );
+  
+  // Update result with calculated rewards
+  result.finderShare = rewardResult.finderReward;
+  result.vaultShare = rewardResult.vaultReward;
+  result.totalReward = rewardResult.totalReward;
 
   // Update mine state
   registry.recordDiscoveryFound(mineId, result.hash);
@@ -343,14 +394,14 @@ async function handleDiscoveryFound(mineId: string, result: BarrelResult): Promi
     mineName: mine.definition.name,
     resource: mine.definition.resource,
     finderAddress: result.winner,
-    finderReward: result.finderShare,
-    vaultReward: result.vaultShare,
+    finderReward: rewardResult.finderReward,
+    vaultReward: rewardResult.vaultReward,
     timestamp: Date.now(),
     hash: result.hash,
   };
   await redisStore.storeDiscovery(storedDiscovery);
 
-  // Also store as global activity
+  // Also store as global activity (including share info)
   const activity: StoredActivity = {
     id: `activity-discovery-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     type: 'discovery',
@@ -360,8 +411,9 @@ async function handleDiscoveryFound(mineId: string, result: BarrelResult): Promi
     details: {
       discoveryNumber: result.discoveryNumber,
       discoveryName: result.discoveryName,
-      finderReward: result.finderShare,
+      finderReward: rewardResult.finderReward,
       hash: result.hash.substring(0, 16),
+      totalContributors: rewardResult.minerPayouts.length,
     },
     timestamp: Date.now(),
   };
@@ -392,9 +444,9 @@ async function handleDiscoveryFound(mineId: string, result: BarrelResult): Promi
     }
   }
 
-  // NOTE: PoolManager already broadcasts 'discovery_found' to miners at this mine
-  // We only broadcast the global game_event for the activity feed / other mines
-  broadcastToAll('game_event', {
+  // PoolManager already broadcasts 'discovery_found' to miners at this mine
+  // Only broadcast to OTHER mines to avoid duplicate notifications
+  broadcastToAllExceptMine(mineId, 'game_event', {
     type: 'discovery_found',
     mineId,
     mineName: mine.definition.name,

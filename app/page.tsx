@@ -206,9 +206,26 @@ export default function Home() {
       }
     }
     
-    // Add to raid feed (but not discovery_pending - that's just for the overlay)
-    if (event.type !== 'discovery_pending') {
-      setRaidEvents(prev => [event as typeof prev[number], ...prev].slice(0, 50));
+    // Only add relevant events to the activity feed
+    // Filter to discoveries and raid events only - not intermediate mining updates
+    const feedEventTypes = [
+      'discovery_found',
+      'raid_started',
+      'raid_won', 
+      'raid_lost',
+      'jackpot',
+      'vault_payout',
+      'spoils_distributed'
+    ];
+    
+    if (feedEventTypes.includes(event.type)) {
+      setRaidEvents(prev => {
+        // Deduplicate by ID to prevent duplicate notifications
+        const exists = prev.some(e => e.id === event.id);
+        if (exists) return prev;
+        
+        return [event as typeof prev[number], ...prev].slice(0, 50);
+      });
     }
   }, [isMining, mining, walletState.walletAddress]);
 
@@ -369,49 +386,56 @@ export default function Home() {
         alert('Please select a mine and set it as your Home Base before mining!');
         return;
       }
-      // Show core selector before starting
+      // ALWAYS show core selector popup first and return immediately
+      // Mining will only start after user confirms in handleCoreSelectConfirm
+      console.log('[Mining] Showing core selector popup...');
       setShowCoreSelector(true);
+      // IMPORTANT: Do nothing else here - wait for user to select cores
     }
-  }, [isMining, mining, homeMineId]);
+  }, [isMining, mining.stopMining, homeMineId]);
 
   // Handle core selection confirmation
   const handleCoreSelectConfirm = useCallback((cores: number) => {
-    console.log(`[Mining] User selected ${cores} cores`);
-    setSelectedCores(cores);
+    console.log(`[Mining] User confirmed ${cores} cores`);
+    
+    // Close popup first
     setShowCoreSelector(false);
     
-    // Start mining - need to be connected and have work
-    if (gameSocket.status !== 'connected') {
-      console.warn('[Mining] Cannot start - not connected to game server');
-      console.log('[Mining] WebSocket status:', gameSocket.status);
-      console.log('[Mining] Wallet address:', walletState.walletAddress);
-      // Try to connect
-      if (walletState.isConnected && walletState.walletAddress) {
-        console.log('[Mining] Attempting to connect to game server...');
-        gameSocket.connect();
-      }
-      return;
-    }
-    
-    console.log('[Mining] Starting mining process...');
-    console.log('[Mining] Home mine:', homeMineId);
-    console.log('[Mining] Current work:', currentWorkRef.current);
-    
-    // Request work by joining/rejoining mine
-    if (homeMineId) {
-      console.log(`[Mining] Joining mine ${homeMineId} to request work...`);
-      gameSocket.joinMine(homeMineId);
-    }
-    
+    // Update cores and mark mining as starting
+    setSelectedCores(cores);
     setIsMining(true);
     
-    // If we already have work, start mining immediately
-    if (currentWorkRef.current) {
-      console.log('[Mining] Starting with existing work...');
-      mining.startMining(currentWorkRef.current);
-    } else {
-      console.log('[Mining] Waiting for work from server...');
-    }
+    // Use setTimeout to ensure React has processed the state updates
+    // This gives the useMining hook time to receive the new cores value
+    setTimeout(() => {
+      // Check WebSocket connection
+      if (gameSocket.status !== 'connected') {
+        console.warn('[Mining] Not connected to game server, connecting...');
+        if (walletState.isConnected && walletState.walletAddress) {
+          gameSocket.connect();
+        }
+        // Mining will start automatically when connected and work received
+        return;
+      }
+      
+      console.log('[Mining] Starting mining process...');
+      console.log('[Mining] Home mine:', homeMineId);
+      console.log('[Mining] Current work:', currentWorkRef.current);
+      
+      // Request work by joining/rejoining mine
+      if (homeMineId) {
+        console.log(`[Mining] Joining mine ${homeMineId} to request work...`);
+        gameSocket.joinMine(homeMineId);
+      }
+      
+      // If we already have work, start mining immediately
+      if (currentWorkRef.current) {
+        console.log('[Mining] Starting with existing work...');
+        mining.startMining(currentWorkRef.current);
+      } else {
+        console.log('[Mining] Waiting for work from server...');
+      }
+    }, 50); // Small delay to let React batch process state updates
   }, [gameSocket, homeMineId, mining, walletState]);
 
   const handleStake = useCallback((amount: number, signature: string) => {
