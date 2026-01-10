@@ -113,6 +113,7 @@ export function useGameSocket({
   
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const currentMineIdRef = useRef<string | null>(null);
 
   const send = useCallback((type: string, payload: object) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -248,6 +249,14 @@ export function useGameSocket({
         setStatus('connected');
         // Send connect message
         send('connect', { walletAddress, cores });
+        
+        // Re-join previous mine after reconnection
+        if (currentMineIdRef.current) {
+          console.log('[Game] Reconnected, re-joining mine:', currentMineIdRef.current);
+          setTimeout(() => {
+            send('join_mine', { mineId: currentMineIdRef.current });
+          }, 100); // Small delay to ensure connect is processed first
+        }
       };
 
       ws.onmessage = handleMessage;
@@ -287,11 +296,13 @@ export function useGameSocket({
   const joinMine = useCallback((mineId: string) => {
     send('join_mine', { mineId });
     setCurrentMineId(mineId);
+    currentMineIdRef.current = mineId; // Track for reconnection
   }, [send]);
 
   const leaveMine = useCallback(() => {
     send('leave_mine', {});
     setCurrentMineId(null);
+    currentMineIdRef.current = null; // Clear for reconnection
   }, [send]);
 
   const setHomeBase = useCallback((mineId: string) => {
