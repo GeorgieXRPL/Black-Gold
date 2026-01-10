@@ -368,6 +368,7 @@ export function useMining(options: UseMiningOptions): UseMiningReturn {
 
   /**
    * Start mining with given work
+   * This will STOP any current work immediately before starting new work
    */
   const startMining = useCallback((work: WorkUnit) => {
     console.log('[Mining] startMining called with work:', {
@@ -376,6 +377,13 @@ export function useMining(options: UseMiningOptions): UseMiningReturn {
       target: work.target?.slice(0, 16) + '...',
       nonceRange: `[${work.nonceStart}, ${work.nonceEnd})`
     });
+    
+    // CRITICAL: Stop all workers immediately before starting new work
+    // This prevents workers from submitting old work after new work arrives
+    if (workersRef.current.length > 0) {
+      console.log('[Mining] Stopping workers before new work...');
+      stopAllWorkers();
+    }
     
     // Reset solution found flag for new work
     solutionFoundRef.current = false;
@@ -406,8 +414,9 @@ export function useMining(options: UseMiningOptions): UseMiningReturn {
       return;
     }
     
-    distributeWork(work);
-  }, [initWorkers]);
+    // Small delay to ensure workers have processed stop command
+    setTimeout(() => distributeWork(work), 10);
+  }, [initWorkers, stopAllWorkers]);
 
   /**
    * Distribute work to existing workers

@@ -6,6 +6,16 @@ import { randomBytes, createHash } from 'crypto';
 import { WorkUnit } from '../types';
 import { POOL_CONFIG } from '../../config/constants';
 
+/** Grace period for old work units (60 seconds) */
+const WORK_GRACE_PERIOD_MS = 60_000;
+
+/** Stored work with invalidation timestamp */
+interface GracePeriodWork {
+  work: WorkUnit;
+  walletAddress: string;
+  invalidatedAt: number;
+}
+
 /**
  * Work unit tracking
  */
@@ -20,6 +30,8 @@ export interface WorkTracker {
   discoveryNumber: number;
   /** Current discovery header */
   discoveryHeader: string;
+  /** Recently invalidated work units (grace period for late submissions) */
+  previousWork: Map<string, GracePeriodWork>;
 }
 
 /**
@@ -32,6 +44,7 @@ export function createWorkTracker(): WorkTracker {
     nextNonceStart: 0,
     discoveryNumber: 0,
     discoveryHeader: generateDiscoveryHeader(null, 0),
+    previousWork: new Map(),
   };
 }
 
@@ -106,6 +119,7 @@ export function generateWork(
 
 /**
  * Validate that a work unit exists and is valid for a wallet
+ * Also checks previousWork for grace period submissions
  * @param tracker - Work tracker state
  * @param workId - Work unit ID to validate
  * @param walletAddress - Wallet claiming the work
@@ -116,28 +130,58 @@ export function validateWork(
   workId: string,
   walletAddress: string
 ): WorkUnit | null {
-  const work = tracker.activeWork.get(workId);
+  // First check active work
+  let work = tracker.activeWork.get(workId);
+  let isGracePeriod = false;
   
   if (!work) {
-    console.log(`[Work] Invalid work ID: ${workId}`);
-    return null;
+    // Check grace period work (recently invalidated)
+    const gracePeriodEntry = tracker.previousWork.get(workId);
+    if (gracePeriodEntry) {
+      const now = Date.now();
+      const timeSinceInvalidated = now - gracePeriodEntry.invalidatedAt;
+      
+      if (timeSinceInvalidated <= WORK_GRACE_PERIOD_MS) {
+        // Verify wallet matches
+        if (gracePeriodEntry.walletAddress === walletAddress) {
+          work = gracePeriodEntry.work;
+          isGracePeriod = true;
+          console.log(`[Work] Accepting grace period work ${workId} (${Math.round(timeSinceInvalidated / 1000)}s since invalidation)`);
+        } else {
+          console.log(`[Work] Grace period work ${workId} belongs to different wallet`);
+          return null;
+        }
+      } else {
+        console.log(`[Work] Grace period expired for work ${workId}`);
+        return null;
+      }
+    } else {
+      console.log(`[Work] Invalid work ID: ${workId}`);
+      return null;
+    }
   }
   
-  // Check if wallet owns this work
-  const walletWork = tracker.workByWallet.get(walletAddress);
-  if (!walletWork?.has(workId)) {
-    console.log(`[Work] Wallet ${walletAddress} doesn't own work ${workId}`);
-    return null;
+  // For active work, check if wallet owns it
+  if (!isGracePeriod) {
+    const walletWork = tracker.workByWallet.get(walletAddress);
+    if (!walletWork?.has(workId)) {
+      console.log(`[Work] Wallet ${walletAddress} doesn't own work ${workId}`);
+      return null;
+    }
   }
   
-  // Check if work is expired
-  if (Date.now() - work.timestamp > POOL_CONFIG.WORK_EXPIRY_MS) {
+  // Check if work is expired (use longer expiry for grace period work)
+  const expiryMs = isGracePeriod 
+    ? POOL_CONFIG.WORK_EXPIRY_MS + WORK_GRACE_PERIOD_MS 
+    : POOL_CONFIG.WORK_EXPIRY_MS;
+  if (Date.now() - work.timestamp > expiryMs) {
     console.log(`[Work] Work ${workId} expired`);
     return null;
   }
   
-  // Check if work is for current discovery
-  if (work.discoveryNumber !== tracker.discoveryNumber) {
+  // For grace period work, we accept older discovery numbers
+  // This is the whole point - allowing late submissions after discovery changes
+  if (!isGracePeriod && work.discoveryNumber !== tracker.discoveryNumber) {
     console.log(`[Work] Work ${workId} is for old discovery`);
     return null;
   }
@@ -146,7 +190,7 @@ export function validateWork(
 }
 
 /**
- * Invalidate a work unit
+ * Invalidate a work unit (moves to grace period instead of deleting)
  * @param tracker - Work tracker state
  * @param workId - Work unit to invalidate
  * @returns Updated tracker
@@ -162,9 +206,12 @@ export function invalidateWork(
   activeWork.delete(workId);
   
   const workByWallet = new Map(tracker.workByWallet);
+  let walletForWork: string | null = null;
+  
   // Find and remove from wallet's work set
   for (const [wallet, workSet] of workByWallet.entries()) {
     if (workSet.has(workId)) {
+      walletForWork = wallet;
       const newSet = new Set(workSet);
       newSet.delete(workId);
       if (newSet.size === 0) {
@@ -176,16 +223,27 @@ export function invalidateWork(
     }
   }
   
+  // Move to grace period instead of deleting completely
+  const previousWork = new Map(tracker.previousWork);
+  if (walletForWork) {
+    previousWork.set(workId, {
+      work,
+      walletAddress: walletForWork,
+      invalidatedAt: Date.now(),
+    });
+  }
+  
   return {
     ...tracker,
     activeWork,
     workByWallet,
+    previousWork,
   };
 }
 
 /**
  * Start a new discovery (after previous one was found)
- * Invalidates all existing work and generates new header
+ * Moves existing work to grace period and generates new header
  * @param tracker - Work tracker state
  * @param previousHash - Hash of the found discovery
  * @returns Updated tracker
@@ -199,12 +257,33 @@ export function startNewDiscovery(
   
   console.log(`[Work] Starting discovery #${newDiscoveryNumber}`);
   
+  // Move all active work to grace period
+  const previousWork = new Map(tracker.previousWork);
+  const now = Date.now();
+  
+  for (const [workId, work] of tracker.activeWork.entries()) {
+    // Find the wallet for this work
+    for (const [wallet, workSet] of tracker.workByWallet.entries()) {
+      if (workSet.has(workId)) {
+        previousWork.set(workId, {
+          work,
+          walletAddress: wallet,
+          invalidatedAt: now,
+        });
+        break;
+      }
+    }
+  }
+  
+  console.log(`[Work] Moved ${tracker.activeWork.size} work units to grace period`);
+  
   return {
     activeWork: new Map(),
     workByWallet: new Map(),
     nextNonceStart: 0,
     discoveryNumber: newDiscoveryNumber,
     discoveryHeader: newHeader,
+    previousWork,
   };
 }
 
@@ -212,7 +291,7 @@ export function startNewDiscovery(
 export const startNewBarrel = startNewDiscovery;
 
 /**
- * Clean up expired work units
+ * Clean up expired work units and old grace period entries
  * @param tracker - Work tracker state
  * @returns Updated tracker with expired work removed
  */
@@ -220,6 +299,7 @@ export function cleanupExpiredWork(tracker: WorkTracker): WorkTracker {
   const now = Date.now();
   const expiredIds: string[] = [];
   
+  // Clean up expired active work
   for (const [id, work] of tracker.activeWork.entries()) {
     if (now - work.timestamp > POOL_CONFIG.WORK_EXPIRY_MS) {
       expiredIds.push(id);
@@ -233,6 +313,26 @@ export function cleanupExpiredWork(tracker: WorkTracker): WorkTracker {
   
   if (expiredIds.length > 0) {
     console.log(`[Work] Cleaned up ${expiredIds.length} expired work units`);
+  }
+  
+  // Clean up expired grace period work
+  const expiredGraceIds: string[] = [];
+  for (const [id, entry] of updatedTracker.previousWork.entries()) {
+    if (now - entry.invalidatedAt > WORK_GRACE_PERIOD_MS) {
+      expiredGraceIds.push(id);
+    }
+  }
+  
+  if (expiredGraceIds.length > 0) {
+    const previousWork = new Map(updatedTracker.previousWork);
+    for (const id of expiredGraceIds) {
+      previousWork.delete(id);
+    }
+    updatedTracker = {
+      ...updatedTracker,
+      previousWork,
+    };
+    console.log(`[Work] Cleaned up ${expiredGraceIds.length} grace period work units`);
   }
   
   return updatedTracker;

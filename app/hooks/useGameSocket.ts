@@ -77,6 +77,7 @@ interface UseGameSocketOptions {
   onEvent?: (event: GameEvent) => void;
   onRaidResult?: (result: RaidResult) => void;
   onWork?: (work: WorkUnit) => void;
+  onHomeMineRestored?: (mineId: string) => void;
 }
 
 /** Hook return type */
@@ -105,6 +106,7 @@ export function useGameSocket({
   onEvent,
   onRaidResult,
   onWork,
+  onHomeMineRestored,
 }: UseGameSocketOptions): UseGameSocketReturn {
   const [status, setStatus] = useState<ConnectionStatus>('disconnected');
   const [globalStats, setGlobalStats] = useState<GlobalStats | null>(null);
@@ -144,6 +146,11 @@ export function useGameSocket({
         case 'result':
           // Handle result messages (confirmations)
           console.log('[WS] Result:', data.payload);
+          // Check if this is a connect result with restored home mine
+          if (data.payload?.homeMineId && onHomeMineRestored) {
+            console.log('[WS] Restored home mine from server:', data.payload.homeMineId);
+            onHomeMineRestored(data.payload.homeMineId);
+          }
           break;
 
         case 'work':

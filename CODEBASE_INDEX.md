@@ -1,14 +1,61 @@
-# Black Gold v2.9.9 - Codebase Index
+# Black Gold v3.0.0 - Codebase Index
 
 > Complete file-by-file documentation for the Black Gold Interactive Mining Globe platform
 
 **Last Updated**: January 11, 2026  
-**Version**: 2.9.9 (Multi-User Sync Fix)  
+**Version**: 3.0.0 (Mining Flow Overhaul)  
 **Total Files**: 75+ TypeScript/TSX/JS files
 
 ---
 
-## 📋 Recent Changes (v2.9.9)
+## 📋 Recent Changes (v3.0.0)
+
+### Mining Flow Overhaul
+
+This release fixes critical issues with work validation, auto-continuation of mining after discoveries, and home mine persistence. These changes ensure a seamless, continuous mining experience.
+
+#### Work ID Grace Period (60 seconds)
+- **`server/pool/work.ts`** - Added grace period for late submissions:
+  - New `GracePeriodWork` interface tracks invalidated work with wallet + timestamp
+  - `previousWork` map added to `WorkTracker` to hold recently invalidated work
+  - `validateWork()` now checks `previousWork` if not found in `activeWork`
+  - Work valid for 60 seconds after invalidation (e.g., after difficulty change)
+  - `invalidateWork()` moves work to `previousWork` instead of deleting
+  - `startNewDiscovery()` moves all active work to grace period
+  - `cleanupExpiredWork()` also cleans up old grace period entries
+  - **Fixes**: Valid proofs no longer rejected due to difficulty updates
+
+#### Auto-Continue Mining After Discovery
+- **`app/page.tsx`** - Seamless mining continuation:
+  - `discovery_pending` now calls `pauseMining()` instead of `stopMining()`
+  - `isMining` state preserved during discovery countdown
+  - When new work arrives after `discovery_found`, mining auto-resumes
+  - Discovery popup auto-closes (8s for winners, 5s for others)
+  - Removed manual "Continue Mining" button requirement
+  - **Fixes**: UI "Stop Mining" now accurately reflects worker state
+
+- **`app/hooks/useMining.ts`** - Immediate worker stop on new work:
+  - `startMining()` now calls `stopAllWorkers()` before distributing new work
+  - 10ms delay added to ensure workers process stop command
+  - Prevents old work submissions after new work arrives
+  - `solutionFoundRef` reset before distributing new work
+
+#### Home Mine Persistence (Client + Redis)
+- **`app/hooks/useGameSocket.ts`** - Server home mine restoration:
+  - Added `onHomeMineRestored` callback option
+  - `result` message handler extracts `homeMineId` from connect response
+  - Calls callback to update client state when home mine restored
+
+- **`app/page.tsx`** - localStorage backup + server sync:
+  - `homeMineId` initial state checks localStorage fallback
+  - `handleHomeMineRestored()` callback saves to state and localStorage
+  - `handleSetHome()` persists to both localStorage and server
+  - Three-tier persistence: localStorage → Redis → localStorage (backup)
+  - **Fixes**: Home mine persists across page refresh and reconnection
+
+---
+
+## 📋 Previous Changes (v2.9.9)
 
 ### Multi-User Mining Sync and Persistence
 

@@ -39,11 +39,16 @@ export default function Home() {
     logMockDataWarning('Home Page');
   }, []);
 
-  // State - Use demo defaults in mock mode, empty in production
+  // State - Use demo defaults in mock mode, check localStorage fallback in production
   const [selectedMineId, setSelectedMineId] = useState<string | null>(null);
-  const [homeMineId, setHomeMineId] = useState<string | null>(
-    USE_MOCK_DATA ? DEMO_USER.homeMineId : null
-  );
+  const [homeMineId, setHomeMineId] = useState<string | null>(() => {
+    if (USE_MOCK_DATA) return DEMO_USER.homeMineId;
+    // Try localStorage as fallback until Redis restores it
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('blackgold_home_mine');
+    }
+    return null;
+  });
   const [mineStats, setMineStats] = useState<Map<string, MineStats>>(new Map());
   const [isMining, setIsMining] = useState(false);
   const [hashrate, setHashrate] = useState(0);
@@ -154,9 +159,11 @@ export default function Home() {
         resource: data.resource || 'coal',
         announceAt: data.announceAt,
       });
-      // Stop mining during countdown
-      if (isMining) {
-        mining.stopMining();
+      // Pause workers during countdown but DON'T change isMining state
+      // This way mining will auto-continue when new work arrives
+      if (isMiningRef.current) {
+        console.log('[Game] Discovery pending - pausing workers (mining will auto-resume)');
+        mining.pauseMining();
         setHashrate(0);
       }
     }
@@ -198,12 +205,12 @@ export default function Home() {
         },
       });
       
-      // Auto-close for non-winners after 5 seconds
-      if (!isWinner) {
-        setTimeout(() => {
-          setDiscoveryPopup(prev => ({ ...prev, isOpen: false }));
-        }, 5000);
-      }
+      // Auto-close popup for everyone after a delay - mining continues automatically
+      // Winners get 8 seconds to celebrate, non-winners 5 seconds
+      const closeDelay = isWinner ? 8000 : 5000;
+      setTimeout(() => {
+        setDiscoveryPopup(prev => ({ ...prev, isOpen: false }));
+      }, closeDelay);
     }
     
     // Only add relevant events to the activity feed
@@ -240,12 +247,23 @@ export default function Home() {
     });
     currentWorkRef.current = work;
     
-    // If we're supposed to be mining, start the worker with this work
+    // If we're supposed to be mining (user hasn't clicked Stop), start with new work
+    // This handles both normal mining and auto-resume after discovery
     if (isMiningRef.current) {
-      console.log('[Game] Mining is active, starting work...');
+      console.log('[Game] Mining is active, starting work (auto-continue)...');
       startMiningRef.current(work);
     } else {
       console.log('[Game] Mining not active, work stored for later');
+    }
+  }, []);
+
+  // Handle home mine restoration from server
+  const handleHomeMineRestored = useCallback((mineId: string) => {
+    console.log('[Game] Home mine restored from server:', mineId);
+    setHomeMineId(mineId);
+    // Also save to localStorage as backup
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('blackgold_home_mine', mineId);
     }
   }, []);
 
@@ -256,6 +274,7 @@ export default function Home() {
     cores: typeof navigator !== 'undefined' ? (navigator.hardwareConcurrency || 4) : 4,
     onEvent: handleGameEvent,
     onWork: handleWorkReceived,
+    onHomeMineRestored: handleHomeMineRestored,
   });
 
   // Update refs with gameSocket functions
@@ -363,8 +382,16 @@ export default function Home() {
     if (selectedMineId) {
       setHomeMineId(selectedMineId);
       setLoyaltyDays(0);
+      // Save to localStorage as backup
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('blackgold_home_mine', selectedMineId);
+      }
+      // Send to server to persist in Redis
+      if (gameSocket.status === 'connected') {
+        gameSocket.setHomeBase(selectedMineId);
+      }
     }
-  }, [selectedMineId]);
+  }, [selectedMineId, gameSocket]);
 
   const handleStartMining = useCallback(() => {
     if (USE_MOCK_DATA) {
