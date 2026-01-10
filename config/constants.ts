@@ -116,8 +116,8 @@ export const POOL_CONFIG = {
   /** Nonce range size per work unit */
   NONCE_RANGE_SIZE: 50_000_000, // Large range for higher hashrates
   
-  /** Work unit expiry time in ms - increased for longer mining */
-  WORK_EXPIRY_MS: 10 * 60_000, // 10 minutes (covers Gold mines)
+  /** Work unit expiry time in ms - increased for longer mining with high difficulty */
+  WORK_EXPIRY_MS: 60 * 60_000, // 60 minutes (covers high difficulty scenarios)
   
   /**
    * Announcement delay before revealing discovery winner (ms)
