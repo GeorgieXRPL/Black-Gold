@@ -14,7 +14,7 @@ import {
   BarrelResult,
   NetworkStats,
 } from './types';
-import { PoolManager } from './pool/manager';
+import { PoolManager, TimeoutResult } from './pool/manager';
 import { POOL_CONFIG } from '../config/constants';
 import {
   getMineRegistry,
@@ -315,6 +315,7 @@ function handleJoinMine(
     poolManager = new PoolManager(
       {
         onDiscoveryFound: (result) => handleDiscoveryFound(payload.mineId, result),
+        onTimeoutWinner: (result) => handleTimeoutWinnerEvent(payload.mineId, result),
         onStatsUpdate: () => {}, // Handled globally
       },
       payload.mineId // Pass mine ID for mine-specific difficulty
@@ -549,6 +550,63 @@ async function handleDiscoveryFound(mineId: string, result: BarrelResult): Promi
     discoveryName: result.discoveryName,
     resource: mine.definition.resource,
   });
+}
+
+/**
+ * Handles timeout winner event - fallback broadcast via clientConnections
+ * Called by PoolManager when a round times out
+ */
+async function handleTimeoutWinnerEvent(mineId: string, result: TimeoutResult): Promise<void> {
+  const registry = getMineRegistry();
+  const mine = registry.getMine(mineId);
+
+  if (!mine) return;
+
+  console.log(`[WS] 📡 FALLBACK: Broadcasting timeout_winner via clientConnections for ${mineId}`);
+  console.log(`[WS] Timeout winner: ${result.winner || 'No winner'}, rollover: ${result.rolloverAmount}`);
+  
+  // Broadcast timeout_winner via clientConnections (fallback)
+  broadcastToMine(mineId, 'timeout_winner', {
+    mineId,
+    mineName: result.mineName,
+    resource: result.resource,
+    winner: result.winner,
+    winnerHash: result.winnerHash,
+    totalReward: result.totalReward,
+    finderShare: result.finderShare,
+    vaultShare: result.vaultShare,
+    rolloverAmount: result.rolloverAmount,
+    participantCount: result.participantCount,
+    shares: result.shares,
+    nextRoundIn: result.nextRoundIn,
+  });
+  
+  // Also broadcast round_restart via clientConnections
+  console.log(`[WS] 📡 FALLBACK: Broadcasting round_restart after timeout for ${mineId}`);
+  broadcastToMine(mineId, 'round_restart', {
+    mineId,
+    mineName: result.mineName,
+    resource: result.resource,
+    rolloverAmount: result.rolloverAmount,
+    startingNow: false, // Will start after nextRoundIn
+    nextRoundIn: result.nextRoundIn,
+    message: 'New round starting soon! Mining will resume.',
+  });
+  
+  // Also broadcast to OTHER mines for global activity feed
+  broadcastToAllExceptMine(mineId, 'game_event', {
+    type: 'timeout_winner',
+    mineId,
+    mineName: result.mineName,
+    targetMine: result.mineName,
+    targetResource: result.resource,
+    resource: result.resource,
+    winner: result.winner,
+    finderShare: result.finderShare,
+    rolloverAmount: result.rolloverAmount,
+  });
+  
+  console.log(`[WS] 📡 FALLBACK: All timeout broadcasts complete for ${mineId}`);
 }
 
 // Track last known hashrate and recalculation time per mine for dynamic difficulty

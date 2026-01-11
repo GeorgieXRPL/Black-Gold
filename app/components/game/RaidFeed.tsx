@@ -9,7 +9,7 @@ import { RESOURCE_COLORS, ResourceType } from '../../lib/mines';
 
 interface RaidEvent {
   id: string;
-  type: 'raid_started' | 'raid_won' | 'raid_lost' | 'discovery_found' | 'jackpot' | 'vault_payout' | 'spoils_distributed';
+  type: 'raid_started' | 'raid_won' | 'raid_lost' | 'discovery_found' | 'timeout_winner' | 'jackpot' | 'vault_payout' | 'spoils_distributed';
   sourceMine?: string;
   targetMine?: string;
   sourceResource?: ResourceType;
@@ -19,9 +19,12 @@ interface RaidEvent {
   reward?: number;
   finderShare?: number;
   vaultShare?: number;
+  rolloverAmount?: number;
   discoveryName?: string;
   spoilsAmount?: number;
   burnedAmount?: number;
+  mineName?: string;
+  resource?: ResourceType;
   timestamp: Date;
 }
 
@@ -61,6 +64,8 @@ function EventIcon({ type, resource }: { type: RaidEvent['type']; resource?: Res
       };
       return <span className={iconClass}>{resource ? emojis[resource] : '⛏️'}</span>;
     }
+    case 'timeout_winner':
+      return <span className={iconClass}>⏰</span>;
     case 'jackpot':
       return <span className={iconClass}>🎰</span>;
     case 'vault_payout':
@@ -154,6 +159,31 @@ function EventMessage({ event }: { event: RaidEvent }) {
           <span style={{ color: targetColor }} className="font-semibold">{event.targetMine}</span>
         </div>
       );
+    
+    case 'timeout_winner': {
+      const mineColor = event.resource ? RESOURCE_COLORS[event.resource].glow : targetColor;
+      return (
+        <div className="text-sm">
+          <span className="text-amber-400 font-semibold">⏰ Round timeout</span>
+          <span className="text-coal-300"> at </span>
+          <span style={{ color: mineColor }} className="font-semibold">{event.mineName || event.targetMine}</span>
+          {event.winner ? (
+            <>
+              <span className="text-coal-300"> - closest hash: </span>
+              <span className="text-white font-mono">{truncateAddress(event.winner)}</span>
+              {event.finderShare && (
+                <span className="text-amber-400"> (+{event.finderShare.toFixed(0)})</span>
+              )}
+            </>
+          ) : (
+            <span className="text-coal-400"> - no qualified winner</span>
+          )}
+          {event.rolloverAmount && event.rolloverAmount > 0 && (
+            <span className="text-purple-400"> 🔄+{event.rolloverAmount.toFixed(0)} rollover</span>
+          )}
+        </div>
+      );
+    }
     
     default:
       return null;

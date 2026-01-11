@@ -134,12 +134,30 @@ export interface PoolState {
   rolloverAmount: number;
 }
 
+/** Timeout winner result structure */
+export interface TimeoutResult {
+  mineId: string;
+  mineName: string;
+  resource: string;
+  winner: string | null;
+  winnerHash?: string;
+  totalReward: number;
+  finderShare: number;
+  vaultShare: number;
+  rolloverAmount: number;
+  participantCount: number;
+  shares: MinerShare[];
+  nextRoundIn: number;
+}
+
 /**
  * Event handlers that can be registered with the pool manager
  */
 export interface PoolEventHandlers {
   /** Called when a discovery is found */
   onDiscoveryFound?: (result: BarrelResult) => void | Promise<void>;
+  /** Called when a timeout winner is determined */
+  onTimeoutWinner?: (result: TimeoutResult) => void | Promise<void>;
   /** Called when a miner connects */
   onMinerConnect?: (miner: Miner) => void;
   /** Called when a miner disconnects */
@@ -1337,9 +1355,9 @@ export class PoolManager {
       timestamp: Date.now(),
     };
     
-    // Broadcast timeout winner
-    this.broadcastMessage('timeout_winner', {
-      mineId: this.mineId,
+    // Build timeout result for callbacks
+    const timeoutResultPayload: TimeoutResult = {
+      mineId: this.mineId || '',
       mineName: this.getMineName(),
       resource: this.resourceType,
       winner: winner.walletAddress,
@@ -1351,7 +1369,15 @@ export class PoolManager {
       participantCount: this.state.bestHashes.size,
       shares: shares.slice(0, 10), // Top 10 for UI
       nextRoundIn: POOL_CONFIG.ANNOUNCEMENT_DELAY_MS,
-    });
+    };
+    
+    // Broadcast timeout winner
+    this.broadcastMessage('timeout_winner', timeoutResultPayload);
+    
+    // Call event handler for fallback broadcast
+    if (this.eventHandlers.onTimeoutWinner) {
+      await this.eventHandlers.onTimeoutWinner(timeoutResultPayload);
+    }
     
     // Update rollover for next round
     this.state.rolloverAmount = rolloverShare;
