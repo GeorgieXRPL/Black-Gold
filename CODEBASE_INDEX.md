@@ -1,14 +1,48 @@
-# Black Gold v3.1.3 - Codebase Index
+# Black Gold v3.1.4 - Codebase Index
 
 > Complete file-by-file documentation for the Black Gold Interactive Mining Globe platform
 
 **Last Updated**: January 11, 2026  
-**Version**: 3.1.3 (Timeout Winner Fix)  
+**Version**: 3.1.4 (Miner Registration Race Condition Fix)  
 **Total Files**: 80+ TypeScript/TSX/JS files
 
 ---
 
-## 📋 Recent Changes (v3.1.3)
+## 📋 Recent Changes (v3.1.4)
+
+### Critical Race Condition Fix - Miners Disappearing from state.miners
+
+This was the ROOT CAUSE of all broadcast failures - `state.miners` was being emptied due to a race condition!
+
+#### The Bug
+When a miner reconnects (same wallet), the following race occurred:
+1. `handleConnect` finds existing entry, calls `existingMiner.ws.close()`
+2. `handleConnect` deletes old entry and adds new entry to `state.miners`
+3. Old WebSocket close event fires asynchronously
+4. `handleClose` calls `poolManager.handleDisconnect(walletAddress)`
+5. `handleDisconnect` deletes the miner entry - **but it deleted the NEW entry!**
+
+This caused `state.miners` to be empty, which broke ALL broadcasts (discovery_pending, discovery_found, timeout_winner, round_restart, etc.).
+
+#### The Fix
+- **`server/pool/manager.ts`** - `handleDisconnect` now accepts optional `ws` parameter:
+  - If WebSocket is provided, only disconnects if it matches the current entry
+  - Stale disconnect events (from old connections) are ignored
+  - Added log message: "Ignoring stale disconnect - WS mismatch (new connection active)"
+
+- **`server/index.ts`** - `handleClose` passes the closing WebSocket:
+  - `poolManager.handleDisconnect(walletAddress, ws)`
+  - Prevents the race condition
+
+#### Diagnostic Logging Added
+- `handleConnect` now logs:
+  - Miners count BEFORE and AFTER adding
+  - Verification that miner was actually added
+  - All registered miners with WebSocket states
+
+---
+
+## 📋 Previous Changes (v3.1.3)
 
 ### Timeout Winner Popup & Activity Feed Fix
 
