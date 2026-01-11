@@ -1150,7 +1150,9 @@ function handleClose(ws: WebSocket, clientInfo: ClientConnection): void {
 
     if (previousMineId) {
       const poolManager = minePoolManagers.get(previousMineId);
-      poolManager?.handleDisconnect(clientInfo.walletAddress);
+      // Pass the WebSocket to handleDisconnect to prevent race conditions
+      // when a miner reconnects and the old WS close event fires after the new connection
+      poolManager?.handleDisconnect(clientInfo.walletAddress, ws);
       
       // Broadcast miner_left to remaining miners at the mine
       const mine = registry.getMine(previousMineId);

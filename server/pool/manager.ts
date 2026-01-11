@@ -323,15 +323,22 @@ export class PoolManager {
     ip: string
   ): boolean {
     const { walletAddress, cores } = payload;
+    
+    console.log(`[PoolManager] ========== HANDLE_CONNECT START ==========`);
+    console.log(`[PoolManager] Mine: ${this.mineId}, Wallet: ${walletAddress.slice(0, 8)}...`);
+    console.log(`[PoolManager] Current miners BEFORE add: ${this.state.miners.size}`);
 
     // Check IP tracking for sybil detection
     if (!this.checkIPLimit(ip, walletAddress)) {
+      console.log(`[PoolManager] ❌ IP limit check FAILED for ${walletAddress.slice(0, 8)}`);
       this.sendError(ws, 'RATE_LIMIT', 'Too many connections from this IP');
       return false;
     }
+    console.log(`[PoolManager] ✅ IP limit check passed`);
 
     // Check if wallet is already connected
     if (this.state.miners.has(walletAddress)) {
+      console.log(`[PoolManager] Wallet already connected, replacing connection`);
       const existingMiner = this.state.miners.get(walletAddress)!;
       existingMiner.ws.close(1000, 'New connection from same wallet');
       this.state.miners.delete(walletAddress);
@@ -357,6 +364,15 @@ export class PoolManager {
     };
 
     this.state.miners.set(walletAddress, miner);
+    console.log(`[PoolManager] ✅ Miner ADDED to state.miners`);
+    console.log(`[PoolManager] Current miners AFTER add: ${this.state.miners.size}`);
+    
+    // Verify the miner was actually added
+    if (this.state.miners.has(walletAddress)) {
+      console.log(`[PoolManager] ✅ VERIFIED: ${walletAddress.slice(0, 8)}... IS in state.miners`);
+    } else {
+      console.error(`[PoolManager] ❌ CRITICAL: ${walletAddress.slice(0, 8)}... NOT in state.miners after set!`);
+    }
 
     // Update IP tracker
     this.updateIPTracker(ip, walletAddress);
@@ -379,6 +395,8 @@ export class PoolManager {
 
     // Send initial work
     this.assignWork(walletAddress);
+    
+    console.log(`[PoolManager] ========== HANDLE_CONNECT COMPLETE ==========`);
 
     return true;
   }
@@ -386,10 +404,19 @@ export class PoolManager {
   /**
    * Handles miner disconnection
    * @param walletAddress - Disconnecting miner's wallet address
+   * @param ws - Optional WebSocket to verify (prevents race condition when reconnecting)
    */
-  public handleDisconnect(walletAddress: string): void {
+  public handleDisconnect(walletAddress: string, ws?: WebSocket): void {
     const miner = this.state.miners.get(walletAddress);
     if (!miner) return;
+
+    // If a specific WebSocket was provided, only disconnect if it matches
+    // This prevents race conditions when the same wallet reconnects:
+    // Old WS close event shouldn't remove the new connection
+    if (ws && miner.ws !== ws) {
+      console.log(`[PoolManager] Ignoring stale disconnect for ${walletAddress.slice(0, 8)} - WS mismatch (new connection active)`);
+      return;
+    }
 
     // Invalidate all active work for this miner
     for (const workId of miner.activeWorkIds) {
