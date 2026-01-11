@@ -12,7 +12,7 @@ export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'er
 /** Game event types */
 export interface GameEvent {
   id: string;
-  type: 'raid_started' | 'raid_won' | 'raid_lost' | 'discovery_found' | 'discovery_pending' | 'jackpot' | 'vault_payout' | 'spoils_distributed' | 'round_status' | 'timeout_winner' | 'rollover_update' | 'best_hash_update';
+  type: 'raid_started' | 'raid_won' | 'raid_lost' | 'discovery_found' | 'discovery_pending' | 'jackpot' | 'vault_payout' | 'spoils_distributed' | 'round_status' | 'timeout_winner' | 'rollover_update' | 'best_hash_update' | 'round_restart';
   sourceMine?: string;
   targetMine?: string;
   sourceResource?: ResourceType;
@@ -242,6 +242,47 @@ export function useGameSocket({
           if (onEvent) {
             onEvent({
               id: Date.now().toString(),
+              ...data.payload,
+              timestamp: new Date(),
+            });
+          }
+          break;
+
+        case 'round_status':
+          // Round status update for timeout system
+          if (onEvent) {
+            onEvent({
+              id: `round_status_${Date.now()}`,
+              type: 'round_status',
+              ...data.payload,
+              timestamp: new Date(),
+            });
+          }
+          break;
+
+        case 'timeout_winner':
+          // Timeout winner announcement
+          console.log('[WS] Timeout winner:', data.payload);
+          if (onEvent) {
+            onEvent({
+              id: `timeout_${Date.now()}`,
+              type: 'timeout_winner',
+              ...data.payload,
+              targetMine: data.payload.mineName,
+              targetResource: data.payload.resource,
+              winner: data.payload.winner,
+              timestamp: new Date(),
+            });
+          }
+          break;
+
+        case 'round_restart':
+          // Round is restarting after discovery/timeout
+          console.log('[WS] Round restart:', data.payload);
+          if (onEvent) {
+            onEvent({
+              id: `round_restart_${Date.now()}`,
+              type: 'round_restart',
               ...data.payload,
               timestamp: new Date(),
             });

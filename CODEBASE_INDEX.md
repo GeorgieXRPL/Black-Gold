@@ -1,14 +1,61 @@
-# Black Gold v3.1.0 - Codebase Index
+# Black Gold v3.1.1 - Codebase Index
 
 > Complete file-by-file documentation for the Black Gold Interactive Mining Globe platform
 
 **Last Updated**: January 11, 2026  
-**Version**: 3.1.0 (Hybrid Timeout Mining System)  
+**Version**: 3.1.1 (Discovery Flow Bug Fixes)  
 **Total Files**: 80+ TypeScript/TSX/JS files
 
 ---
 
-## 📋 Recent Changes (v3.1.0)
+## 📋 Recent Changes (v3.1.1)
+
+### Discovery Flow Bug Fixes
+
+Fixes issues where discovery winners didn't auto-restart mining, popups weren't showing consistently, and activity feed was hidden during mining.
+
+#### Activity Feed Always Visible
+- **`app/page.tsx`** - Show both MiningStatus AND RaidFeed:
+  - Changed from either/or to stacked layout
+  - MiningStatus shows on top when mining with timeout
+  - RaidFeed always visible (condensed to 4 items during mining)
+  - **Fixes**: Activity feed now visible during mining
+
+#### Discovery Popup Debug Logging
+- **`app/page.tsx`** - Enhanced logging for discovery events:
+  - Logs full event data when `discovery_found` received
+  - Logs popup state changes and auto-close timing
+  - Helps debug why popup might not show on some devices
+
+#### Round Restart Broadcast
+- **`server/pool/manager.ts`** - Added `round_restart` message:
+  - Broadcast after discovery announcement before work assignment
+  - Also broadcast from `startNewRound()` for timeout scenarios
+  - Includes mine info, resource type, and rollover amount
+
+- **`server/types.ts`** - Added `round_restart` message type
+
+- **`app/hooks/useGameSocket.ts`** - Added handlers:
+  - `round_status` - Processes timeout timer updates
+  - `timeout_winner` - Handles timeout winner announcements
+  - `round_restart` - Signals mining is resuming
+  - All properly forwarded to `onEvent` callback
+
+#### Client Round Restart Handler
+- **`app/page.tsx`** - Handle `round_restart` event:
+  - Closes any open discovery/timeout popups
+  - Clears pending discovery overlay
+  - Mining auto-continues when new work arrives
+
+#### Round Status Update Fix
+- **`app/page.tsx`** - Fixed round status updates:
+  - Changed to update for `homeMineId` instead of `selectedMineId`
+  - Ensures MiningStatus shows correct timer for current mine
+  - Added `homeMineId` to callback dependencies
+
+---
+
+## 📋 Previous Changes (v3.1.0)
 
 ### Hybrid Timeout Mining System
 

@@ -965,6 +965,16 @@ export class PoolManager {
       }
     }
 
+    // Broadcast round restart to all miners so they know mining is resuming
+    this.broadcastMessage('round_restart', {
+      mineId: this.mineId,
+      mineName: this.getMineName(),
+      resource: this.resourceType,
+      discoveryNumber: result.discoveryNumber + 1,
+      startingNow: true,
+      message: 'New round starting! Mining resumed.',
+    });
+
     // Resume mining - assign new work to all miners with updated difficulty
     for (const miner of this.state.miners.values()) {
       this.assignWork(miner.walletAddress, this.mineId || undefined, newTarget);
@@ -1393,6 +1403,16 @@ export class PoolManager {
         hashrate: miner.hashrate,
       };
     }
+    
+    // Broadcast round restart to all miners
+    this.broadcastMessage('round_restart', {
+      mineId: this.mineId,
+      mineName: this.getMineName(),
+      resource: this.resourceType,
+      rolloverAmount: this.state.rolloverAmount,
+      startingNow: true,
+      message: 'New round starting! Mining resumed.',
+    });
     
     // Generate new work for all miners
     const registry = getMineRegistry();

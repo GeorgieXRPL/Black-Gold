@@ -157,7 +157,8 @@ export type WSMessageType =
   | 'round_status'       // Periodic update with time remaining, leaderboard
   | 'best_hash_update'   // Miner's best hash improved
   | 'timeout_winner'     // Round ended by timeout, closest hash won
-  | 'rollover_update';   // Rollover jackpot amount changed
+  | 'rollover_update'    // Rollover jackpot amount changed
+  | 'round_restart';     // Mining round restarting, new work being assigned
 
 /** WebSocket message envelope */
 export interface WSMessage<T = unknown> {

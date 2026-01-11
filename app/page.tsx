@@ -205,6 +205,8 @@ export default function Home() {
     
     // Handle discovery found (winner revealed)
     if (event.type === 'discovery_found') {
+      console.log('[Game] 🎉 DISCOVERY_FOUND event received:', JSON.stringify(event, null, 2));
+      
       const data = event as unknown as {
         discoveryNumber: number;
         discoveryName?: string;
@@ -225,6 +227,14 @@ export default function Home() {
       const mine = getMineById(data.mineId);
       const isWinner = data.winner === walletState.walletAddress;
       
+      console.log('[Game] Discovery popup data:', {
+        isWinner,
+        winner: data.winner,
+        myWallet: walletState.walletAddress,
+        mineId: data.mineId,
+        mineName: data.mineName || mine?.name,
+      });
+      
       setDiscoveryPopup({
         isOpen: true,
         isWinner,
@@ -240,10 +250,13 @@ export default function Home() {
         },
       });
       
+      console.log('[Game] Discovery popup state SET to isOpen: true');
+      
       // Auto-close popup for everyone after a delay - mining continues automatically
       // Winners get 8 seconds to celebrate, non-winners 5 seconds
       const closeDelay = isWinner ? 8000 : 5000;
       setTimeout(() => {
+        console.log('[Game] Auto-closing discovery popup');
         setDiscoveryPopup(prev => ({ ...prev, isOpen: false }));
       }, closeDelay);
     }
@@ -259,8 +272,8 @@ export default function Home() {
         leaderboard: Array<{ wallet: string; distance: string; submissions: number }>;
       };
       
-      // Only update if this is for our current mine
-      if (data.mineId === selectedMineId) {
+      // Update if this is for our HOME mine (where we're mining)
+      if (data.mineId === homeMineId) {
         setRoundStatus({
           roundStartTime: data.roundStartTime,
           maxTime: data.maxTime,
@@ -303,6 +316,19 @@ export default function Home() {
       }
     }
     
+    // Handle round restart (mining resuming after discovery/timeout)
+    if (event.type === 'round_restart') {
+      console.log('[Game] 🔄 ROUND_RESTART event received:', event);
+      
+      // Close any open popups
+      setDiscoveryPopup(prev => ({ ...prev, isOpen: false }));
+      setTimeoutPopup(prev => ({ ...prev, isOpen: false }));
+      setPendingDiscovery(null);
+      
+      // Mining will auto-continue when new work arrives (handled in handleWorkReceived)
+      console.log('[Game] Round restarting, new work should arrive shortly...');
+    }
+    
     // Only add relevant events to the activity feed
     // Filter to discoveries and raid events only - not intermediate mining updates
     const feedEventTypes = [
@@ -317,34 +343,39 @@ export default function Home() {
     ];
     
     if (feedEventTypes.includes(event.type)) {
+      console.log('[Game] Adding to activity feed:', event.type, event.id);
       setRaidEvents(prev => {
         // Deduplicate by ID to prevent duplicate notifications
         const exists = prev.some(e => e.id === event.id);
-        if (exists) return prev;
+        if (exists) {
+          console.log('[Game] Event already in feed, skipping duplicate:', event.id);
+          return prev;
+        }
         
         return [event as typeof prev[number], ...prev].slice(0, 50);
       });
     }
-  }, [isMining, mining, walletState.walletAddress, selectedMineId]);
+  }, [isMining, mining, walletState.walletAddress, selectedMineId, homeMineId]);
 
   // Handle work unit received from server
   const handleWorkReceived = useCallback((work: WorkUnit) => {
-    console.log('[Game] Work received:', {
+    console.log('[Game] 📦 Work received:', {
       id: work.id,
       discoveryNumber: work.discoveryNumber,
       mineId: work.mineId,
       target: work.target?.slice(0, 16) + '...',
-      nonceRange: `[${work.nonceStart}, ${work.nonceEnd})`
+      nonceRange: `[${work.nonceStart}, ${work.nonceEnd})`,
+      isMiningRef: isMiningRef.current,
     });
     currentWorkRef.current = work;
     
     // If we're supposed to be mining (user hasn't clicked Stop), start with new work
     // This handles both normal mining and auto-resume after discovery
     if (isMiningRef.current) {
-      console.log('[Game] Mining is active, starting work (auto-continue)...');
+      console.log('[Game] ✅ Mining is active (isMiningRef=true), starting work (auto-continue)...');
       startMiningRef.current(work);
     } else {
-      console.log('[Game] Mining not active, work stored for later');
+      console.log('[Game] ⏸️ Mining not active (isMiningRef=false), work stored for later');
     }
   }, []);
 
@@ -857,8 +888,8 @@ export default function Home() {
               )}
             </div>
 
-            {/* Panel 3: Mining Status OR Live Activity Feed */}
-            <div className="order-3">
+            {/* Panel 3: Mining Status AND Live Activity Feed */}
+            <div className="order-3 space-y-4">
               {/* Show Mining Status when actively mining with timeout */}
               {isMining && homeMine && roundStatus.maxTime && (
                 <MiningStatus
@@ -877,10 +908,11 @@ export default function Home() {
                 />
               )}
               
-              {/* Show Activity Feed when not mining or no timeout */}
-              {(!isMining || !roundStatus.maxTime) && (
-                <RaidFeed events={raidEvents} maxEvents={8} />
-              )}
+              {/* Activity Feed - ALWAYS visible, condensed when mining */}
+              <RaidFeed 
+                events={raidEvents} 
+                maxEvents={isMining && roundStatus.maxTime ? 4 : 8} 
+              />
             </div>
           </div>
         </div>
