@@ -414,8 +414,15 @@ export function useMining(options: UseMiningOptions): UseMiningReturn {
       return;
     }
     
-    // Small delay to ensure workers have processed stop command
-    setTimeout(() => distributeWork(work), 10);
+    // Increased delay to ensure workers have fully processed stop command
+    // Also check if solution was found during the delay
+    setTimeout(() => {
+      if (solutionFoundRef.current) {
+        console.log('[Mining] Solution found during work switch, aborting distribution');
+        return;
+      }
+      distributeWork(work);
+    }, 50);
   }, [initWorkers, stopAllWorkers]);
 
   /**

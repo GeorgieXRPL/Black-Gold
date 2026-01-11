@@ -351,7 +351,45 @@ function handleJoinMine(
     walletPrefix: clientInfo.walletAddress!.slice(0, 8),
   });
 
-  console.log(`[WS] ${sanitizeForLog(clientInfo.walletAddress || '')} joined ${mine.definition.name}`);
+  // ALWAYS assign work to the miner who just joined
+  // This ensures they get work immediately when starting to mine
+  const target = registry.getMineTarget(payload.mineId);
+  poolManager.assignWork(clientInfo.walletAddress!, payload.mineId, target);
+
+  console.log(`[WS] ${sanitizeForLog(clientInfo.walletAddress || '')} joined ${mine.definition.name} (work assigned)`);
+}
+
+/**
+ * Handles explicit work request from client
+ * Called when client reconnects or needs new work after discovery
+ */
+function handleRequestWork(
+  ws: WebSocket,
+  clientInfo: ClientConnection
+): void {
+  if (!clientInfo.authenticated) {
+    sendError(ws, 'NOT_AUTHENTICATED', 'Must connect first');
+    return;
+  }
+
+  if (!clientInfo.currentMineId) {
+    sendError(ws, 'NOT_IN_MINE', 'Must join a mine first');
+    return;
+  }
+
+  const poolManager = minePoolManagers.get(clientInfo.currentMineId);
+  if (!poolManager) {
+    sendError(ws, 'INVALID_MINE', 'Mine pool not found');
+    return;
+  }
+
+  const registry = getMineRegistry();
+  const target = registry.getMineTarget(clientInfo.currentMineId);
+
+  console.log(`[WS] ${sanitizeForLog(clientInfo.walletAddress || '')} requested work for ${clientInfo.currentMineId}`);
+  
+  // Assign new work to the miner
+  poolManager.assignWork(clientInfo.walletAddress!, clientInfo.currentMineId, target);
 }
 
 // Import reward orchestrator for share-based distribution
@@ -910,11 +948,15 @@ async function handleMessage(
     return;
   }
 
-  // Rate limit check - exempt high-frequency message types
+  // Rate limit check - exempt high-frequency and essential message types
   // hashrate: sent every second per worker (3 workers = 180/min)
   // stats: informational queries
-  // join_mine: needs to work for reconnection
-  const RATE_LIMIT_EXEMPT_TYPES = ['hashrate', 'stats', 'join_mine'];
+  // join_mine: essential for getting work after reconnection
+  // leave_mine: cleanup, no abuse potential
+  // connect: authentication, essential for session
+  // set_home: user preference, low frequency
+  // request_work: essential for mining continuation
+  const RATE_LIMIT_EXEMPT_TYPES = ['hashrate', 'stats', 'join_mine', 'leave_mine', 'connect', 'set_home', 'request_work'];
   
   if (!RATE_LIMIT_EXEMPT_TYPES.includes(message.type)) {
     const rateLimitResult = rateLimiter.check(clientInfo.ip, message.type);
@@ -977,6 +1019,10 @@ async function handleMessage(
 
     case 'get_activity':
       await handleGetActivity(ws);
+      break;
+
+    case 'request_work':
+      handleRequestWork(ws, clientInfo);
       break;
 
     default:

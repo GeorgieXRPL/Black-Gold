@@ -152,7 +152,8 @@ export type WSMessageType =
   | 'syndicate_raid'
   | 'syndicate_update'
   | 'miner_joined'
-  | 'miner_left';
+  | 'miner_left'
+  | 'request_work';
 
 /** WebSocket message envelope */
 export interface WSMessage<T = unknown> {

@@ -74,6 +74,7 @@ interface UseGameSocketOptions {
   url: string;
   walletAddress: string | null;
   cores?: number;
+  isMining?: boolean;  // Pass current mining state for reconnect logic
   onEvent?: (event: GameEvent) => void;
   onRaidResult?: (result: RaidResult) => void;
   onWork?: (work: WorkUnit) => void;
@@ -97,12 +98,14 @@ interface UseGameSocketReturn {
   rallyDefense: (mineId: string, tokenCost: number) => void;
   sendHashrate: (hashrate: number) => void;
   submitProof: (workUnitId: string, nonce: number, hash: string) => void;
+  requestWork: () => void;  // Explicitly request new work from server
 }
 
 export function useGameSocket({
   url,
   walletAddress,
   cores = 1,
+  isMining = false,
   onEvent,
   onRaidResult,
   onWork,
@@ -116,6 +119,12 @@ export function useGameSocket({
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const currentMineIdRef = useRef<string | null>(null);
+  const isMiningRef = useRef<boolean>(isMining);
+  
+  // Keep isMiningRef in sync with prop
+  useEffect(() => {
+    isMiningRef.current = isMining;
+  }, [isMining]);
 
   const send = useCallback((type: string, payload: object) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -262,6 +271,15 @@ export function useGameSocket({
           console.log('[Game] Reconnected, re-joining mine:', currentMineIdRef.current);
           setTimeout(() => {
             send('join_mine', { mineId: currentMineIdRef.current });
+            
+            // If we were mining, explicitly request new work
+            // This ensures mining continues after reconnection
+            if (isMiningRef.current) {
+              console.log('[Game] Was mining, requesting work after reconnect...');
+              setTimeout(() => {
+                send('request_work', {});
+              }, 100); // Wait for join_mine to be processed
+            }
           }, 100); // Small delay to ensure connect is processed first
         }
       };
@@ -344,6 +362,13 @@ export function useGameSocket({
     }
   }, [send, walletAddress]);
 
+  const requestWork = useCallback(() => {
+    if (currentMineIdRef.current) {
+      console.log('[Game] Requesting work from server...');
+      send('request_work', {});
+    }
+  }, [send]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -367,5 +392,6 @@ export function useGameSocket({
     rallyDefense,
     sendHashrate,
     submitProof,
+    requestWork,
   };
 }

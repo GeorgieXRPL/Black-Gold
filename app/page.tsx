@@ -272,6 +272,7 @@ export default function Home() {
     url: wsUrl,
     walletAddress: walletState.walletAddress,
     cores: typeof navigator !== 'undefined' ? (navigator.hardwareConcurrency || 4) : 4,
+    isMining,  // Pass mining state for reconnection logic
     onEvent: handleGameEvent,
     onWork: handleWorkReceived,
     onHomeMineRestored: handleHomeMineRestored,

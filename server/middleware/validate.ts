@@ -121,6 +121,11 @@ export const GetActivitySchema = z.object({
   type: z.literal('get_activity'),
 });
 
+/** Request work message (no payload required, uses current mine) */
+export const RequestWorkSchema = z.object({
+  type: z.literal('request_work'),
+});
+
 // ============================================================================
 // Union of all message types
 // ============================================================================
@@ -139,6 +144,7 @@ export const WSMessageSchema = z.discriminatedUnion('type', [
   InviteSyndicateSchema,
   StatsRequestSchema,
   GetActivitySchema,
+  RequestWorkSchema,
 ]);
 
 export type ValidatedWSMessage = z.infer<typeof WSMessageSchema>;
