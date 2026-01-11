@@ -1160,6 +1160,17 @@ export async function startServer(): Promise<WebSocketServer> {
     broadcastToAll('stats', getGlobalStats());
   }, 10000);
 
+  // Broadcast round status every 5 seconds (for timeout system)
+  setInterval(() => {
+    minePoolManagers.forEach((pm, mineId) => {
+      const roundStatus = pm.getRoundStatus();
+      broadcastToMine(mineId, 'round_status', {
+        mineId,
+        ...roundStatus,
+      });
+    });
+  }, 5000);
+
   // Ping clients
   setInterval(() => {
     wss.clients.forEach((ws) => {

@@ -36,7 +36,7 @@ import {
   difficultyToTarget,
   calculateScaledDifficulty,
 } from './difficulty';
-import { POOL_CONFIG, RATE_LIMIT_CONFIG } from '../../config/constants';
+import { POOL_CONFIG, RATE_LIMIT_CONFIG, MINE_TIMING, TIMEOUT_REWARDS, MineTimingConfig, ResourceType } from '../../config/constants';
 import { getMineRegistry } from '../game/mine-registry';
 
 /**
@@ -74,6 +74,24 @@ export interface MinerShare {
 }
 
 /**
+ * Best hash tracking for timeout/closest-hash system
+ */
+export interface MinerBestHash {
+  /** The best hash found by this miner */
+  hash: string;
+  /** Nonce that produced this hash */
+  nonce: number;
+  /** Distance from target (lower = better, as bigint for precision) */
+  distance: bigint;
+  /** When this best hash was submitted */
+  submittedAt: number;
+  /** Total valid submissions in this round */
+  submissionCount: number;
+  /** When miner first joined this round */
+  firstSeenAt: number;
+}
+
+/**
  * Pending discovery awaiting announcement
  */
 export interface PendingDiscovery {
@@ -108,6 +126,12 @@ export interface PoolState {
   discoveryHistory: BarrelResult[];
   /** Start of current mining period (for share calculation) */
   periodStartTime: number;
+  /** Best hash tracking per miner for timeout system */
+  bestHashes: Map<string, MinerBestHash>;
+  /** When current round started (for timeout calculation) */
+  roundStartTime: number;
+  /** Accumulated rollover from timed-out rounds */
+  rolloverAmount: number;
 }
 
 /**
@@ -134,7 +158,10 @@ export class PoolManager {
   private eventHandlers: PoolEventHandlers;
   private cleanupInterval: ReturnType<typeof setInterval> | null = null;
   private statsInterval: ReturnType<typeof setInterval> | null = null;
+  private timeoutInterval: ReturnType<typeof setInterval> | null = null;
   private mineId: string | null = null;
+  private mineConfig: MineTimingConfig;
+  private resourceType: ResourceType;
 
   /**
    * Creates a new PoolManager instance
@@ -143,6 +170,10 @@ export class PoolManager {
    */
   constructor(eventHandlers: PoolEventHandlers = {}, mineId?: string) {
     this.mineId = mineId || null;
+    
+    // Determine resource type from mine ID (e.g., "oil-ghawar" -> "oil")
+    this.resourceType = this.getResourceTypeFromMineId(mineId);
+    this.mineConfig = MINE_TIMING[this.resourceType];
     
     // Get mine-specific difficulty if mine ID provided
     let difficultyState: DifficultyState;
@@ -153,9 +184,10 @@ export class PoolManager {
         // Use mine's target discovery time for difficulty
         difficultyState = createDifficultyStateForMine(mine.definition.baseDiscoveryTimeMs);
         console.log(
-          `[PoolManager] Created for mine ${mineId}: ` +
+          `[PoolManager] Created for mine ${mineId} (${this.resourceType}): ` +
           `difficulty=${difficultyState.current.toLocaleString()}, ` +
-          `target time=${mine.definition.baseDiscoveryTimeMs / 60000}min`
+          `target time=${this.mineConfig.targetTimeMs / 60000}min, ` +
+          `max time=${this.mineConfig.maxTimeMs ? this.mineConfig.maxTimeMs / 60000 + 'min' : 'unlimited'}`
         );
       } else {
         difficultyState = createDifficultyState();
@@ -164,6 +196,7 @@ export class PoolManager {
       difficultyState = createDifficultyState();
     }
     
+    const now = Date.now();
     this.state = {
       miners: new Map(),
       workTracker: createWorkTracker(),
@@ -174,15 +207,33 @@ export class PoolManager {
       totalDiscoveries: 0,
       totalRewardsDistributed: 0,
       discoveryHistory: [],
-      periodStartTime: Date.now(),
+      periodStartTime: now,
+      bestHashes: new Map(),
+      roundStartTime: now,
+      rolloverAmount: 0,
     };
     this.eventHandlers = eventHandlers;
+  }
+
+  /**
+   * Extract resource type from mine ID
+   * @param mineId - Mine ID like "oil-ghawar" or "coal-appalachian"
+   * @returns Resource type
+   */
+  private getResourceTypeFromMineId(mineId?: string): ResourceType {
+    if (!mineId) return 'coal'; // Default
+    const prefix = mineId.split('-')[0];
+    if (prefix === 'coal' || prefix === 'gold' || prefix === 'oil' || prefix === 'silver') {
+      return prefix as ResourceType;
+    }
+    return 'coal'; // Default fallback
   }
 
   /**
    * Starts the pool manager background processes
    * - Work cleanup interval
    * - Stats broadcast interval
+   * - Round timeout checker (for timed mines)
    */
   public start(): void {
     console.log('[PoolManager] Starting pool manager');
@@ -196,6 +247,14 @@ export class PoolManager {
     this.statsInterval = setInterval(() => {
       this.broadcastStats();
     }, 10_000);
+
+    // Check for round timeout every second (only for mines with timeout)
+    if (this.mineConfig.hasTimeout) {
+      this.timeoutInterval = setInterval(() => {
+        this.checkRoundTimeout();
+      }, 1000);
+      console.log(`[PoolManager] Timeout checker enabled: max ${this.mineConfig.maxTimeMs! / 60000}min`);
+    }
 
     console.log('[PoolManager] Pool manager started');
   }
@@ -217,6 +276,11 @@ export class PoolManager {
     if (this.statsInterval) {
       clearInterval(this.statsInterval);
       this.statsInterval = null;
+    }
+
+    if (this.timeoutInterval) {
+      clearInterval(this.timeoutInterval);
+      this.timeoutInterval = null;
     }
 
     // Close all miner connections
@@ -404,10 +468,16 @@ export class PoolManager {
       return false;
     }
 
-    // Validate hash meets difficulty target
-    if (!this.validateHash(hash, workUnit.target)) {
-      console.log(`[PoolManager] Hash does not meet target`);
-      this.incrementFailedSubmission(walletAddress);
+    // Calculate hash distance for best hash tracking (timeout system)
+    const hashDistance = this.calculateHashDistance(hash, workUnit.target);
+    this.updateBestHash(walletAddress, hash, nonce, hashDistance);
+
+    // Check if hash meets difficulty target (actual solution)
+    const meetsTarget = this.validateHash(hash, workUnit.target);
+    
+    if (!meetsTarget) {
+      // Hash doesn't meet target, but we've tracked it for closest-hash fallback
+      // This is not a failure - just not a winning solution yet
       return false;
     }
 
@@ -422,6 +492,82 @@ export class PoolManager {
     await this.handleDiscoveryFound(walletAddress, hash, nonce, workUnit);
 
     return true;
+  }
+
+  /**
+   * Calculate the distance between a hash and the target
+   * Lower distance = closer to winning (better)
+   * @param hash - The submitted hash
+   * @param target - The difficulty target
+   * @returns Distance as bigint (hash - target, or 0 if hash <= target)
+   */
+  private calculateHashDistance(hash: string, target: string): bigint {
+    const hashBigInt = BigInt('0x' + hash);
+    const targetBigInt = BigInt('0x' + target);
+    
+    // If hash is below target (winning), distance is 0
+    if (hashBigInt <= targetBigInt) {
+      return BigInt(0);
+    }
+    
+    // Otherwise, distance is how far above the target
+    return hashBigInt - targetBigInt;
+  }
+
+  /**
+   * Update a miner's best hash if this submission is better
+   * @param walletAddress - Miner's wallet
+   * @param hash - Submitted hash
+   * @param nonce - Nonce used
+   * @param distance - Distance from target
+   */
+  private updateBestHash(walletAddress: string, hash: string, nonce: number, distance: bigint): void {
+    const now = Date.now();
+    const existing = this.state.bestHashes.get(walletAddress);
+    
+    if (!existing) {
+      // First submission from this miner this round
+      this.state.bestHashes.set(walletAddress, {
+        hash,
+        nonce,
+        distance,
+        submittedAt: now,
+        submissionCount: 1,
+        firstSeenAt: now,
+      });
+      return;
+    }
+    
+    // Increment submission count
+    existing.submissionCount++;
+    
+    // Check if we're in cooldown period (last 30 seconds)
+    if (this.mineConfig.hasTimeout && this.mineConfig.maxTimeMs) {
+      const elapsed = now - this.state.roundStartTime;
+      const remaining = this.mineConfig.maxTimeMs - elapsed;
+      
+      if (remaining <= TIMEOUT_REWARDS.COOLDOWN_SECONDS * 1000) {
+        // In cooldown - check if improvement is within allowed limit
+        if (existing.distance > BigInt(0)) {
+          const maxImprovement = existing.distance * BigInt(Math.floor(TIMEOUT_REWARDS.COOLDOWN_MAX_IMPROVEMENT * 100)) / BigInt(100);
+          const actualImprovement = existing.distance - distance;
+          
+          if (actualImprovement > maxImprovement) {
+            // Improvement too large in cooldown, cap it
+            console.log(`[PoolManager] Cooldown cap: ${walletAddress} improvement capped`);
+            return;
+          }
+        }
+      }
+    }
+    
+    // Update if this hash is better (lower distance)
+    if (distance < existing.distance) {
+      existing.hash = hash;
+      existing.nonce = nonce;
+      existing.distance = distance;
+      existing.submittedAt = now;
+    }
   }
 
   /**
@@ -1039,5 +1185,274 @@ export class PoolManager {
     if (this.eventHandlers.onStatsUpdate) {
       this.eventHandlers.onStatsUpdate(stats);
     }
+  }
+
+  // =========================================================================
+  // TIMEOUT SYSTEM METHODS
+  // =========================================================================
+
+  /**
+   * Check if the round has timed out (called every second)
+   * Only applies to mines with hasTimeout = true
+   */
+  private checkRoundTimeout(): void {
+    // Skip if no timeout configured or pending discovery
+    if (!this.mineConfig.hasTimeout || !this.mineConfig.maxTimeMs) return;
+    if (this.state.pendingDiscovery) return;
+    
+    const elapsed = Date.now() - this.state.roundStartTime;
+    
+    if (elapsed >= this.mineConfig.maxTimeMs) {
+      console.log(`[PoolManager] Round timeout reached for ${this.mineId} after ${elapsed / 1000}s`);
+      this.handleTimeoutWinner();
+    }
+  }
+
+  /**
+   * Handle round timeout - find closest hash winner
+   */
+  private async handleTimeoutWinner(): Promise<void> {
+    const winner = this.findClosestHashWinner();
+    
+    if (!winner) {
+      // No qualified winner - rollover everything except vault
+      console.log(`[PoolManager] No qualified winner for timeout, rolling over`);
+      const baseReward = this.calculateBaseReward();
+      const totalReward = baseReward + this.state.rolloverAmount;
+      
+      // 70% rolls over (finder share), 30% to vault
+      this.state.rolloverAmount += totalReward * TIMEOUT_REWARDS.SOLUTION_FINDER_SHARE;
+      
+      // Broadcast timeout with no winner
+      this.broadcastMessage('timeout_winner', {
+        mineId: this.mineId,
+        winner: null,
+        reason: 'No qualified miners',
+        rolloverAmount: this.state.rolloverAmount,
+        nextRoundIn: POOL_CONFIG.ANNOUNCEMENT_DELAY_MS,
+      });
+      
+      // Start new round after delay
+      setTimeout(() => this.startNewRound(false), POOL_CONFIG.ANNOUNCEMENT_DELAY_MS);
+      return;
+    }
+    
+    // Calculate rewards for timeout scenario
+    const baseReward = this.calculateBaseReward();
+    const totalReward = baseReward + this.state.rolloverAmount;
+    
+    const finderShare = totalReward * TIMEOUT_REWARDS.TIMEOUT_FINDER_SHARE;
+    const vaultShare = totalReward * TIMEOUT_REWARDS.VAULT_SHARE;
+    const rolloverShare = totalReward * TIMEOUT_REWARDS.ROLLOVER_SHARE;
+    
+    // Finder bonus (10% of finder share for timeout)
+    const finderBonus = finderShare * TIMEOUT_REWARDS.TIMEOUT_FINDER_BONUS;
+    
+    console.log(
+      `[PoolManager] Timeout winner: ${winner.walletAddress} ` +
+      `(distance: ${winner.bestHash.distance}, submissions: ${winner.bestHash.submissionCount})`
+    );
+    
+    // Calculate shares for all participants
+    const shares = this.calculateMinerShares();
+    
+    // Create timeout result (similar to BarrelResult but for timeout)
+    const timeoutResult = {
+      type: 'timeout' as const,
+      mineId: this.mineId,
+      winner: winner.walletAddress,
+      winnerHash: winner.bestHash.hash,
+      totalReward,
+      finderShare,
+      finderBonus,
+      vaultShare,
+      rolloverShare,
+      shares,
+      timestamp: Date.now(),
+    };
+    
+    // Broadcast timeout winner
+    this.broadcastMessage('timeout_winner', {
+      mineId: this.mineId,
+      mineName: this.getMineName(),
+      resource: this.resourceType,
+      winner: winner.walletAddress,
+      winnerHash: winner.bestHash.hash.slice(0, 16) + '...',
+      totalReward,
+      finderShare,
+      vaultShare,
+      rolloverAmount: rolloverShare,
+      participantCount: this.state.bestHashes.size,
+      shares: shares.slice(0, 10), // Top 10 for UI
+      nextRoundIn: POOL_CONFIG.ANNOUNCEMENT_DELAY_MS,
+    });
+    
+    // Update rollover for next round
+    this.state.rolloverAmount = rolloverShare;
+    
+    // Distribute rewards (would integrate with reward orchestrator)
+    // For now, just log
+    console.log(`[PoolManager] Timeout rewards: finder=${finderShare}, vault=${vaultShare}, rollover=${rolloverShare}`);
+    
+    // Start new round after announcement delay
+    setTimeout(() => this.startNewRound(true), POOL_CONFIG.ANNOUNCEMENT_DELAY_MS);
+  }
+
+  /**
+   * Find the miner with the closest hash who qualifies
+   * @returns Winner info or null if no qualified miners
+   */
+  private findClosestHashWinner(): { walletAddress: string; bestHash: MinerBestHash } | null {
+    let winner: { walletAddress: string; bestHash: MinerBestHash } | null = null;
+    
+    for (const [walletAddress, bestHash] of this.state.bestHashes) {
+      // Check minimum participation requirements
+      if (!this.isQualifiedForClosest(bestHash)) {
+        continue;
+      }
+      
+      // Check if this is better than current winner
+      if (!winner || bestHash.distance < winner.bestHash.distance) {
+        winner = { walletAddress, bestHash };
+      }
+    }
+    
+    return winner;
+  }
+
+  /**
+   * Check if a miner qualifies for closest-hash win
+   * Must have minimum submissions and been in round for minimum time
+   */
+  private isQualifiedForClosest(bestHash: MinerBestHash): boolean {
+    // Check minimum submissions
+    if (bestHash.submissionCount < TIMEOUT_REWARDS.MIN_SUBMISSIONS) {
+      return false;
+    }
+    
+    // Check minimum time in round
+    const roundDuration = Date.now() - this.state.roundStartTime;
+    const timeInRound = Date.now() - bestHash.firstSeenAt;
+    const timePercent = timeInRound / roundDuration;
+    
+    if (timePercent < TIMEOUT_REWARDS.MIN_TIME_PERCENT) {
+      return false;
+    }
+    
+    return true;
+  }
+
+  /**
+   * Calculate base reward for the current round
+   * This would be based on mine configuration
+   */
+  private calculateBaseReward(): number {
+    // TODO: Get from mine configuration or token economics
+    // For now, use a placeholder based on resource type
+    const baseRewards: Record<ResourceType, number> = {
+      coal: 100,
+      silver: 200,
+      oil: 300,
+      gold: 500,
+    };
+    return baseRewards[this.resourceType] || 100;
+  }
+
+  /**
+   * Get the mine name for display
+   */
+  private getMineName(): string {
+    if (!this.mineId) return 'Unknown Mine';
+    const registry = getMineRegistry();
+    const mine = registry.getMine(this.mineId);
+    return mine?.definition.name || this.mineId;
+  }
+
+  /**
+   * Start a new mining round
+   * @param clearRollover - Whether to clear rollover (true if actual solution was found)
+   */
+  private startNewRound(keepRollover: boolean): void {
+    const now = Date.now();
+    
+    // Reset round state
+    this.state.roundStartTime = now;
+    this.state.bestHashes.clear();
+    this.state.periodStartTime = now;
+    
+    // Clear rollover if actual solution was found
+    if (!keepRollover) {
+      this.state.rolloverAmount = 0;
+    }
+    
+    // Reset miner contributions
+    for (const miner of this.state.miners.values()) {
+      miner.contribution = {
+        hashSeconds: 0,
+        lastUpdate: now,
+        hashrate: miner.hashrate,
+      };
+    }
+    
+    // Generate new work for all miners
+    const registry = getMineRegistry();
+    registry.recalculateMineDifficulty(this.mineId!);
+    const target = registry.getMineTarget(this.mineId!);
+    
+    for (const [walletAddress] of this.state.miners) {
+      this.assignWork(walletAddress, this.mineId!, target);
+    }
+    
+    console.log(
+      `[PoolManager] New round started for ${this.mineId} ` +
+      `(rollover: ${this.state.rolloverAmount}, miners: ${this.state.miners.size})`
+    );
+  }
+
+  /**
+   * Get round status for broadcasting to clients
+   */
+  public getRoundStatus(): {
+    roundStartTime: number;
+    maxTime: number | null;
+    timeRemaining: number | null;
+    rolloverAmount: number;
+    leaderboard: Array<{ wallet: string; distance: string; submissions: number }>;
+  } {
+    const elapsed = Date.now() - this.state.roundStartTime;
+    const timeRemaining = this.mineConfig.maxTimeMs 
+      ? Math.max(0, this.mineConfig.maxTimeMs - elapsed)
+      : null;
+    
+    // Build leaderboard (top 10 closest hashes)
+    const sorted = Array.from(this.state.bestHashes.entries())
+      .filter(([, bh]) => this.isQualifiedForClosest(bh))
+      .sort((a, b) => {
+        if (a[1].distance < b[1].distance) return -1;
+        if (a[1].distance > b[1].distance) return 1;
+        return 0;
+      })
+      .slice(0, 10);
+    
+    const leaderboard = sorted.map(([wallet, bh]) => ({
+      wallet: wallet.slice(0, 8) + '...',
+      distance: bh.distance.toString(),
+      submissions: bh.submissionCount,
+    }));
+    
+    return {
+      roundStartTime: this.state.roundStartTime,
+      maxTime: this.mineConfig.maxTimeMs,
+      timeRemaining,
+      rolloverAmount: this.state.rolloverAmount,
+      leaderboard,
+    };
+  }
+
+  /**
+   * Get a miner's best hash info
+   */
+  public getMinerBestHash(walletAddress: string): MinerBestHash | undefined {
+    return this.state.bestHashes.get(walletAddress);
   }
 }

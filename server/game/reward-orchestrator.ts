@@ -18,7 +18,7 @@ import {
   getDistributionStats,
 } from './distribution-service';
 import { getMineRegistry } from './mine-registry';
-import { TOKEN_CONFIG, IS_DEVNET } from '../../config/constants';
+import { TOKEN_CONFIG, IS_DEVNET, TIMEOUT_REWARDS } from '../../config/constants';
 
 /** Reward orchestrator state */
 interface OrchestratorState {
@@ -323,6 +323,150 @@ export async function handleDefenderSpoils(
       await processRewardPayout(defender.wallet, share, mineId, 'raid_spoils');
     }
   }
+}
+
+/**
+ * Handle a timeout-based discovery (closest hash wins)
+ * Uses reduced rewards with rollover mechanism
+ * 
+ * Reward Split (Timeout):
+ * - 35% to closest hash winner + pool based on shares
+ * - 30% to vault (same as solution)
+ * - 35% rollover to next round's jackpot
+ * 
+ * @param mineId - Mine where timeout occurred
+ * @param closestWallet - Wallet of the miner with closest hash
+ * @param roundNumber - Round number for tracking
+ * @param baseReward - Base reward for this round
+ * @param rolloverAmount - Accumulated rollover from previous timeouts
+ * @param shares - Miner contribution shares
+ */
+export async function handleTimeoutDiscovery(
+  mineId: string,
+  closestWallet: string | null,
+  roundNumber: number,
+  baseReward: number,
+  rolloverAmount: number,
+  shares?: MinerShareInfo[]
+): Promise<{
+  success: boolean;
+  closestReward: number;
+  vaultReward: number;
+  rolloverReward: number;
+  totalReward: number;
+  minerPayouts: Array<{ wallet: string; amount: number; isClosest: boolean }>;
+  signature?: string;
+  error?: string;
+}> {
+  const totalReward = baseReward + rolloverAmount;
+  
+  console.log(
+    `[RewardOrchestrator] Processing timeout at ${mineId}: ` +
+    `base=${baseReward}, rollover=${rolloverAmount}, total=${totalReward}`
+  );
+  
+  // Calculate reward splits for timeout scenario
+  const closestPoolAmount = Math.floor(totalReward * TIMEOUT_REWARDS.TIMEOUT_FINDER_SHARE); // 35%
+  const vaultAmount = Math.floor(totalReward * TIMEOUT_REWARDS.VAULT_SHARE); // 30%
+  const rolloverReward = Math.floor(totalReward * TIMEOUT_REWARDS.ROLLOVER_SHARE); // 35%
+  
+  // Add vault share to distribution service
+  handleDiscovery(mineId, totalReward);
+  state.totalVaultRewards += vaultAmount;
+  
+  // If no qualified winner, everything except vault rolls over
+  if (!closestWallet) {
+    console.log('[RewardOrchestrator] No qualified closest-hash winner, full rollover');
+    return {
+      success: true,
+      closestReward: 0,
+      vaultReward: vaultAmount,
+      rolloverReward: closestPoolAmount + rolloverReward, // 70% rolls over
+      totalReward,
+      minerPayouts: [],
+    };
+  }
+  
+  // Calculate payouts based on shares
+  const minerPayouts: Array<{ wallet: string; amount: number; isClosest: boolean }> = [];
+  const bonusPercent = TIMEOUT_REWARDS.TIMEOUT_FINDER_BONUS * 100; // 10%
+  
+  if (shares && shares.length > 0) {
+    console.log(`[RewardOrchestrator] Timeout share-based distribution to ${shares.length} miners`);
+    
+    for (const share of shares) {
+      const baseShare = Math.floor(closestPoolAmount * share.sharePercent / 100);
+      const isClosest = share.walletAddress === closestWallet;
+      
+      // Closest hash gets reduced bonus (10% vs 20% for solution)
+      const bonus = isClosest ? Math.floor(baseShare * bonusPercent / 100) : 0;
+      const totalAmount = baseShare + bonus;
+      
+      if (totalAmount > 0) {
+        minerPayouts.push({
+          wallet: share.walletAddress,
+          amount: totalAmount,
+          isClosest,
+        });
+        
+        if (isClosest) {
+          console.log(
+            `[RewardOrchestrator] ⏰ Closest hash ${closestWallet.slice(0, 8)}... gets ` +
+            `${baseShare} + ${bonus} bonus = ${totalAmount} ${TOKEN_CONFIG.SYMBOL}`
+          );
+        }
+      }
+    }
+  } else {
+    // Fallback: 100% of miner pool to closest
+    minerPayouts.push({
+      wallet: closestWallet,
+      amount: closestPoolAmount,
+      isClosest: true,
+    });
+  }
+  
+  // Send payouts
+  let closestSignature: string | undefined;
+  let anyFailed = false;
+  
+  for (const payout of minerPayouts) {
+    const result = await processRewardPayout(
+      payout.wallet,
+      payout.amount,
+      mineId,
+      payout.isClosest ? 'discovery_finder' : 'discovery_share'
+    );
+    
+    if (!result.success) {
+      console.error(`[RewardOrchestrator] Failed timeout payout to ${payout.wallet.slice(0, 8)}...`);
+      queueReward(payout.wallet, payout.amount, roundNumber);
+      anyFailed = true;
+    } else if (payout.isClosest) {
+      closestSignature = result.signature;
+    }
+    
+    state.totalFinderRewards += payout.amount;
+  }
+  
+  const closestPayout = minerPayouts.find(p => p.isClosest);
+  
+  console.log(
+    `[RewardOrchestrator] Timeout round #${roundNumber}: ` +
+    `${closestPoolAmount} ${TOKEN_CONFIG.SYMBOL} to ${minerPayouts.length} miners, ` +
+    `${vaultAmount} to vault, ${rolloverReward} rolls over`
+  );
+  
+  return {
+    success: !anyFailed,
+    closestReward: closestPayout?.amount || 0,
+    vaultReward: vaultAmount,
+    rolloverReward,
+    totalReward,
+    minerPayouts,
+    signature: closestSignature,
+    error: anyFailed ? 'Some payouts failed' : undefined,
+  };
 }
 
 /**

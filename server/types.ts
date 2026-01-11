@@ -153,7 +153,11 @@ export type WSMessageType =
   | 'syndicate_update'
   | 'miner_joined'
   | 'miner_left'
-  | 'request_work';
+  | 'request_work'
+  | 'round_status'       // Periodic update with time remaining, leaderboard
+  | 'best_hash_update'   // Miner's best hash improved
+  | 'timeout_winner'     // Round ended by timeout, closest hash won
+  | 'rollover_update';   // Rollover jackpot amount changed
 
 /** WebSocket message envelope */
 export interface WSMessage<T = unknown> {

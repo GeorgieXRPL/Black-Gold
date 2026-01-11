@@ -11,5 +11,7 @@ export { default as SyndicatePanel } from './SyndicatePanel';
 export { default as SyndicateRaid } from './SyndicateRaid';
 export { default as DiscoveryPopup } from './DiscoveryPopup';
 export { default as PendingDiscoveryOverlay } from './PendingDiscoveryOverlay';
+export { default as MiningStatus } from './MiningStatus';
+export { default as TimeoutPopup } from './TimeoutPopup';
 export type { SyndicateInfo, SyndicateMember } from './SyndicatePanel';
 export type { SyndicateRaidInfo } from './SyndicateRaid';

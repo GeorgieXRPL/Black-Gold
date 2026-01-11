@@ -7,7 +7,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { MINES, getMineById, MineStats, ResourceType, RESOURCE_COLORS } from './lib/mines';
-import { HomeBase, MineDetails, StakingPanel, ExpeditionPanel, RaidFeed, DiscoveryPopup, PendingDiscoveryOverlay } from './components/game';
+import { HomeBase, MineDetails, StakingPanel, ExpeditionPanel, RaidFeed, DiscoveryPopup, PendingDiscoveryOverlay, MiningStatus, TimeoutPopup } from './components/game';
 import { EmberParticles, WalletEntry, WalletEntryState, CoreSelector } from './components';
 import { useGameSocket, GameEvent, WorkUnit } from './hooks/useGameSocket';
 import { useMining } from './hooks/useMining';
@@ -98,6 +98,41 @@ export default function Home() {
       finderReward?: number;
       vaultReward?: number;
       hash?: string;
+    } | null;
+  }>({ isOpen: false, isWinner: false, data: null });
+
+  // Round status for timeout system
+  const [roundStatus, setRoundStatus] = useState<{
+    roundStartTime: number | null;
+    maxTime: number | null;
+    timeRemaining: number | null;
+    rolloverAmount: number;
+    leaderboard: Array<{ wallet: string; distance: string; submissions: number }>;
+  }>({
+    roundStartTime: null,
+    maxTime: null,
+    timeRemaining: null,
+    rolloverAmount: 0,
+    leaderboard: [],
+  });
+
+  // Timeout popup state
+  const [timeoutPopup, setTimeoutPopup] = useState<{
+    isOpen: boolean;
+    isWinner: boolean;
+    data: {
+      mineId: string;
+      mineName: string;
+      resource: string;
+      winner: string | null;
+      winnerHash?: string;
+      totalReward: number;
+      finderShare: number;
+      vaultShare: number;
+      rolloverAmount: number;
+      participantCount: number;
+      shares?: Array<{ walletAddress: string; sharePercent: number; reward: number }>;
+      nextRoundIn: number;
     } | null;
   }>({ isOpen: false, isWinner: false, data: null });
 
@@ -213,10 +248,66 @@ export default function Home() {
       }, closeDelay);
     }
     
+    // Handle round status updates (for timeout system)
+    if (event.type === 'round_status') {
+      const data = event as unknown as {
+        mineId: string;
+        roundStartTime: number;
+        maxTime: number | null;
+        timeRemaining: number | null;
+        rolloverAmount: number;
+        leaderboard: Array<{ wallet: string; distance: string; submissions: number }>;
+      };
+      
+      // Only update if this is for our current mine
+      if (data.mineId === selectedMineId) {
+        setRoundStatus({
+          roundStartTime: data.roundStartTime,
+          maxTime: data.maxTime,
+          timeRemaining: data.timeRemaining,
+          rolloverAmount: data.rolloverAmount,
+          leaderboard: data.leaderboard,
+        });
+      }
+    }
+    
+    // Handle timeout winner (round ended by time)
+    if (event.type === 'timeout_winner') {
+      const data = event as unknown as {
+        mineId: string;
+        mineName: string;
+        resource: string;
+        winner: string | null;
+        winnerHash?: string;
+        totalReward: number;
+        finderShare: number;
+        vaultShare: number;
+        rolloverAmount: number;
+        participantCount: number;
+        shares?: Array<{ walletAddress: string; sharePercent: number; reward: number }>;
+        nextRoundIn: number;
+      };
+      
+      const isWinner = data.winner === walletState.walletAddress;
+      
+      setTimeoutPopup({
+        isOpen: true,
+        isWinner,
+        data,
+      });
+      
+      // Pause mining during announcement
+      if (isMiningRef.current) {
+        mining.pauseMining();
+        setHashrate(0);
+      }
+    }
+    
     // Only add relevant events to the activity feed
     // Filter to discoveries and raid events only - not intermediate mining updates
     const feedEventTypes = [
       'discovery_found',
+      'timeout_winner',
       'raid_started',
       'raid_won', 
       'raid_lost',
@@ -234,7 +325,7 @@ export default function Home() {
         return [event as typeof prev[number], ...prev].slice(0, 50);
       });
     }
-  }, [isMining, mining, walletState.walletAddress]);
+  }, [isMining, mining, walletState.walletAddress, selectedMineId]);
 
   // Handle work unit received from server
   const handleWorkReceived = useCallback((work: WorkUnit) => {
@@ -766,9 +857,30 @@ export default function Home() {
               )}
             </div>
 
-            {/* Panel 3: Live Activity Feed */}
+            {/* Panel 3: Mining Status OR Live Activity Feed */}
             <div className="order-3">
-              <RaidFeed events={raidEvents} maxEvents={8} />
+              {/* Show Mining Status when actively mining with timeout */}
+              {isMining && homeMine && roundStatus.maxTime && (
+                <MiningStatus
+                  mineId={homeMineId}
+                  mineName={homeMine.name}
+                  resource={homeMine.resource}
+                  isMining={isMining}
+                  hashrate={hashrate}
+                  roundStartTime={roundStatus.roundStartTime}
+                  maxTime={roundStatus.maxTime}
+                  timeRemaining={roundStatus.timeRemaining}
+                  rolloverAmount={roundStatus.rolloverAmount}
+                  leaderboard={roundStatus.leaderboard}
+                  yourBestHash={undefined} // Would need to track this
+                  baseReward={homeMine.resource === 'gold' ? 500 : homeMine.resource === 'oil' ? 300 : homeMine.resource === 'silver' ? 200 : 100}
+                />
+              )}
+              
+              {/* Show Activity Feed when not mining or no timeout */}
+              {(!isMining || !roundStatus.maxTime) && (
+                <RaidFeed events={raidEvents} maxEvents={8} />
+              )}
             </div>
           </div>
         </div>
@@ -861,6 +973,17 @@ export default function Home() {
         isWinner={discoveryPopup.isWinner}
         discoveryData={discoveryPopup.data}
         countdownSeconds={0}
+      />
+
+      {/* Timeout Popup - Round ended by time limit */}
+      <TimeoutPopup
+        isOpen={timeoutPopup.isOpen}
+        onClose={() => {
+          setTimeoutPopup(prev => ({ ...prev, isOpen: false }));
+          // Mining will auto-resume when new work arrives
+        }}
+        isWinner={timeoutPopup.isWinner}
+        data={timeoutPopup.data}
       />
     </main>
   );

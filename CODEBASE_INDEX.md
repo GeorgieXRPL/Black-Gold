@@ -1,14 +1,103 @@
-# Black Gold v3.0.1 - Codebase Index
+# Black Gold v3.1.0 - Codebase Index
 
 > Complete file-by-file documentation for the Black Gold Interactive Mining Globe platform
 
 **Last Updated**: January 11, 2026  
-**Version**: 3.0.1 (Mining Continuation Fixes)  
-**Total Files**: 75+ TypeScript/TSX/JS files
+**Version**: 3.1.0 (Hybrid Timeout Mining System)  
+**Total Files**: 80+ TypeScript/TSX/JS files
 
 ---
 
-## 📋 Recent Changes (v3.0.1)
+## 📋 Recent Changes (v3.1.0)
+
+### Hybrid Timeout Mining System
+
+This release introduces time-limited mining rounds with closest-hash fallback for Coal, Silver, and Oil mines. Gold mines remain unlimited for jackpot hunters. Features include progressive rollover jackpots, anti-manipulation safeguards, and real-time leaderboards.
+
+#### Mine Timing Configuration
+- **`config/constants.ts`** - Added timing configuration per resource type:
+  - `MINE_TIMING` record defines `targetTimeMs`, `maxTimeMs`, and `hasTimeout` per resource
+  - Coal: 3min target, 6min max (2x)
+  - Silver: 5min target, 10min max (2x)
+  - Oil: 8min target, 16min max (2x)
+  - Gold: 15min target, NO timeout (pure mining)
+  - `TIMEOUT_REWARDS` constants for reward splits:
+    - Solution: 70% finder, 30% vault, 0% rollover
+    - Timeout: 35% closest, 30% vault, 35% rollover
+    - Finder bonus: 20% (solution) vs 10% (timeout)
+  - Anti-manipulation: `MIN_SUBMISSIONS=10`, `MIN_TIME_PERCENT=50%`, `COOLDOWN_SECONDS=30`
+
+#### Best Hash Tracking
+- **`server/pool/manager.ts`** - Track closest hashes per miner:
+  - New `MinerBestHash` interface: `hash`, `nonce`, `distance`, `submittedAt`, `submissionCount`, `firstSeenAt`
+  - Added to `PoolState`: `bestHashes` map, `roundStartTime`, `rolloverAmount`
+  - `calculateHashDistance()` computes bigint distance from target
+  - `updateBestHash()` updates tracker if submission is better
+  - Cooldown cap: In final 30s, improvements capped at 10%
+
+#### Round Timeout Logic
+- **`server/pool/manager.ts`** - Timeout checker and winner selection:
+  - `timeoutInterval` runs every second (only for timed mines)
+  - `checkRoundTimeout()` triggers `handleTimeoutWinner()` when `maxTime` exceeded
+  - `findClosestHashWinner()` finds miner with lowest distance who qualifies
+  - `isQualifiedForClosest()` checks: 10+ submissions, 50%+ round time
+  - `handleTimeoutWinner()` calculates 35/30/35 split, broadcasts winner
+  - `startNewRound()` resets state, carries over rollover, assigns new work
+  - `getRoundStatus()` returns leaderboard data for UI
+
+#### Timeout Reward Distribution
+- **`server/game/reward-orchestrator.ts`** - New timeout handling:
+  - `handleTimeoutDiscovery()` function for timeout-based rewards
+  - 35% to closest hash winner (+ shares), 30% to vault, 35% rollover
+  - If no qualified winner, 70% rolls over (vault still gets 30%)
+  - Uses reduced finder bonus (10% vs 20% for solution)
+  - Integrates with existing share-based distribution system
+
+#### WebSocket Message Types
+- **`server/types.ts`** - Added 4 new message types:
+  - `round_status` - Periodic (5s) update with time remaining, leaderboard
+  - `best_hash_update` - Notify miner their best hash improved
+  - `timeout_winner` - Round ended by timeout, closest hash won
+  - `rollover_update` - Rollover jackpot amount changed
+
+- **`server/index.ts`** - Round status broadcasting:
+  - New interval broadcasts `round_status` every 5 seconds to active mines
+  - Contains `roundStartTime`, `maxTime`, `timeRemaining`, `rolloverAmount`, `leaderboard`
+
+#### Mining Status UI Component
+- **`app/components/game/MiningStatus.tsx`** - New component showing:
+  - Time remaining progress bar (color changes when < 1min)
+  - Current pot + rollover jackpot amount
+  - Top 5 closest hash leaderboard with rank, wallet, submissions
+  - Your current rank and submission count
+  - Resource-specific styling (coal/gold/oil/silver)
+  - Explanatory footer about timeout vs solution rewards
+
+#### Timeout Popup Component
+- **`app/components/game/TimeoutPopup.tsx`** - Timeout announcement:
+  - Shows winner (closest hash) or "No qualified miners"
+  - Displays reduced reward (35%) with comparison to 70%
+  - Shows rollover amount going to next round
+  - Countdown timer to next round start
+  - Auto-closes when countdown reaches 0
+  - Winner celebration for timeout winner
+
+#### Page Integration
+- **`app/page.tsx`** - Round state management:
+  - Added `roundStatus` state for tracking timeout info
+  - Added `timeoutPopup` state for timeout announcements
+  - `handleGameEvent` handles `round_status` and `timeout_winner`
+  - `MiningStatus` replaces `RaidFeed` during active mining with timeout
+  - `TimeoutPopup` component rendered alongside discovery popup
+
+#### Component Exports
+- **`app/components/game/index.ts`** - Added exports:
+  - `MiningStatus` component
+  - `TimeoutPopup` component
+
+---
+
+## 📋 Previous Changes (v3.0.1)
 
 ### Mining Continuation and Rate Limiting Fixes
 

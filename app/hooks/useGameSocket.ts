@@ -12,7 +12,7 @@ export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'er
 /** Game event types */
 export interface GameEvent {
   id: string;
-  type: 'raid_started' | 'raid_won' | 'raid_lost' | 'discovery_found' | 'discovery_pending' | 'jackpot' | 'vault_payout' | 'spoils_distributed';
+  type: 'raid_started' | 'raid_won' | 'raid_lost' | 'discovery_found' | 'discovery_pending' | 'jackpot' | 'vault_payout' | 'spoils_distributed' | 'round_status' | 'timeout_winner' | 'rollover_update' | 'best_hash_update';
   sourceMine?: string;
   targetMine?: string;
   sourceResource?: ResourceType;
@@ -34,6 +34,18 @@ export interface GameEvent {
   countdownSeconds?: number;
   message?: string;
   hash?: string;
+  // Timeout system fields
+  roundStartTime?: number;
+  maxTime?: number | null;
+  timeRemaining?: number | null;
+  rolloverAmount?: number;
+  leaderboard?: Array<{ wallet: string; distance: string; submissions: number }>;
+  winnerHash?: string;
+  totalReward?: number;
+  participantCount?: number;
+  shares?: Array<{ walletAddress: string; sharePercent: number; reward: number }>;
+  nextRoundIn?: number;
+  mineName?: string;
 }
 
 /** Raid result from server */

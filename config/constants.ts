@@ -126,6 +126,72 @@ export const POOL_CONFIG = {
   ANNOUNCEMENT_DELAY_MS: parseInt(process.env.ANNOUNCEMENT_DELAY_MS || '30000', 10), // 30 seconds
 } as const;
 
+/** Resource type for mine timing */
+export type ResourceType = 'coal' | 'gold' | 'oil' | 'silver';
+
+/** Mine timing configuration for hybrid timeout system */
+export interface MineTimingConfig {
+  /** Target discovery time in milliseconds */
+  targetTimeMs: number;
+  /** Maximum round time before timeout (null = no timeout) */
+  maxTimeMs: number | null;
+  /** Whether this mine type has timeout (false = pure mining like Gold) */
+  hasTimeout: boolean;
+}
+
+/**
+ * Mine timing configuration by resource type
+ * Coal, Silver, Oil have timeouts with closest-hash fallback
+ * Gold has no timeout for jackpot hunters
+ */
+export const MINE_TIMING: Record<ResourceType, MineTimingConfig> = {
+  coal: {
+    targetTimeMs: 3 * 60 * 1000,     // 3 minutes target
+    maxTimeMs: 6 * 60 * 1000,        // 6 minutes max (2x)
+    hasTimeout: true,
+  },
+  silver: {
+    targetTimeMs: 5 * 60 * 1000,     // 5 minutes target
+    maxTimeMs: 10 * 60 * 1000,       // 10 minutes max (2x)
+    hasTimeout: true,
+  },
+  oil: {
+    targetTimeMs: 8 * 60 * 1000,     // 8 minutes target
+    maxTimeMs: 16 * 60 * 1000,       // 16 minutes max (2x)
+    hasTimeout: true,
+  },
+  gold: {
+    targetTimeMs: 15 * 60 * 1000,    // 15 minutes target
+    maxTimeMs: null,                  // No timeout - pure mining
+    hasTimeout: false,
+  },
+} as const;
+
+/** Timeout reward configuration */
+export const TIMEOUT_REWARDS = {
+  /** Finder share when solution found (70%) */
+  SOLUTION_FINDER_SHARE: 0.70,
+  /** Finder share when timeout occurs (35%) */
+  TIMEOUT_FINDER_SHARE: 0.35,
+  /** Vault share (always 30%) */
+  VAULT_SHARE: 0.30,
+  /** Rollover share on timeout (35%) */
+  ROLLOVER_SHARE: 0.35,
+  /** Finder bonus percent of finder share (solution: 20%, timeout: 10%) */
+  SOLUTION_FINDER_BONUS: 0.20,
+  TIMEOUT_FINDER_BONUS: 0.10,
+  /** Early discovery bonus (found before 50% of max time) */
+  EARLY_BONUS: 0.10,
+  /** Minimum submissions to qualify for closest-hash win */
+  MIN_SUBMISSIONS: 10,
+  /** Minimum time percent in round to qualify (50%) */
+  MIN_TIME_PERCENT: 0.50,
+  /** Final seconds where improvement is capped */
+  COOLDOWN_SECONDS: 30,
+  /** Max improvement allowed in cooldown period (10%) */
+  COOLDOWN_MAX_IMPROVEMENT: 0.10,
+} as const;
+
 /** Rate limiting configuration */
 export const RATE_LIMIT_CONFIG = {
   /** Max submissions per minute per wallet */
