@@ -1,14 +1,47 @@
-# Black Gold v3.1.2 - Codebase Index
+# Black Gold v3.1.3 - Codebase Index
 
 > Complete file-by-file documentation for the Black Gold Interactive Mining Globe platform
 
 **Last Updated**: January 11, 2026  
-**Version**: 3.1.2 (Discovery Broadcast Fix)  
+**Version**: 3.1.3 (Timeout Winner Fix)  
 **Total Files**: 80+ TypeScript/TSX/JS files
 
 ---
 
-## 📋 Recent Changes (v3.1.2)
+## 📋 Recent Changes (v3.1.3)
+
+### Timeout Winner Popup & Activity Feed Fix
+
+Fixes issues where timeout winner popups weren't showing on PC and activity feed wasn't displaying timeout events.
+
+#### RaidFeed Timeout Winner Support
+- **`app/components/game/RaidFeed.tsx`**:
+  - Added `timeout_winner` to `RaidEvent` type
+  - Added timeout icon (⏰) to `EventIcon` component
+  - Added `EventMessage` case for timeout events:
+    - Shows mine name with resource color
+    - Displays winner address (or "no qualified winner")
+    - Shows finder share amount
+    - Displays rollover amount with 🔄 icon
+
+#### Timeout Winner Fallback Broadcast
+- **`server/pool/manager.ts`**:
+  - Added `TimeoutResult` interface
+  - Added `onTimeoutWinner` callback to `PoolEventHandlers`
+  - `handleTimeoutWinner` now calls the callback for fallback broadcast
+
+- **`server/index.ts`**:
+  - Added `handleTimeoutWinnerEvent` function:
+    - Broadcasts `timeout_winner` via `broadcastToMine` (using clientConnections)
+    - Broadcasts `round_restart` via `broadcastToMine`
+    - Broadcasts `game_event` to other mines for global activity feed
+  - Registered `onTimeoutWinner` callback when creating PoolManager
+
+This ensures timeout winner events reach all clients even if the PoolManager's `state.miners` map is out of sync with `clientConnections`.
+
+---
+
+## 📋 Previous Changes (v3.1.2)
 
 ### Discovery Broadcast Critical Fix
 
