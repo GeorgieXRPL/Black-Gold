@@ -510,8 +510,36 @@ async function handleDiscoveryFound(mineId: string, result: BarrelResult): Promi
     }
   }
 
-  // PoolManager already broadcasts 'discovery_found' to miners at this mine
-  // Only broadcast to OTHER mines to avoid duplicate notifications
+  // FALLBACK BROADCAST: Send discovery_found via clientConnections
+  // This ensures miners receive the notification even if PoolManager's state.miners is out of sync
+  console.log(`[WS] 📡 FALLBACK: Broadcasting discovery_found via clientConnections for ${mineId}`);
+  broadcastToMine(mineId, 'discovery_found', {
+    discoveryNumber: result.discoveryNumber,
+    discoveryName: result.discoveryName,
+    mineId,
+    mineName: mine.definition.name,
+    resource: mine.definition.resource,
+    winner: result.winner,
+    totalReward: result.totalReward,
+    finderShare: result.finderShare,
+    vaultShare: result.vaultShare,
+    announcement: true,
+    message: `🏆 ${result.winner.slice(0, 8)}...${result.winner.slice(-4)} found the discovery!`,
+  });
+  
+  // Also broadcast round_restart via clientConnections
+  console.log(`[WS] 📡 FALLBACK: Broadcasting round_restart via clientConnections for ${mineId}`);
+  broadcastToMine(mineId, 'round_restart', {
+    mineId,
+    mineName: mine.definition.name,
+    resource: mine.definition.resource,
+    discoveryNumber: result.discoveryNumber + 1,
+    startingNow: true,
+    message: 'New round starting! Mining resumed.',
+  });
+  console.log(`[WS] 📡 FALLBACK: All discovery broadcasts complete for ${mineId}`);
+
+  // Also broadcast to OTHER mines for global activity feed
   broadcastToAllExceptMine(mineId, 'game_event', {
     type: 'discovery_found',
     mineId,
@@ -687,6 +715,26 @@ async function handleSubmit(
     success,
     message: success ? 'Proof accepted!' : 'Proof rejected',
   });
+
+  // FALLBACK BROADCAST: If proof was accepted (discovery found), 
+  // also broadcast via clientConnections in case PoolManager's state.miners is out of sync
+  if (success) {
+    const registry = getMineRegistry();
+    const mine = registry.getMine(clientInfo.currentMineId);
+    if (mine) {
+      console.log(`[WS] 📡 FALLBACK: Broadcasting discovery_pending via clientConnections for ${clientInfo.currentMineId}`);
+      const announceAt = Date.now() + 30000; // 30 second delay
+      broadcastToMine(clientInfo.currentMineId, 'discovery_pending', {
+        mineId: clientInfo.currentMineId,
+        mineName: mine.definition.name,
+        resource: mine.definition.resource,
+        announceAt,
+        countdownSeconds: 30,
+        message: '⛏️ A discovery has been found! Winner will be revealed in 30 seconds...',
+      });
+      console.log(`[WS] 📡 FALLBACK: discovery_pending broadcast complete`);
+    }
+  }
 }
 
 /**

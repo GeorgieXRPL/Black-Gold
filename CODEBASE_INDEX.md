@@ -1,14 +1,49 @@
-# Black Gold v3.1.1 - Codebase Index
+# Black Gold v3.1.2 - Codebase Index
 
 > Complete file-by-file documentation for the Black Gold Interactive Mining Globe platform
 
 **Last Updated**: January 11, 2026  
-**Version**: 3.1.1 (Discovery Flow Bug Fixes)  
+**Version**: 3.1.2 (Discovery Broadcast Fix)  
 **Total Files**: 80+ TypeScript/TSX/JS files
 
 ---
 
-## 📋 Recent Changes (v3.1.1)
+## 📋 Recent Changes (v3.1.2)
+
+### Discovery Broadcast Critical Fix
+
+Fixes critical bug where `discovery_pending` and `discovery_found` messages were not reaching clients despite the server accepting valid proofs. Mining was continuing indefinitely after a solution was found.
+
+#### Root Cause
+The PoolManager's `broadcastMessage` method was iterating over `this.state.miners`, but this map could become out of sync with the actual WebSocket connections stored in `clientConnections` in `index.ts`.
+
+#### Diagnostic Logging Added
+- **`server/pool/manager.ts`** - Enhanced `broadcastMessage`:
+  - Logs miner count before broadcast
+  - Warns if `state.miners` is empty
+  - Tracks sent/failed/closed counts
+  - Try-catch around each `ws.send()` to catch silent failures
+  - Logs WebSocket readyState for each miner
+
+- **`server/pool/manager.ts`** - Enhanced `handleDiscoveryFound`:
+  - Detailed logging at each step of discovery flow
+  - Logs all registered miners and their WebSocket states
+  - Logs share calculation results
+  - Logs broadcast completion status
+
+- **`server/pool/manager.ts`** - Enhanced `handleSubmission`:
+  - Checks if submitting miner is registered in `state.miners`
+  - Warns if miner is NOT registered (helps diagnose sync issues)
+
+#### Fallback Broadcast via clientConnections
+- **`server/index.ts`** - Added fallback broadcasts using the authoritative `clientConnections` map:
+  - After successful proof submission, broadcasts `discovery_pending` via `broadcastToMine`
+  - In `handleDiscoveryFound` callback, broadcasts `discovery_found` and `round_restart` via `broadcastToMine`
+  - These fallbacks ensure clients receive notifications even if PoolManager's state is out of sync
+
+---
+
+## 📋 Previous Changes (v3.1.1)
 
 ### Discovery Flow Bug Fixes
 

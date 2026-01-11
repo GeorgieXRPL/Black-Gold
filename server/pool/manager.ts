@@ -434,6 +434,19 @@ export class PoolManager {
   public async handleSubmission(submission: ProofSubmission): Promise<boolean> {
     const { walletAddress, workUnitId, nonce, hash } = submission;
 
+    // DIAGNOSTIC: Check if miner is registered in state.miners
+    const minerRegistered = this.state.miners.has(walletAddress);
+    console.log(`[PoolManager] Submission from ${walletAddress.slice(0, 8)}... - registered in state.miners: ${minerRegistered}`);
+    if (!minerRegistered) {
+      console.warn(`[PoolManager] ⚠️ MINER NOT REGISTERED! ${walletAddress.slice(0, 8)}... is NOT in state.miners`);
+      console.warn(`[PoolManager] ⚠️ Current miners in state: ${this.state.miners.size}`);
+      for (const addr of this.state.miners.keys()) {
+        console.warn(`[PoolManager]   - ${addr.slice(0, 8)}...`);
+      }
+      // Don't reject - the work unit validation will handle if the miner has valid work
+      // But this log helps diagnose why broadcasts might fail
+    }
+
     // Check rate limit
     if (!this.checkRateLimit(walletAddress)) {
       const miner = this.state.miners.get(walletAddress);
@@ -798,6 +811,15 @@ export class PoolManager {
     nonce: number,
     workUnit: WorkUnit
   ): Promise<void> {
+    console.log(`[PoolManager] ========== DISCOVERY FLOW START ==========`);
+    console.log(`[PoolManager] Mine: ${this.mineId}, Winner: ${walletAddress.slice(0, 8)}...`);
+    console.log(`[PoolManager] Current miners in state: ${this.state.miners.size}`);
+    
+    // Log all registered miners
+    for (const [addr, miner] of this.state.miners.entries()) {
+      console.log(`[PoolManager]   - ${addr.slice(0, 8)}... ws.readyState=${miner.ws.readyState}`);
+    }
+    
     const now = new Date();
     const discoveryNumber = workUnit.discoveryNumber;
 
@@ -806,7 +828,9 @@ export class PoolManager {
     );
 
     // Calculate miner shares BEFORE announcing (captures state at discovery time)
+    console.log(`[PoolManager] Calculating miner shares...`);
     const shares = this.calculateMinerShares();
+    console.log(`[PoolManager] Shares calculated: ${shares.length} miners with contributions`);
     
     // Log share distribution
     const topMiners = shares.slice(0, 5);
@@ -829,6 +853,7 @@ export class PoolManager {
       resource: 'coal', // Default, should be set by caller
       discoveryName: 'Seam', // Default, should be set by caller
     };
+    console.log(`[PoolManager] Discovery result created for mine ${workUnit.mineId}`);
 
     // Calculate time since last discovery for difficulty adjustment
     const lastDiscoveryTime = this.state.difficultyState.lastDiscoveryTime;
@@ -847,6 +872,7 @@ export class PoolManager {
 
     // Broadcast PENDING discovery (no winner revealed yet) to build suspense
     const announceAt = Date.now() + PoolManager.ANNOUNCEMENT_DELAY_MS;
+    console.log(`[PoolManager] About to broadcast discovery_pending...`);
     this.broadcastMessage('discovery_pending', {
       discoveryNumber,
       mineId: workUnit.mineId,
@@ -856,9 +882,12 @@ export class PoolManager {
       countdownSeconds: PoolManager.ANNOUNCEMENT_DELAY_MS / 1000,
       message: '⛏️ A discovery has been found! Winner will be revealed in 30 seconds...',
     });
+    console.log(`[PoolManager] discovery_pending broadcast completed`);
 
     // Set up the delayed announcement
+    console.log(`[PoolManager] Setting up ${PoolManager.ANNOUNCEMENT_DELAY_MS}ms timer for announceDiscovery`);
     const timer = setTimeout(() => {
+      console.log(`[PoolManager] Timer fired - calling announceDiscovery()`);
       this.announceDiscovery();
     }, PoolManager.ANNOUNCEMENT_DELAY_MS);
 
@@ -869,16 +898,21 @@ export class PoolManager {
       timer,
       shares, // IMPORTANT: Store shares calculated at discovery time
     };
+    console.log(`[PoolManager] Pending discovery stored`);
 
     // Clear all active work - mining pauses during countdown
+    let clearedCount = 0;
     for (const miner of this.state.miners.values()) {
       miner.activeWorkIds.clear();
+      clearedCount++;
     }
+    console.log(`[PoolManager] Cleared active work for ${clearedCount} miners`);
 
     console.log(
       `[PoolManager] Mining paused at mine ${workUnit.mineId || 'global'}. ` +
       `Winner announced at ${new Date(announceAt).toISOString()}`
     );
+    console.log(`[PoolManager] ========== DISCOVERY FLOW COMPLETE ==========`);
   }
 
   /**
@@ -1170,6 +1204,13 @@ export class PoolManager {
    * @param payload - Message payload
    */
   private broadcastMessage<T>(type: WSMessageType, payload: T): void {
+    const minerCount = this.state.miners.size;
+    console.log(`[PoolManager] 📡 Broadcasting ${type} to ${minerCount} miners at mine ${this.mineId}`);
+    
+    if (minerCount === 0) {
+      console.warn(`[PoolManager] ⚠️ NO MINERS to broadcast to! state.miners is empty`);
+    }
+    
     const message: WSMessage<T> = {
       type,
       payload,
@@ -1177,12 +1218,27 @@ export class PoolManager {
     };
 
     const data = JSON.stringify(message);
+    let sentCount = 0;
+    let failedCount = 0;
+    let closedCount = 0;
 
     for (const miner of this.state.miners.values()) {
-      if (miner.ws.readyState === WebSocket.OPEN) {
-        miner.ws.send(data);
+      const wsState = miner.ws.readyState;
+      if (wsState === WebSocket.OPEN) {
+        try {
+          miner.ws.send(data);
+          sentCount++;
+        } catch (err) {
+          failedCount++;
+          console.error(`[PoolManager] ❌ Failed to send ${type} to ${miner.walletAddress.slice(0, 8)}:`, err);
+        }
+      } else {
+        closedCount++;
+        console.warn(`[PoolManager] ⚠️ Miner ${miner.walletAddress.slice(0, 8)} ws not OPEN (state=${wsState})`);
       }
     }
+    
+    console.log(`[PoolManager] 📡 Broadcast ${type} complete: sent=${sentCount}, failed=${failedCount}, closed=${closedCount}`);
   }
 
   /**
