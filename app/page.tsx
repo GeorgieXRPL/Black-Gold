@@ -177,7 +177,12 @@ export default function Home() {
 
   // Game event handler for raid feed and discovery notifications
   const handleGameEvent = useCallback((event: GameEvent) => {
-    console.log('[Game] Event received:', event.type, event);
+    console.log('[Game] 📨 Event received:', event.type, {
+      eventId: event.id,
+      isMining: isMiningRef.current,
+      homeMineId,
+      walletAddress: walletState.walletAddress?.slice(0, 8),
+    });
     
     // Handle discovery pending (30-second countdown)
     if (event.type === 'discovery_pending') {

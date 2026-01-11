@@ -152,6 +152,11 @@ export function useGameSocket({
     try {
       const data = JSON.parse(event.data);
       
+      // Log all non-stats messages for debugging
+      if (data.type !== 'stats' && data.type !== 'round_status') {
+        console.log('[WS] 📩 Message received:', data.type, data.payload?.mineId || '');
+      }
+      
       switch (data.type) {
         case 'stats':
           setGlobalStats(data.payload);
@@ -176,9 +181,16 @@ export function useGameSocket({
 
         case 'work':
           // Work assignment from pool
-          console.log('[WS] Work received:', data.payload);
+          console.log('[WS] 📦 Work assignment received:', {
+            id: data.payload?.id,
+            mineId: data.payload?.mineId,
+            discoveryNumber: data.payload?.discoveryNumber,
+          });
           if (onWork) {
+            console.log('[WS] 📦 Calling onWork callback...');
             onWork(data.payload as WorkUnit);
+          } else {
+            console.warn('[WS] ⚠️ Work received but onWork is null!');
           }
           break;
 
@@ -196,10 +208,11 @@ export function useGameSocket({
           break;
 
         case 'discovery_found':
+          console.log('[WS] 🎉 discovery_found received, calling onEvent...');
           if (onEvent) {
-            onEvent({
+            const eventData = {
               id: Date.now().toString(),
-              type: 'discovery_found',
+              type: 'discovery_found' as const,
               ...data.payload,
               targetMine: data.payload.mineName,
               targetResource: data.payload.resource,
@@ -209,7 +222,11 @@ export function useGameSocket({
               vaultShare: data.payload.vaultShare,
               discoveryName: data.payload.discoveryName,
               timestamp: new Date(),
-            });
+            };
+            console.log('[WS] 🎉 Calling onEvent with:', eventData);
+            onEvent(eventData);
+          } else {
+            console.warn('[WS] ⚠️ discovery_found received but onEvent is null!');
           }
           break;
 
