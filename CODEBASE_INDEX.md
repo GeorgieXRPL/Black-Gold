@@ -1,14 +1,67 @@
-# Black Gold v3.0.0 - Codebase Index
+# Black Gold v3.0.1 - Codebase Index
 
 > Complete file-by-file documentation for the Black Gold Interactive Mining Globe platform
 
 **Last Updated**: January 11, 2026  
-**Version**: 3.0.0 (Mining Flow Overhaul)  
+**Version**: 3.0.1 (Mining Continuation Fixes)  
 **Total Files**: 75+ TypeScript/TSX/JS files
 
 ---
 
-## 📋 Recent Changes (v3.0.0)
+## 📋 Recent Changes (v3.0.1)
+
+### Mining Continuation and Rate Limiting Fixes
+
+This release fixes issues where discovery winners didn't receive new work, rate limiting blocked essential messages, and work wasn't assigned on mine join.
+
+#### Expanded Rate Limit Exemptions
+- **`server/index.ts`** - More essential messages exempt from rate limiting:
+  - `hashrate` - high frequency, expected (3 workers = 180/min)
+  - `stats` - read-only informational queries
+  - `join_mine` - essential for getting work after reconnection
+  - `leave_mine` - cleanup, no abuse potential
+  - `connect` - authentication, essential for session
+  - `set_home` - user preference, low frequency
+  - `request_work` - essential for mining continuation
+  - **Fixes**: No more rate limit errors blocking reconnection or mining start
+
+#### Request Work Handler
+- **`server/index.ts`** - New `handleRequestWork()` function:
+  - Allows clients to explicitly request work from server
+  - Used after reconnection or if `discovery_found` was missed
+  - Gets mine-specific target and assigns work immediately
+  
+- **`server/middleware/validate.ts`** - Added `RequestWorkSchema`:
+  - Simple schema with just `type: 'request_work'`
+  - Added to `WSMessageSchema` discriminated union
+
+- **`server/types.ts`** - Added `request_work` to `WSMessageType`
+
+#### Work Always Assigned on Join
+- **`server/index.ts`** - `handleJoinMine()` now assigns work immediately:
+  - After successful join, calls `poolManager.assignWork()`
+  - Uses mine-specific difficulty target
+  - **Fixes**: No more "waiting for work" after starting to mine
+
+#### Increased Worker Stop Delay
+- **`app/hooks/useMining.ts`** - More robust work switching:
+  - Increased delay from 10ms to 50ms for workers to process stop
+  - Added solution check during delay to prevent race conditions
+  - If solution found during switch, aborts new work distribution
+  - **Fixes**: No duplicate hashrate reports after work switch
+
+#### Reconnect Requests Work
+- **`app/hooks/useGameSocket.ts`** - Mining state awareness:
+  - Added `isMining` prop and `isMiningRef` to track mining state
+  - On WebSocket reconnect, if was mining, sends `request_work` after rejoin
+  - Ensures mining continues after connection issues
+
+- **`app/page.tsx`** - Passes `isMining` to useGameSocket:
+  - Keeps hook informed of current mining state
+
+---
+
+## 📋 Previous Changes (v3.0.0)
 
 ### Mining Flow Overhaul
 
