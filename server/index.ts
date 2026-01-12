@@ -248,9 +248,16 @@ async function handleConnect(
   // Restore home mine from Redis if available
   const restoredHomeMine = await stakeManager.restoreHomeMine(payload.walletAddress);
 
-  // If a mineId was provided, join that mine
-  if (payload.mineId) {
-    handleJoinMine(ws, { type: 'join_mine', mineId: payload.mineId }, clientInfo);
+  // Determine which mine to join (explicit mineId takes priority, then restored home mine)
+  const mineToJoin = payload.mineId || restoredHomeMine;
+  
+  // AUTO-JOIN: Always join a mine if we have one - this ensures the miner is registered
+  // This is critical because clients may not send join_mine on reconnection
+  if (mineToJoin) {
+    console.log(`[WS] Auto-joining mine ${mineToJoin} for ${sanitizeForLog(payload.walletAddress)}`);
+    handleJoinMine(ws, { type: 'join_mine', mineId: mineToJoin }, clientInfo);
+  } else {
+    console.log(`[WS] No mine to join for ${sanitizeForLog(payload.walletAddress)} (no mineId or home mine)`);
   }
 
   // Send welcome response with global stats and restored home mine
@@ -273,7 +280,15 @@ function handleJoinMine(
   payload: ValidatedJoinMinePayload,
   clientInfo: ClientConnection
 ): void {
+  console.log(`[WS] 📍 JOIN_MINE request:`, {
+    mineId: payload.mineId,
+    wallet: sanitizeForLog(clientInfo.walletAddress || 'none'),
+    authenticated: clientInfo.authenticated,
+    previousMine: clientInfo.currentMineId || 'none',
+  });
+  
   if (!clientInfo.authenticated) {
+    console.log(`[WS] ❌ JOIN_MINE rejected - not authenticated`);
     sendError(ws, 'NOT_AUTHENTICATED', 'Must connect first');
     return;
   }
@@ -282,6 +297,7 @@ function handleJoinMine(
   const mine = registry.getMine(payload.mineId);
 
   if (!mine) {
+    console.log(`[WS] ❌ JOIN_MINE rejected - mine not found: ${sanitizeForLog(payload.mineId)}`);
     sendError(ws, 'INVALID_MINE', `Mine ${sanitizeForLog(payload.mineId)} not found`);
     return;
   }
@@ -311,7 +327,9 @@ function handleJoinMine(
   // Get or create pool manager for this mine
   // Each mine has its own pool manager with mine-specific difficulty
   let poolManager = minePoolManagers.get(payload.mineId);
+  const isNewPool = !poolManager;
   if (!poolManager) {
+    console.log(`[WS] 🆕 Creating NEW PoolManager for mine: ${payload.mineId}`);
     poolManager = new PoolManager(
       {
         onDiscoveryFound: (result) => handleDiscoveryFound(payload.mineId, result),
@@ -325,6 +343,8 @@ function handleJoinMine(
   }
 
   // Register with pool manager
+  const walletForLog = sanitizeForLog(clientInfo.walletAddress!) as string;
+  console.log(`[WS] 📥 Registering miner ${walletForLog.slice(0, 8)} with PoolManager (pool ${isNewPool ? 'NEW' : 'EXISTING'})`);
   poolManager.handleConnect(ws, {
     walletAddress: clientInfo.walletAddress!,
     cores: 1, // Will be updated with hashrate

@@ -173,9 +173,22 @@ export function useGameSocket({
           // Handle result messages (confirmations)
           console.log('[WS] Result:', data.payload);
           // Check if this is a connect result with restored home mine
-          if (data.payload?.homeMineId && onHomeMineRestored) {
-            console.log('[WS] Restored home mine from server:', data.payload.homeMineId);
-            onHomeMineRestored(data.payload.homeMineId);
+          if (data.payload?.homeMineId) {
+            console.log('[WS] 🏠 Home mine restored from server:', data.payload.homeMineId);
+            
+            // Update currentMineIdRef for future reconnections
+            currentMineIdRef.current = data.payload.homeMineId;
+            setCurrentMineId(data.payload.homeMineId);
+            
+            // Send join_mine as belt-and-suspenders (server may have already auto-joined)
+            // This ensures the client state is in sync and work will be assigned
+            console.log('[WS] 📍 Sending join_mine to ensure registration...');
+            send('join_mine', { mineId: data.payload.homeMineId });
+            
+            // Notify the callback
+            if (onHomeMineRestored) {
+              onHomeMineRestored(data.payload.homeMineId);
+            }
           }
           break;
 
@@ -333,24 +346,35 @@ export function useGameSocket({
 
       ws.onopen = () => {
         setStatus('connected');
+        console.log('[WS] 🔌 WebSocket OPEN - sending connect message');
+        console.log('[WS] 🔌 State at connect:', {
+          walletAddress: walletAddress?.slice(0, 8),
+          cores,
+          currentMineIdRef: currentMineIdRef.current,
+          isMiningRef: isMiningRef.current,
+        });
+        
         // Send connect message
         send('connect', { walletAddress, cores });
         
-        // Re-join previous mine after reconnection
+        // Re-join previous mine after reconnection (belt-and-suspenders with server auto-join)
         if (currentMineIdRef.current) {
-          console.log('[Game] Reconnected, re-joining mine:', currentMineIdRef.current);
+          console.log('[WS] 📍 Reconnecting - will re-join mine:', currentMineIdRef.current);
           setTimeout(() => {
+            console.log('[WS] 📍 Sending join_mine for:', currentMineIdRef.current);
             send('join_mine', { mineId: currentMineIdRef.current });
             
             // If we were mining, explicitly request new work
             // This ensures mining continues after reconnection
             if (isMiningRef.current) {
-              console.log('[Game] Was mining, requesting work after reconnect...');
+              console.log('[WS] ⛏️ Was mining, requesting work after reconnect...');
               setTimeout(() => {
                 send('request_work', {});
               }, 100); // Wait for join_mine to be processed
             }
           }, 100); // Small delay to ensure connect is processed first
+        } else {
+          console.log('[WS] ⚠️ No currentMineIdRef - waiting for server to restore home mine');
         }
       };
 
@@ -389,6 +413,10 @@ export function useGameSocket({
   }, []);
 
   const joinMine = useCallback((mineId: string) => {
+    console.log('[WS] 📍 joinMine called:', mineId, {
+      previousMineId: currentMineIdRef.current,
+      wsState: wsRef.current?.readyState,
+    });
     send('join_mine', { mineId });
     setCurrentMineId(mineId);
     currentMineIdRef.current = mineId; // Track for reconnection
