@@ -1,14 +1,56 @@
-# Black Gold v3.1.4 - Codebase Index
+# Black Gold v3.1.5 - Codebase Index
 
 > Complete file-by-file documentation for the Black Gold Interactive Mining Globe platform
 
-**Last Updated**: January 11, 2026  
-**Version**: 3.1.4 (Miner Registration Race Condition Fix)  
+**Last Updated**: January 13, 2026  
+**Version**: 3.1.5 (Auto-Join Home Mine Fix)  
 **Total Files**: 80+ TypeScript/TSX/JS files
 
 ---
 
-## 📋 Recent Changes (v3.1.4)
+## 📋 Recent Changes (v3.1.5)
+
+### Critical Fix - Clients Not Sending join_mine
+
+**Problem**: Server logs showed `Hashrate update from unknown miner` and `state.miners is empty`. Clients were authenticating but NOT sending `join_mine`, so miners were never registered with PoolManager.
+
+#### Root Cause
+On reconnection or page refresh:
+1. `currentMineIdRef.current` could be null (React refs cleared on refresh)
+2. The useEffect that joins `homeMineId` relies on timing/state that could be stale
+3. Server received `connect` but no `join_mine` followed
+4. Mining continued locally but server had no registered miners
+
+#### Server-Side Fix (`server/index.ts`)
+- `handleConnect` now **auto-joins** the restored home mine (or explicit mineId):
+```typescript
+const mineToJoin = payload.mineId || restoredHomeMine;
+if (mineToJoin) {
+  handleJoinMine(ws, { type: 'join_mine', mineId: mineToJoin }, clientInfo);
+}
+```
+- This ensures miners are ALWAYS registered when they have a home mine
+
+#### Client-Side Fix (`app/hooks/useGameSocket.ts`)
+- When receiving `result` with `homeMineId`, immediately sends `join_mine`:
+```typescript
+if (data.payload?.homeMineId) {
+  currentMineIdRef.current = data.payload.homeMineId;
+  send('join_mine', { mineId: data.payload.homeMineId });
+}
+```
+- Updates `currentMineIdRef` to track the mine for future reconnections
+
+#### Diagnostic Logging Added
+- Server logs all `JOIN_MINE` requests with wallet/mine/auth status
+- Server logs PoolManager creation (NEW vs EXISTING)
+- Server logs miner registration with PoolManager
+- Client logs WebSocket open with full state
+- Client logs all `joinMine` calls with previous mine ID
+
+---
+
+## 📋 Previous Changes (v3.1.4)
 
 ### Critical Race Condition Fix - Miners Disappearing from state.miners
 
@@ -33,12 +75,6 @@ This caused `state.miners` to be empty, which broke ALL broadcasts (discovery_pe
 - **`server/index.ts`** - `handleClose` passes the closing WebSocket:
   - `poolManager.handleDisconnect(walletAddress, ws)`
   - Prevents the race condition
-
-#### Diagnostic Logging Added
-- `handleConnect` now logs:
-  - Miners count BEFORE and AFTER adding
-  - Verification that miner was actually added
-  - All registered miners with WebSocket states
 
 ---
 
