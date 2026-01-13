@@ -1,14 +1,44 @@
-# Black Gold v3.2.0 - Codebase Index
+# Black Gold v3.2.1 - Codebase Index
 
 > Complete file-by-file documentation for the Black Gold Interactive Mining Globe platform
 
 **Last Updated**: January 13, 2026  
-**Version**: 3.2.0 (Popup Visibility Fix)  
+**Version**: 3.2.1 (Cache Control Headers)  
 **Total Files**: 80+ TypeScript/TSX/JS files
 
 ---
 
-## 📋 Recent Changes (v3.2.0)
+## 📋 Recent Changes (v3.2.1)
+
+### Cache Control Headers
+
+**Problem**: Users were seeing stale cached JavaScript that didn't understand new message types like `timeout_pending`. Even after server deployment, clients kept running old code.
+
+#### The Fix (`next.config.ts`)
+
+Added cache-control headers to force browsers to revalidate JS files:
+```typescript
+headers: async () => [
+  {
+    source: '/:path*.js',
+    headers: [
+      { key: 'Cache-Control', value: 'public, max-age=0, must-revalidate' },
+    ],
+  },
+  {
+    source: '/:path*',
+    headers: [
+      { key: 'X-App-Version', value: '3.2.1' },
+    ],
+  },
+],
+```
+
+This ensures browsers always check for fresh code after deployments.
+
+---
+
+## 📋 Previous Changes (v3.2.0)
 
 ### Popup Visibility Fix - Don't Close Immediately
 
