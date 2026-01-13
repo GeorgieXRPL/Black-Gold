@@ -1,14 +1,85 @@
-# Black Gold v3.2.1 - Codebase Index
+# Black Gold v3.2.2 - Codebase Index
 
 > Complete file-by-file documentation for the Black Gold Interactive Mining Globe platform
 
 **Last Updated**: January 13, 2026  
-**Version**: 3.2.1 (Cache Control Headers)  
+**Version**: 3.2.2 (IP Connection Tracking Fix)  
 **Total Files**: 80+ TypeScript/TSX/JS files
 
 ---
 
-## 📋 Recent Changes (v3.2.1)
+## 📋 Recent Changes (v3.2.2)
+
+### IP Connection Count Tracking Fix
+
+**Problem**: IP connection count was accumulating incorrectly, eventually blocking legitimate users from reconnecting. After many reconnections, the IP count would reach 10 (the limit) and never go back down.
+
+#### Root Cause Analysis
+
+From logs:
+```
+[PoolManager] IP 212.15.87.88 exceeded connection limit
+[PoolManager] ❌ IP limit check FAILED for BhjWTLy3
+```
+
+Two bugs caused this:
+
+**Bug 1: Connection count not decremented on miner replacement**
+
+When a miner reconnects (same wallet), the old connection is replaced:
+```typescript
+// OLD CODE (BROKEN)
+if (this.state.miners.has(walletAddress)) {
+  const existingMiner = this.state.miners.get(walletAddress)!;
+  existingMiner.ws.close(1000, 'New connection from same wallet');
+  this.state.miners.delete(walletAddress);  // Deleted BEFORE close event fires!
+}
+```
+
+Problem: The miner entry is deleted before the WebSocket close event fires. When `handleDisconnect` is called, it can't find the miner and doesn't decrement the counter.
+
+**Bug 2: handleJoinMine ignored handleConnect's return value**
+
+When IP limit check failed, `handleConnect` returned `false`, but `handleJoinMine` didn't check it and still sent success responses/assigned work.
+
+#### The Fix (`server/pool/manager.ts`)
+
+Decrement connection count BEFORE deleting the miner entry:
+```typescript
+if (this.state.miners.has(walletAddress)) {
+  const existingMiner = this.state.miners.get(walletAddress)!;
+  
+  // CRITICAL FIX: Decrement the IP connection count for the replaced miner
+  const tracker = this.state.ipTrackers.get(existingMiner.ip);
+  if (tracker && tracker.connectionCount > 0) {
+    tracker.connectionCount--;
+    console.log(`[PoolManager] Decremented connectionCount for replaced miner`);
+  }
+  
+  existingMiner.ws.close(1000, 'New connection from same wallet');
+  this.state.miners.delete(walletAddress);
+}
+```
+
+#### The Fix (`server/index.ts`)
+
+Check `handleConnect` return value and don't proceed on failure:
+```typescript
+const connectSuccess = poolManager.handleConnect(ws, {...}, clientInfo.ip);
+
+if (!connectSuccess) {
+  // Undo the MineRegistry add since they couldn't actually join
+  registry.removeMiner(clientInfo.walletAddress!, 0);
+  clientInfo.currentMineId = previousMineId;
+  return;  // Don't send success, don't assign work
+}
+
+// Only proceed with success response/work assignment if connect succeeded
+```
+
+---
+
+## 📋 Previous Changes (v3.2.1)
 
 ### Cache Control Headers
 

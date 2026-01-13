@@ -345,10 +345,20 @@ function handleJoinMine(
   // Register with pool manager
   const walletForLog = sanitizeForLog(clientInfo.walletAddress!) as string;
   console.log(`[WS] 📥 Registering miner ${walletForLog.slice(0, 8)} with PoolManager (pool ${isNewPool ? 'NEW' : 'EXISTING'})`);
-  poolManager.handleConnect(ws, {
+  const connectSuccess = poolManager.handleConnect(ws, {
     walletAddress: clientInfo.walletAddress!,
     cores: 1, // Will be updated with hashrate
   }, clientInfo.ip);
+
+  // CRITICAL: If handleConnect failed (e.g., IP limit exceeded), don't proceed
+  // The miner already received an error message from handleConnect
+  if (!connectSuccess) {
+    console.log(`[WS] ❌ ${walletForLog.slice(0, 8)} failed to join ${mine.definition.name} (IP limit or other error)`);
+    // Undo the MineRegistry add since they couldn't actually join
+    registry.removeMiner(clientInfo.walletAddress!, 0);
+    clientInfo.currentMineId = previousMineId; // Restore previous mine ID
+    return;
+  }
 
   // Send success response to the joining miner
   sendMessage(ws, 'result', {

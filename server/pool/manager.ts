@@ -343,6 +343,16 @@ export class PoolManager {
     if (this.state.miners.has(walletAddress)) {
       console.log(`[PoolManager] Wallet already connected, replacing connection`);
       const existingMiner = this.state.miners.get(walletAddress)!;
+      
+      // CRITICAL FIX: Decrement the IP connection count for the replaced miner
+      // This must happen BEFORE we delete the miner entry, because handleDisconnect
+      // won't be able to find it and decrement after the close event fires
+      const tracker = this.state.ipTrackers.get(existingMiner.ip);
+      if (tracker && tracker.connectionCount > 0) {
+        tracker.connectionCount--;
+        console.log(`[PoolManager] Decremented connectionCount for replaced miner (${tracker.connectionCount} remaining)`);
+      }
+      
       existingMiner.ws.close(1000, 'New connection from same wallet');
       this.state.miners.delete(walletAddress);
     }
