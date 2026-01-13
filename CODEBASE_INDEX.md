@@ -1,14 +1,69 @@
-# Black Gold v3.1.7 - Codebase Index
+# Black Gold v3.1.8 - Codebase Index
 
 > Complete file-by-file documentation for the Black Gold Interactive Mining Globe platform
 
 **Last Updated**: January 13, 2026  
-**Version**: 3.1.7 (IP Rate Limiting Fix)  
+**Version**: 3.1.8 (Timeout Loop Fix)  
 **Total Files**: 80+ TypeScript/TSX/JS files
 
 ---
 
-## 📋 Recent Changes (v3.1.7)
+## 📋 Recent Changes (v3.1.8)
+
+### Timeout Handler Loop Fix
+
+**Problem**: When a round timed out, the popup kept glitching and re-appearing on all devices, with 4 notifications showing in the activity feed. The timeout handler was firing repeatedly every second.
+
+#### The Bug
+```
+1. checkRoundTimeout() fires → handleTimeoutWinner() called
+2. handleTimeoutWinner() broadcasts and schedules startNewRound() after delay
+3. 1 second later, checkRoundTimeout() fires AGAIN
+4. roundStartTime hasn't been reset yet (happens in startNewRound)
+5. Timeout condition STILL true → handleTimeoutWinner() called AGAIN
+6. Repeats every second until startNewRound() finally runs!
+```
+
+#### The Fix (`server/pool/manager.ts`)
+
+Added `handlingTimeout` flag to `PoolState` interface:
+```typescript
+export interface PoolState {
+  // ... other fields
+  /** Flag to prevent multiple timeout handlers from firing */
+  handlingTimeout: boolean;
+}
+```
+
+Modified `checkRoundTimeout()` to check the flag:
+```typescript
+private checkRoundTimeout(): void {
+  // ... other checks
+  
+  // CRITICAL: Skip if already handling a timeout
+  if (this.state.handlingTimeout) return;
+  
+  if (elapsed >= this.mineConfig.maxTimeMs) {
+    // Set flag IMMEDIATELY to prevent re-entry
+    this.state.handlingTimeout = true;
+    this.handleTimeoutWinner();
+  }
+}
+```
+
+Reset flag in `startNewRound()`:
+```typescript
+private startNewRound(keepRollover: boolean): void {
+  // ... reset other state
+  
+  // CRITICAL: Clear the timeout handling flag
+  this.state.handlingTimeout = false;
+}
+```
+
+---
+
+## 📋 Previous Changes (v3.1.7)
 
 ### IP Rate Limiting Bug Fix
 

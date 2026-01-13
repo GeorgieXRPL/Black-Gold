@@ -132,6 +132,8 @@ export interface PoolState {
   roundStartTime: number;
   /** Accumulated rollover from timed-out rounds */
   rolloverAmount: number;
+  /** Flag to prevent multiple timeout handlers from firing */
+  handlingTimeout: boolean;
 }
 
 /** Timeout winner result structure */
@@ -229,6 +231,7 @@ export class PoolManager {
       bestHashes: new Map(),
       roundStartTime: now,
       rolloverAmount: 0,
+      handlingTimeout: false,
     };
     this.eventHandlers = eventHandlers;
   }
@@ -1320,9 +1323,14 @@ export class PoolManager {
     if (!this.mineConfig.hasTimeout || !this.mineConfig.maxTimeMs) return;
     if (this.state.pendingDiscovery) return;
     
+    // CRITICAL: Skip if already handling a timeout (prevents multiple firings)
+    if (this.state.handlingTimeout) return;
+    
     const elapsed = Date.now() - this.state.roundStartTime;
     
     if (elapsed >= this.mineConfig.maxTimeMs) {
+      // Set flag IMMEDIATELY to prevent re-entry
+      this.state.handlingTimeout = true;
       console.log(`[PoolManager] Round timeout reached for ${this.mineId} after ${elapsed / 1000}s`);
       this.handleTimeoutWinner();
     }
@@ -1507,6 +1515,9 @@ export class PoolManager {
     this.state.roundStartTime = now;
     this.state.bestHashes.clear();
     this.state.periodStartTime = now;
+    
+    // CRITICAL: Clear the timeout handling flag so next round can timeout
+    this.state.handlingTimeout = false;
     
     // Clear rollover if actual solution was found
     if (!keepRollover) {
