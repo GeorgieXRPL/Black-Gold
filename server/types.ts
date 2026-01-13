@@ -156,6 +156,7 @@ export type WSMessageType =
   | 'request_work'
   | 'round_status'       // Periodic update with time remaining, leaderboard
   | 'best_hash_update'   // Miner's best hash improved
+  | 'timeout_pending'    // Round timed out, 30s countdown to winner announcement
   | 'timeout_winner'     // Round ended by timeout, closest hash won
   | 'rollover_update'    // Rollover jackpot amount changed
   | 'round_restart';     // Mining round restarting, new work being assigned

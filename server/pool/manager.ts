@@ -1338,15 +1338,70 @@ export class PoolManager {
 
   /**
    * Handle round timeout - find closest hash winner
+   * Uses same pending → announce flow as discovery for consistent UX
    */
   private async handleTimeoutWinner(): Promise<void> {
-    const winner = this.findClosestHashWinner();
+    let winner = this.findClosestHashWinner();
     
+    // FALLBACK: If no one qualified via proof submissions, pick the miner with
+    // the highest hashrate contribution. This ensures someone wins if there
+    // were active miners, even if no proofs were submitted (high difficulty).
+    if (!winner && this.state.miners.size > 0) {
+      const topContributor = this.findTopHashrateContributor();
+      if (topContributor) {
+        console.log(`[PoolManager] No proof submissions qualified, using top hashrate contributor: ${topContributor.walletAddress}`);
+        // Create a synthetic best hash entry for the fallback winner
+        winner = {
+          walletAddress: topContributor.walletAddress,
+          bestHash: {
+            hash: 'hashrate-fallback',
+            nonce: 0,
+            distance: BigInt(Number.MAX_SAFE_INTEGER),
+            submittedAt: Date.now(),
+            submissionCount: 0,  // No proofs, but won via hashrate
+            firstSeenAt: topContributor.connectedAt.getTime(),
+          },
+        };
+      }
+    }
+    
+    // Calculate rewards upfront
+    const baseReward = this.calculateBaseReward();
+    const totalReward = baseReward + this.state.rolloverAmount;
+    const announceAt = Date.now() + POOL_CONFIG.ANNOUNCEMENT_DELAY_MS;
+    
+    // STEP 1: Broadcast timeout_pending (like discovery_pending)
+    // This shows a 30-second countdown overlay on all clients
+    console.log(`[PoolManager] Broadcasting timeout_pending, winner will be announced in ${POOL_CONFIG.ANNOUNCEMENT_DELAY_MS / 1000}s`);
+    this.broadcastMessage('timeout_pending', {
+      mineId: this.mineId,
+      mineName: this.getMineName(),
+      resource: this.resourceType,
+      announceAt,
+      countdownSeconds: POOL_CONFIG.ANNOUNCEMENT_DELAY_MS / 1000,
+      message: 'Round timed out! Winner being determined...',
+      hasWinner: !!winner,
+      participantCount: this.state.miners.size,
+      totalReward,
+      rolloverAmount: this.state.rolloverAmount,
+    });
+    
+    // STEP 2: After countdown, announce the winner (or no winner)
+    setTimeout(() => {
+      this.announceTimeoutWinner(winner, totalReward);
+    }, POOL_CONFIG.ANNOUNCEMENT_DELAY_MS);
+  }
+  
+  /**
+   * Announce the timeout winner after the countdown
+   */
+  private announceTimeoutWinner(
+    winner: { walletAddress: string; bestHash: MinerBestHash } | null,
+    totalReward: number
+  ): void {
     if (!winner) {
-      // No qualified winner - rollover everything except vault
-      console.log(`[PoolManager] No qualified winner for timeout, rolling over`);
-      const baseReward = this.calculateBaseReward();
-      const totalReward = baseReward + this.state.rolloverAmount;
+      // No qualified winner AND no active miners - rollover everything except vault
+      console.log(`[PoolManager] Announcing timeout with no winner, rolling over`);
       
       // 70% rolls over (finder share), 30% to vault
       this.state.rolloverAmount += totalReward * TIMEOUT_REWARDS.SOLUTION_FINDER_SHARE;
@@ -1354,21 +1409,24 @@ export class PoolManager {
       // Broadcast timeout with no winner
       this.broadcastMessage('timeout_winner', {
         mineId: this.mineId,
+        mineName: this.getMineName(),
+        resource: this.resourceType,
         winner: null,
         reason: 'No qualified miners',
         rolloverAmount: this.state.rolloverAmount,
-        nextRoundIn: POOL_CONFIG.ANNOUNCEMENT_DELAY_MS,
+        nextRoundIn: 5000, // 5 second delay before new round
+        totalReward: 0,
+        finderShare: 0,
+        vaultShare: 0,
+        participantCount: 0,
       });
       
-      // Start new round after delay
-      setTimeout(() => this.startNewRound(false), POOL_CONFIG.ANNOUNCEMENT_DELAY_MS);
+      // Start new round after short delay (popup stays for 5s)
+      setTimeout(() => this.startNewRound(false), 5000);
       return;
     }
     
-    // Calculate rewards for timeout scenario
-    const baseReward = this.calculateBaseReward();
-    const totalReward = baseReward + this.state.rolloverAmount;
-    
+    // We have a winner! Calculate rewards for timeout scenario
     const finderShare = totalReward * TIMEOUT_REWARDS.TIMEOUT_FINDER_SHARE;
     const vaultShare = totalReward * TIMEOUT_REWARDS.VAULT_SHARE;
     const rolloverShare = totalReward * TIMEOUT_REWARDS.ROLLOVER_SHARE;
@@ -1377,27 +1435,12 @@ export class PoolManager {
     const finderBonus = finderShare * TIMEOUT_REWARDS.TIMEOUT_FINDER_BONUS;
     
     console.log(
-      `[PoolManager] Timeout winner: ${winner.walletAddress} ` +
+      `[PoolManager] Announcing timeout winner: ${winner.walletAddress} ` +
       `(distance: ${winner.bestHash.distance}, submissions: ${winner.bestHash.submissionCount})`
     );
     
     // Calculate shares for all participants
     const shares = this.calculateMinerShares();
-    
-    // Create timeout result (similar to BarrelResult but for timeout)
-    const timeoutResult = {
-      type: 'timeout' as const,
-      mineId: this.mineId,
-      winner: winner.walletAddress,
-      winnerHash: winner.bestHash.hash,
-      totalReward,
-      finderShare,
-      finderBonus,
-      vaultShare,
-      rolloverShare,
-      shares,
-      timestamp: Date.now(),
-    };
     
     // Build timeout result for callbacks
     const timeoutResultPayload: TimeoutResult = {
@@ -1412,7 +1455,7 @@ export class PoolManager {
       rolloverAmount: rolloverShare,
       participantCount: this.state.bestHashes.size,
       shares: shares.slice(0, 10), // Top 10 for UI
-      nextRoundIn: POOL_CONFIG.ANNOUNCEMENT_DELAY_MS,
+      nextRoundIn: 5000, // 5 seconds for winner popup
     };
     
     // Broadcast timeout winner
@@ -1420,18 +1463,17 @@ export class PoolManager {
     
     // Call event handler for fallback broadcast
     if (this.eventHandlers.onTimeoutWinner) {
-      await this.eventHandlers.onTimeoutWinner(timeoutResultPayload);
+      this.eventHandlers.onTimeoutWinner(timeoutResultPayload);
     }
     
     // Update rollover for next round
     this.state.rolloverAmount = rolloverShare;
     
     // Distribute rewards (would integrate with reward orchestrator)
-    // For now, just log
     console.log(`[PoolManager] Timeout rewards: finder=${finderShare}, vault=${vaultShare}, rollover=${rolloverShare}`);
     
-    // Start new round after announcement delay
-    setTimeout(() => this.startNewRound(true), POOL_CONFIG.ANNOUNCEMENT_DELAY_MS);
+    // Start new round after popup display (5 seconds)
+    setTimeout(() => this.startNewRound(true), 5000);
   }
 
   /**
@@ -1476,6 +1518,39 @@ export class PoolManager {
     }
     
     return true;
+  }
+
+  /**
+   * Find the miner with the highest hashrate contribution this round
+   * Used as a fallback when no proofs were submitted but miners were active
+   */
+  private findTopHashrateContributor(): ConnectedMiner | null {
+    let topMiner: ConnectedMiner | null = null;
+    let topHashSeconds = 0;
+    
+    for (const miner of this.state.miners.values()) {
+      // Check if this miner contributed more hash-seconds than current top
+      if (miner.contribution.hashSeconds > topHashSeconds) {
+        topMiner = miner;
+        topHashSeconds = miner.contribution.hashSeconds;
+      }
+    }
+    
+    // Only return if they actually contributed something
+    if (topMiner && topHashSeconds > 0) {
+      return topMiner;
+    }
+    
+    // Fallback: If no hash-seconds tracked yet (just started), pick by current hashrate
+    let highestHashrate = 0;
+    for (const miner of this.state.miners.values()) {
+      if (miner.hashrate > highestHashrate) {
+        topMiner = miner;
+        highestHashrate = miner.hashrate;
+      }
+    }
+    
+    return topMiner;
   }
 
   /**

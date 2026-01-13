@@ -12,7 +12,7 @@ export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'er
 /** Game event types */
 export interface GameEvent {
   id: string;
-  type: 'raid_started' | 'raid_won' | 'raid_lost' | 'discovery_found' | 'discovery_pending' | 'jackpot' | 'vault_payout' | 'spoils_distributed' | 'round_status' | 'timeout_winner' | 'rollover_update' | 'best_hash_update' | 'round_restart';
+  type: 'raid_started' | 'raid_won' | 'raid_lost' | 'discovery_found' | 'discovery_pending' | 'jackpot' | 'vault_payout' | 'spoils_distributed' | 'round_status' | 'timeout_pending' | 'timeout_winner' | 'rollover_update' | 'best_hash_update' | 'round_restart';
   sourceMine?: string;
   targetMine?: string;
   sourceResource?: ResourceType;
@@ -290,9 +290,22 @@ export function useGameSocket({
           }
           break;
 
+        case 'timeout_pending':
+          // Timeout pending - show 30s countdown overlay (like discovery_pending)
+          console.log('[WS] ⏱️ Timeout pending:', data.payload);
+          if (onEvent) {
+            onEvent({
+              id: `timeout_pending_${Date.now()}`,
+              type: 'timeout_pending',
+              ...data.payload,
+              timestamp: new Date(),
+            });
+          }
+          break;
+
         case 'timeout_winner':
-          // Timeout winner announcement
-          console.log('[WS] Timeout winner:', data.payload);
+          // Timeout winner announcement (after countdown)
+          console.log('[WS] 🏆 Timeout winner:', data.payload);
           if (onEvent) {
             onEvent({
               id: `timeout_${Date.now()}`,

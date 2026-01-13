@@ -182,10 +182,17 @@ export const TIMEOUT_REWARDS = {
   TIMEOUT_FINDER_BONUS: 0.10,
   /** Early discovery bonus (found before 50% of max time) */
   EARLY_BONUS: 0.10,
-  /** Minimum submissions to qualify for closest-hash win */
-  MIN_SUBMISSIONS: 10,
-  /** Minimum time percent in round to qualify (50%) */
-  MIN_TIME_PERCENT: 0.50,
+  /** 
+   * Minimum submissions to qualify for closest-hash win
+   * Set to 1 - any miner who submitted at least one valid proof qualifies
+   * Note: if no miner submits any proof, rewards roll over to next round
+   */
+  MIN_SUBMISSIONS: 1,
+  /** 
+   * Minimum time percent in round to qualify
+   * Lowered to 10% to be more lenient - prevents only very late joiners
+   */
+  MIN_TIME_PERCENT: 0.10,
   /** Final seconds where improvement is capped */
   COOLDOWN_SECONDS: 30,
   /** Max improvement allowed in cooldown period (10%) */

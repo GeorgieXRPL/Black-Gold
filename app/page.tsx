@@ -209,6 +209,38 @@ export default function Home() {
       }
     }
     
+    // Handle timeout pending (30-second countdown before winner reveal)
+    if (event.type === 'timeout_pending') {
+      console.log('[Game] ⏱️ TIMEOUT_PENDING event received:', event);
+      const data = event as unknown as {
+        mineId: string;
+        mineName: string;
+        resource: string;
+        announceAt: number;
+        countdownSeconds: number;
+        message: string;
+        hasWinner: boolean;
+        participantCount: number;
+        totalReward: number;
+        rolloverAmount: number;
+      };
+      
+      // Show pending discovery overlay for timeout too (same UI component)
+      setPendingDiscovery({
+        discoveryNumber: 0, // Not a discovery, but we reuse the component
+        mineName: data.mineName || 'Unknown Mine',
+        resource: data.resource || 'coal',
+        announceAt: data.announceAt,
+      });
+      
+      // Pause workers during countdown
+      if (isMiningRef.current) {
+        console.log('[Game] Timeout pending - pausing workers (mining will auto-resume after winner announcement)');
+        mining.pauseMining();
+        setHashrate(0);
+      }
+    }
+    
     // Handle discovery found (winner revealed)
     if (event.type === 'discovery_found') {
       console.log('[Game] 🎉 DISCOVERY_FOUND event received:', JSON.stringify(event, null, 2));
@@ -297,8 +329,10 @@ export default function Home() {
       }
     }
     
-    // Handle timeout winner (round ended by time)
+    // Handle timeout winner (round ended by time - after 30s countdown)
     if (event.type === 'timeout_winner') {
+      console.log('[Game] 🏆 TIMEOUT_WINNER event received:', event);
+      
       const data = event as unknown as {
         mineId: string;
         mineName: string;
@@ -314,6 +348,9 @@ export default function Home() {
         nextRoundIn: number;
       };
       
+      // Clear the pending/countdown overlay
+      setPendingDiscovery(null);
+      
       const isWinner = data.winner === walletState.walletAddress;
       
       setTimeoutPopup({
@@ -322,14 +359,10 @@ export default function Home() {
         data,
       });
       
-      // Pause mining during announcement
-      if (isMiningRef.current) {
-        mining.pauseMining();
-        setHashrate(0);
-      }
+      // Mining is already paused from timeout_pending
       
-      // Auto-close timeout popup and restart mining
-      const closeDelay = isWinner ? 8000 : 5000;
+      // Auto-close timeout popup and restart mining after nextRoundIn (5 seconds)
+      const closeDelay = data.nextRoundIn || 5000;
       setTimeout(() => {
         console.log('[Game] Auto-closing timeout popup');
         setTimeoutPopup(prev => ({ ...prev, isOpen: false }));

@@ -1,14 +1,65 @@
-# Black Gold v3.1.8 - Codebase Index
+# Black Gold v3.1.9 - Codebase Index
 
 > Complete file-by-file documentation for the Black Gold Interactive Mining Globe platform
 
 **Last Updated**: January 13, 2026  
-**Version**: 3.1.8 (Timeout Loop Fix)  
+**Version**: 3.1.9 (Timeout Pending Flow)  
 **Total Files**: 80+ TypeScript/TSX/JS files
 
 ---
 
-## 📋 Recent Changes (v3.1.8)
+## 📋 Recent Changes (v3.1.9)
+
+### Timeout Pending Flow (30-Second Countdown)
+
+**Problem**: Timeout flow was missing the 30-second countdown phase that discovery flow has. The timeout winner popup appeared and disappeared after only a few seconds with no proper announcement.
+
+#### Expected Flow (Discovery)
+1. Solution found → `discovery_pending` shows 30s countdown overlay
+2. 30 seconds later → `discovery_found` shows winner popup
+3. Popup auto-closes after 5-8 seconds
+
+#### Old Timeout Flow (BROKEN)
+1. Timeout → `timeout_winner` immediately (no countdown!)
+2. Client auto-closed popup after 5 seconds
+
+#### New Timeout Flow (FIXED)
+1. Timeout → `timeout_pending` shows 30s countdown overlay (same as discovery)
+2. 30 seconds later → `timeout_winner` shows winner popup (or "no winner")
+3. Popup auto-closes after 5 seconds
+4. Mining resumes with new round
+
+#### Server Changes (`server/pool/manager.ts`)
+
+Split `handleTimeoutWinner` into two phases:
+```typescript
+// STEP 1: Broadcast timeout_pending (like discovery_pending)
+this.broadcastMessage('timeout_pending', {
+  mineId, mineName, resource,
+  announceAt: Date.now() + 30000,
+  countdownSeconds: 30,
+  message: 'Round timed out! Winner being determined...',
+  hasWinner: !!winner,
+  participantCount,
+});
+
+// STEP 2: After 30s, announce winner
+setTimeout(() => this.announceTimeoutWinner(...), 30000);
+```
+
+New `announceTimeoutWinner` method handles the actual winner broadcast.
+
+#### Client Changes
+- **`server/types.ts`**: Added `timeout_pending` message type
+- **`app/hooks/useGameSocket.ts`**: Added handler for `timeout_pending`
+- **`app/page.tsx`**: 
+  - Added `timeout_pending` event handler (reuses `PendingDiscoveryOverlay` component)
+  - Updated `timeout_winner` handler to clear overlay first
+  - Uses `nextRoundIn` from server for popup close timing
+
+---
+
+## 📋 Previous Changes (v3.1.8)
 
 ### Timeout Handler Loop Fix
 
