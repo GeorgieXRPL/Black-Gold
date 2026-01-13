@@ -1,14 +1,51 @@
-# Black Gold v3.1.9 - Codebase Index
+# Black Gold v3.2.0 - Codebase Index
 
 > Complete file-by-file documentation for the Black Gold Interactive Mining Globe platform
 
 **Last Updated**: January 13, 2026  
-**Version**: 3.1.9 (Timeout Pending Flow)  
+**Version**: 3.2.0 (Popup Visibility Fix)  
 **Total Files**: 80+ TypeScript/TSX/JS files
 
 ---
 
-## 📋 Recent Changes (v3.1.9)
+## 📋 Recent Changes (v3.2.0)
+
+### Popup Visibility Fix - Don't Close Immediately
+
+**Problem**: Winner popups (both `discovery_found` and `timeout_winner`) were being closed almost immediately (within microseconds) because a `round_restart` FALLBACK message was sent right after them.
+
+#### The Bug
+From logs:
+```
+01:59:00.571122704Z - timeout_winner broadcast
+01:59:00.571172449Z - round_restart FALLBACK broadcast (50μs later!)
+```
+
+The client's `round_restart` handler closes all popups:
+```typescript
+if (event.type === 'round_restart') {
+  setTimeoutPopup({ isOpen: false });  // CLOSES THE POPUP!
+}
+```
+
+So the popup appeared for ~50 microseconds before being closed!
+
+#### The Fix (`server/index.ts`)
+
+Removed the immediate `round_restart` FALLBACK broadcasts from both:
+1. `handleDiscoveryFound` - discovery_found no longer followed by immediate round_restart
+2. `handleTimeoutWinnerEvent` - timeout_winner no longer followed by immediate round_restart
+
+The `round_restart` will now only be sent by `PoolManager.startNewRound()` after the appropriate delay (5 seconds for timeout, or after discovery popup auto-closes).
+
+#### Flow After Fix
+1. `timeout_winner` broadcast → popup shows
+2. [5 seconds for users to see it]
+3. `round_restart` from startNewRound → popup closes, mining resumes
+
+---
+
+## 📋 Previous Changes (v3.1.9)
 
 ### Timeout Pending Flow (30-Second Countdown)
 

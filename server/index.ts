@@ -548,17 +548,11 @@ async function handleDiscoveryFound(mineId: string, result: BarrelResult): Promi
     message: `🏆 ${result.winner.slice(0, 8)}...${result.winner.slice(-4)} found the discovery!`,
   });
   
-  // Also broadcast round_restart via clientConnections
-  console.log(`[WS] 📡 FALLBACK: Broadcasting round_restart via clientConnections for ${mineId}`);
-  broadcastToMine(mineId, 'round_restart', {
-    mineId,
-    mineName: mine.definition.name,
-    resource: mine.definition.resource,
-    discoveryNumber: result.discoveryNumber + 1,
-    startingNow: true,
-    message: 'New round starting! Mining resumed.',
-  });
-  console.log(`[WS] 📡 FALLBACK: All discovery broadcasts complete for ${mineId}`);
+  // NOTE: Do NOT send round_restart immediately here!
+  // The discovery_found popup should stay visible for 5-8 seconds.
+  // round_restart will be sent by PoolManager after the new round starts.
+  // Sending it immediately would close the popup before users can see it.
+  console.log(`[WS] 📡 FALLBACK: Discovery broadcast complete for ${mineId} (round_restart will come from PoolManager)`);
 
   // Also broadcast to OTHER mines for global activity feed
   broadcastToAllExceptMine(mineId, 'game_event', {
@@ -601,19 +595,12 @@ async function handleTimeoutWinnerEvent(mineId: string, result: TimeoutResult): 
     nextRoundIn: result.nextRoundIn,
   });
   
-  // Also broadcast round_restart via clientConnections
-  console.log(`[WS] 📡 FALLBACK: Broadcasting round_restart after timeout for ${mineId}`);
-  broadcastToMine(mineId, 'round_restart', {
-    mineId,
-    mineName: result.mineName,
-    resource: result.resource,
-    rolloverAmount: result.rolloverAmount,
-    startingNow: false, // Will start after nextRoundIn
-    nextRoundIn: result.nextRoundIn,
-    message: 'New round starting soon! Mining will resume.',
-  });
+  // NOTE: Do NOT send round_restart immediately here!
+  // The timeout_winner popup should stay visible for nextRoundIn seconds.
+  // round_restart will be sent by PoolManager.startNewRound() after the delay.
+  // Sending it immediately would close the popup before users can see it.
   
-  // Also broadcast to OTHER mines for global activity feed
+  // Broadcast to OTHER mines for global activity feed
   broadcastToAllExceptMine(mineId, 'game_event', {
     type: 'timeout_winner',
     mineId,
