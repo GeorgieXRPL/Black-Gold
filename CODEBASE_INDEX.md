@@ -1,14 +1,52 @@
-# Black Gold v3.1.5 - Codebase Index
+# Black Gold v3.1.6 - Codebase Index
 
 > Complete file-by-file documentation for the Black Gold Interactive Mining Globe platform
 
 **Last Updated**: January 13, 2026  
-**Version**: 3.1.5 (Auto-Join Home Mine Fix)  
+**Version**: 3.1.6 (Auto-Restart Mining After Discovery)  
 **Total Files**: 80+ TypeScript/TSX/JS files
 
 ---
 
-## 📋 Recent Changes (v3.1.5)
+## 📋 Recent Changes (v3.1.6)
+
+### Auto-Restart Mining After Discovery/Timeout
+
+**Problem**: After a discovery was found, mining didn't auto-restart on all devices. The client received `round_restart` but just waited for work that never came (because server's `state.miners` was empty).
+
+#### The Fix (`app/page.tsx`)
+
+Client now re-joins the mine in THREE scenarios to ensure mining restarts:
+
+1. **discovery_found popup auto-close** (after 5-8 seconds):
+```typescript
+setTimeout(() => {
+  setDiscoveryPopup(prev => ({ ...prev, isOpen: false }));
+  if (isMiningRef.current && homeMineId) {
+    joinMineRef.current(homeMineId);  // Safety net
+  }
+}, closeDelay);
+```
+
+2. **timeout_winner popup auto-close** (after 5-8 seconds):
+   - Added missing auto-close timer
+   - Calls `joinMineRef.current(homeMineId)` on close
+
+3. **round_restart event** (immediately):
+```typescript
+if (isMiningRef.current && homeMineId) {
+  setTimeout(() => {
+    joinMineRef.current(homeMineId);
+  }, 500);  // Small delay for server to process
+}
+```
+
+#### Implementation Detail
+Uses `joinMineRef` (instead of `gameSocket.joinMine` directly) to avoid circular dependency - `handleGameEvent` is defined before `gameSocket`.
+
+---
+
+## 📋 Previous Changes (v3.1.5)
 
 ### Critical Fix - Clients Not Sending join_mine
 
