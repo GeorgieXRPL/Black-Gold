@@ -1,123 +1,63 @@
-Parsed message: type=hashrate
-[WS] hashrate from FToSaSs7eqGjuzmNyxhB7nETfdpYhvtPxa65U4swAxu3
-[PoolManager] Hashrate update from unknown miner: FToSaSs7eqGjuzmNyxhB7nETfdpYhvtPxa65U4swAxu3
+[PoolManager] ⚠️ NO MINERS to broadcast to! state.miners is empty
+[WS] Parsed message: type=hashrate
+[WS] hashrate from 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX
+[PoolManager] Hashrate update from unknown miner: 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX
+[WS] Parsed message: type=hashrate
+[WS] hashrate from 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX
+[PoolManager] Hashrate update from unknown miner: 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX
+[WS] Parsed message: type=hashrate
+[WS] hashrate from 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX
+[PoolManager] Hashrate update from unknown miner: 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX
 [PoolManager] 📡 Broadcasting stats to 0 miners at mine oil-ghawar
 [PoolManager] ⚠️ NO MINERS to broadcast to! state.miners is empty
 [PoolManager] 📡 Broadcast stats complete: sent=0, failed=0, closed=0
-[PoolManager] 📡 Broadcasting stats to 0 miners at mine silver-potosi
-[PoolManager] 📡 Broadcast stats complete: sent=0, failed=0, closed=0
+[PoolManager] 📡 Broadcasting stats to 0 miners at mine oil-ghawar
 [PoolManager] ⚠️ NO MINERS to broadcast to! state.miners is empty
-[WS] Parsed message: type=hashrate
-[WS] hashrate from 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX
-[PoolManager] Hashrate update from unknown miner: 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX
-[WS] Parsed message: type=hashrate
-[WS] hashrate from 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX
-[PoolManager] Hashrate update from unknown miner: 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX
-[WS] Parsed message: type=hashrate
-[WS] hashrate from BhjWTLy36S54omh2gV3AkJbcMQNCZcBZCPzyzd5o28my
-[PoolManager] Hashrate update from unknown miner: BhjWTLy36S54omh2gV3AkJbcMQNCZcBZCPzyzd5o28my
-[WS] Parsed message: type=hashrate
-[WS] hashrate from 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX
-[PoolManager] Hashrate update from unknown miner: 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX
-[WS] Parsed message: type=hashrate
-[WS] hashrate from FToSaSs7eqGjuzmNyxhB7nETfdpYhvtPxa65U4swAxu3
-[PoolManager] Hashrate update from unknown miner: FToSaSs7eqGjuzmNyxhB7nETfdpYhvtPxa65U4swAxu3
-[WS] Parsed message: type=hashrate
-[WS] hashrate from FToSaSs7eqGjuzmNyxhB7nETfdpYhvtPxa65U4swAxu3
-[PoolManager] Hashrate update from unknown miner: FToSaSs7eqGjuzmNyxhB7nETfdpYhvtPxa65U4swAxu3
-[WS] Parsed message: type=hashrate
-[WS] hashrate from BhjWTLy36S54omh2gV3AkJbcMQNCZcBZCPzyzd5o28my
-[PoolManager] Hashrate update from unknown miner: BhjWTLy36S54omh2gV3AkJbcMQNCZcBZCPzyzd5o28my
-[WS] Parsed message: type=hashrate
-[WS] hashrate from BhjWTLy36S54omh2gV3AkJbcMQNCZcBZCPzyzd5o28my
-[PoolManager] Hashrate update from unknown miner: BhjWTLy36S54omh2gV3AkJbcMQNCZcBZCPzyzd5o28my
-[WS] Parsed message: type=hashrate
-[WS] hashrate from BhjWTLy36S54omh2gV3AkJbcMQNCZcBZCPzyzd5o28my
-[PoolManager] Hashrate update from unknown miner: BhjWTLy36S54omh2gV3AkJbcMQNCZcBZCPzyzd5o28my
-[WS] Parsed message: type=hashrate
-[WS] hashrate from 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX
-[PoolManager] Hashrate update from unknown miner: 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX
-[WS] Parsed message: type=hashrate
-[WS] hashrate from 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX
-[PoolManager] Hashrate update from unknown miner: 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX
-[WS] Parsed message: type=hashrate
-[WS] hashrate from FToSaSs7eqGjuzmNyxhB7nETfdpYhvtPxa65U4swAxu3
-[PoolManager] Hashrate update from unknown miner: FToSaSs7eqGjuzmNyxhB7nETfdpYhvtPxa65U4swAxu3
-[WS] Parsed message: type=hashrate
-[WS] hashrate from BhjWTLy36S54omh2gV3AkJbcMQNCZcBZCPzyzd5o28my
-[PoolManager] Hashrate update from unknown miner: BhjWTLy36S54omh2gV3AkJbcMQNCZcBZCPzyzd5o28my
-[WS] Parsed message: type=hashrate
-[WS] hashrate from 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX
-[PoolManager] Hashrate update from unknown miner: 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX
-[WS] Parsed message: type=hashrate
-[WS] hashrate from 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX
-[PoolManager] Hashrate update from unknown miner: 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX
-[WS] Parsed message: type=hashrate
-[WS] hashrate from FToSaSs7eqGjuzmNyxhB7nETfdpYhvtPxa65U4swAxu3
-[PoolManager] Hashrate update from unknown miner: FToSaSs7eqGjuzmNyxhB7nETfdpYhvtPxa65U4swAxu3
-[WS] Parsed message: type=hashrate
-[WS] hashrate from BhjWTLy36S54omh2gV3AkJbcMQNCZcBZCPzyzd5o28my
-[PoolManager] Hashrate update from unknown miner: BhjWTLy36S54omh2gV3AkJbcMQNCZcBZCPzyzd5o28my
-[WS] hashrate from BhjWTLy36S54omh2gV3AkJbcMQNCZcBZCPzyzd5o28my
-[WS] Parsed message: type=hashrate
-[WS] hashrate from BhjWTLy36S54omh2gV3AkJbcMQNCZcBZCPzyzd5o28my
-[PoolManager] Hashrate update from unknown miner: BhjWTLy36S54omh2gV3AkJbcMQNCZcBZCPzyzd5o28my
-[PoolManager] Hashrate update from unknown miner: BhjWTLy36S54omh2gV3AkJbcMQNCZcBZCPzyzd5o28my
-[WS] Parsed message: type=hashrate
-[WS] Parsed message: type=hashrate
-[WS] hashrate from 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX
-[PoolManager] Hashrate update from unknown miner: 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX
-[WS] Parsed message: type=hashrate
-[WS] hashrate from FToSaSs7eqGjuzmNyxhB7nETfdpYhvtPxa65U4swAxu3
-[PoolManager] Hashrate update from unknown miner: FToSaSs7eqGjuzmNyxhB7nETfdpYhvtPxa65U4swAxu3
-[WS] Parsed message: type=hashrate
-[WS] hashrate from FToSaSs7eqGjuzmNyxhB7nETfdpYhvtPxa65U4swAxu3
-[PoolManager] Hashrate update from unknown miner: FToSaSs7eqGjuzmNyxhB7nETfdpYhvtPxa65U4swAxu3
-[WS] Parsed message: type=hashrate
-[WS] hashrate from 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX
-[PoolManager] Hashrate update from unknown miner: 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX
-[WS] Parsed message: type=hashrate
-[WS] hashrate from BhjWTLy36S54omh2gV3AkJbcMQNCZcBZCPzyzd5o28my
-[PoolManager] Hashrate update from unknown miner: BhjWTLy36S54omh2gV3AkJbcMQNCZcBZCPzyzd5o28my
-[WS] Parsed message: type=hashrate
-[WS] hashrate from 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX
-[PoolManager] Hashrate update from unknown miner: 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX
-[WS] Parsed message: type=hashrate
-[WS] hashrate from 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX
-[PoolManager] Hashrate update from unknown miner: 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX
-[WS] Parsed message: type=hashrate
-[WS] hashrate from 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX
-[PoolManager] Hashrate update from unknown miner: 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX
-[WS] Parsed message: type=hashrate
-[WS] hashrate from FToSaSs7eqGjuzmNyxhB7nETfdpYhvtPxa65U4swAxu3
-[PoolManager] Hashrate update from unknown miner: FToSaSs7eqGjuzmNyxhB7nETfdpYhvtPxa65U4swAxu3
-[WS] Parsed message: type=hashrate
-[WS] hashrate from BhjWTLy36S54omh2gV3AkJbcMQNCZcBZCPzyzd5o28my
-[PoolManager] Hashrate update from unknown miner: BhjWTLy36S54omh2gV3AkJbcMQNCZcBZCPzyzd5o28my
-[WS] Parsed message: type=hashrate
-[WS] hashrate from BhjWTLy36S54omh2gV3AkJbcMQNCZcBZCPzyzd5o28my
-[PoolManager] Hashrate update from unknown miner: BhjWTLy36S54omh2gV3AkJbcMQNCZcBZCPzyzd5o28my
-[WS] Parsed message: type=hashrate
-[WS] hashrate from BhjWTLy36S54omh2gV3AkJbcMQNCZcBZCPzyzd5o28my
-[PoolManager] Hashrate update from unknown miner: BhjWTLy36S54omh2gV3AkJbcMQNCZcBZCPzyzd5o28my
-[WS] Parsed message: type=hashrate
-[WS] hashrate from 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX
-[PoolManager] Hashrate update from unknown miner: 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX
-[WS] Parsed message: type=hashrate
-[WS] hashrate from FToSaSs7eqGjuzmNyxhB7nETfdpYhvtPxa65U4swAxu3
-[PoolManager] Hashrate update from unknown miner: FToSaSs7eqGjuzmNyxhB7nETfdpYhvtPxa65U4swAxu3
-[WS] Parsed message: type=hashrate
-[WS] hashrate from 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX
-[PoolManager] Hashrate update from unknown miner: 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX
-[WS] Parsed message: type=hashrate
-[WS] hashrate from BhjWTLy36S54omh2gV3AkJbcMQNCZcBZCPzyzd5o28my
-[PoolManager] Hashrate update from unknown miner: BhjWTLy36S54omh2gV3AkJbcMQNCZcBZCPzyzd5o28my
-[WS] Parsed message: type=hashrate
-[WS] hashrate from BhjWTLy36S54omh2gV3AkJbcMQNCZcBZCPzyzd5o28my
-[PoolManager] Hashrate update from unknown miner: BhjWTLy36S54omh2gV3AkJbcMQNCZcBZCPzyzd5o28my
-[WS] Parsed message: type=hashrate
-[WS] hashrate from BhjWTLy36S54omh2gV3AkJbcMQNCZcBZCPzyzd5o28my
-[PoolManager] Hashrate update from unknown miner: BhjWTLy36S54omh2gV3AkJbcMQNCZcBZCPzyzd5o28my
-[WS] Parsed message: type=hashrate
-[WS] hashrate from BhjWTLy36S54omh2gV3AkJbcMQNCZcBZCPzyzd5o28my
-[PoolManager] Hashrate update from unknown miner: BhjWTLy36S54omh2gV3AkJbcMQNCZcBZCPzyzd5o28my
+[PoolManager] 📡 Broadcast stats complete: sent=0, failed=0, closed=0
+   Hash:   000000d485853ecf...
+════════════════════════════════════════════════════════════
+[RewardOrchestrator] Processing discovery #0 at oil-ghawar by BhjWTLy3...
+[PoolManager] Timer fired - calling announceDiscovery()
+[DistributionService] Initialized
+[Vault] Added 40 COAL to oil-ghawar vault. Balance: 40
+[PoolManager] 🎉 ANNOUNCING WINNER: BhjWTLy36S54omh2gV3AkJbcMQNCZcBZCPzyzd5o28my for discovery #0!
+[RewardOrchestrator] No shares provided, using legacy distribution
+[PoolManager] 📊 Share-based distribution to 0 miners:
+[Work] Starting discovery #1
+[Work] Moved 12 work units to grace period
+[PoolManager] Contributions reset for new mining period
+[PoolManager] 📡 Broadcasting discovery_found to 0 miners at mine oil-ghawar
+[PoolManager] ⚠️ NO MINERS to broadcast to! state.miners is empty
+[PoolManager] 📡 Broadcast discovery_found complete: sent=0, failed=0, closed=0
+════════════════════════════════════════════════════════════
+🛢️  Seam #0 at Ghawar Field!
+   Winner: BhjWTLy36S54omh2gV3AkJbcMQNCZcBZCPzyzd5o28my
+[RewardOrchestrator] [MOCK] Would send 96 tCOAL to BhjWTLy3... (discovery_finder)
+[RewardOrchestrator] Discovery #0: 96 tCOAL to 1 miners, 40 to vault
+[PoolManager] 📡 Broadcast round_restart complete: sent=0, failed=0, closed=0
+[PoolManager] Mining resumed. New work assigned to 0 miners.
+[Redis] Stored discovery at mine oil-ghawar
+[Redis] Stored activity: discovery
+[WS] 📡 FALLBACK: Broadcasting discovery_found via clientConnections for oil-ghawar
+[WS] 📡 FALLBACK: Broadcasting round_restart via clientConnections for oil-ghawar
+[WS] 📡 FALLBACK: All discovery broadcasts complete for oil-ghawar
+[Difficulty] Scaled: 600s × 6148156 H/s = 2000000000 difficulty
+[MineRegistry] Ghawar Field difficulty recalculated: 2,000,000,000 (6148156 H/s, target: 10min)
+[PoolManager] Difficulty recalculated for oil-ghawar: 2,000,000,000, target: 0000000225bf...
+[PoolManager] 📡 Broadcasting round_restart to 0 miners at mine oil-ghawar
+[PoolManager] ⚠️ NO MINERS to broadcast to! state.miners is empty
+[Work] Cleaned up 2 grace period work units
+[PoolManager] 📡 Broadcasting stats to 0 miners at mine oil-ghawar
+[PoolManager] ⚠️ NO MINERS to broadcast to! state.miners is empty
+[PoolManager] 📡 Broadcast stats complete: sent=0, failed=0, closed=0
+1:M 13 Jan 2026 00:01:53.097 * 1 changes in 60 seconds. Saving...
+1:M 13 Jan 2026 00:01:53.098 * Background saving started by pid 53
+53:C 13 Jan 2026 00:01:53.129 * DB saved on disk
+53:C 13 Jan 2026 00:01:53.130 * Fork CoW for RDB: current 0 MB, peak 0 MB, average 0 MB
+1:M 13 Jan 2026 00:01:53.200 * Background saving terminated with success
+[PoolManager] 📡 Broadcasting stats to 0 miners at mine oil-ghawar
+[PoolManager] ⚠️ NO MINERS to broadcast to! state.miners is empty
+[PoolManager] 📡 Broadcast stats complete: sent=0, failed=0, closed=0
+[PoolManager] 📡 Broadcasting stats to 0 miners at mine oil-ghawar
+[PoolManager] ⚠️ NO MINERS to broadcast to! state.miners is empty
+[PoolManager] 📡 Broadcast stats complete: sent=0, failed=0, closed=0

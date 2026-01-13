@@ -155,6 +155,7 @@ export default function Home() {
   const sendHashrateRef = useRef<(rate: number) => void>(() => {});
   const submitProofRef = useRef<(workId: string, nonce: number, hash: string) => void>(() => {});
   const startMiningRef = useRef<(work: WorkUnit) => void>(() => {});
+  const joinMineRef = useRef<(mineId: string) => void>(() => {});
 
   // Mining web worker hook - defined first
   const mining = useMining({
@@ -263,6 +264,13 @@ export default function Home() {
       setTimeout(() => {
         console.log('[Game] Auto-closing discovery popup');
         setDiscoveryPopup(prev => ({ ...prev, isOpen: false }));
+        
+        // Fallback: Re-join mine to ensure we get new work
+        // This is a safety net in case round_restart wasn't received
+        if (isMiningRef.current && homeMineId) {
+          console.log('[Game] 🔄 Discovery popup closed - re-joining to ensure new work');
+          joinMineRef.current(homeMineId);
+        }
       }, closeDelay);
     }
     
@@ -319,6 +327,19 @@ export default function Home() {
         mining.pauseMining();
         setHashrate(0);
       }
+      
+      // Auto-close timeout popup and restart mining
+      const closeDelay = isWinner ? 8000 : 5000;
+      setTimeout(() => {
+        console.log('[Game] Auto-closing timeout popup');
+        setTimeoutPopup(prev => ({ ...prev, isOpen: false }));
+        
+        // Re-join mine to get new work
+        if (isMiningRef.current && homeMineId) {
+          console.log('[Game] 🔄 Timeout popup closed - re-joining to ensure new work');
+          joinMineRef.current(homeMineId);
+        }
+      }, closeDelay);
     }
     
     // Handle round restart (mining resuming after discovery/timeout)
@@ -330,8 +351,17 @@ export default function Home() {
       setTimeoutPopup(prev => ({ ...prev, isOpen: false }));
       setPendingDiscovery(null);
       
-      // Mining will auto-continue when new work arrives (handled in handleWorkReceived)
-      console.log('[Game] Round restarting, new work should arrive shortly...');
+      // If we were mining, re-join the mine to request new work
+      // This is critical because the server may not have us in state.miners
+      if (isMiningRef.current && homeMineId) {
+        console.log('[Game] 🔄 Round restart - re-joining mine to get new work:', homeMineId);
+        // Small delay to let the server finish processing the round restart
+        setTimeout(() => {
+          joinMineRef.current(homeMineId);
+        }, 500);
+      } else {
+        console.log('[Game] Round restarting but not mining or no home mine');
+      }
     }
     
     // Only add relevant events to the activity feed
@@ -415,6 +445,14 @@ export default function Home() {
     submitProofRef.current = (workId: string, nonce: number, hash: string) => {
       if (gameSocket.status === 'connected') {
         gameSocket.submitProof(workId, nonce, hash);
+      }
+    };
+    joinMineRef.current = (mineId: string) => {
+      if (gameSocket.status === 'connected') {
+        console.log('[Game] 📍 joinMineRef called:', mineId);
+        gameSocket.joinMine(mineId);
+      } else {
+        console.warn('[Game] ⚠️ joinMineRef called but not connected');
       }
     };
   }, [gameSocket]);
