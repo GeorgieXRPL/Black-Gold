@@ -1,63 +1,137 @@
-[PoolManager] ⚠️ NO MINERS to broadcast to! state.miners is empty
-[WS] Parsed message: type=hashrate
-[WS] hashrate from 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX
-[PoolManager] Hashrate update from unknown miner: 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX
-[WS] Parsed message: type=hashrate
-[WS] hashrate from 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX
-[PoolManager] Hashrate update from unknown miner: 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX
-[WS] Parsed message: type=hashrate
-[WS] hashrate from 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX
-[PoolManager] Hashrate update from unknown miner: 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX
+[PoolManager] ✅ Miner ADDED to state.miners
+[PoolManager] Current miners AFTER add: 2
+[PoolManager] ✅ VERIFIED: 51GgxVqY... IS in state.miners
+[PoolManager] Miner connected: 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX (1 cores) from 86.48.12.151
+[PoolManager] Assigned work a8b68e9bca33a8eeda7a04a51681ff2e to 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX [400000000, 450000000) target: 0000011e5fff... (mine: global)
+[MineRegistry] Miner 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX joined Ghawar Field (1 miners, 0 H/s)
+[WS] 📥 Registering miner 51GgxVqY with PoolManager (pool EXISTING)
+[PoolManager] ========== HANDLE_CONNECT START ==========
+[PoolManager] Mine: oil-ghawar, Wallet: 51GgxVqY...
+[PoolManager] Current miners BEFORE add: 1
+[PoolManager] ✅ IP limit check passed
+[PoolManager] ========== HANDLE_CONNECT COMPLETE ==========
+[PoolManager] Assigned work f815b01969922e81862341842937a9d4 to 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX [450000000, 500000000) target: 0000011e5fff... (mine: oil-ghawar)
+[WS] 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX joined Ghawar Field (work assigned)
+[WS] Disconnected: FToSaSs7eqGjuzmNyxhB7nETfdpYhvtPxa65U4swAxu3
+[MineRegistry] Miner FToSaSs7eqGjuzmNyxhB7nETfdpYhvtPxa65U4swAxu3 left Ghawar Field (1 miners remaining)
+[PoolManager] Miner disconnected: FToSaSs7eqGjuzmNyxhB7nETfdpYhvtPxa65U4swAxu3
+[WS] Parsed message: type=join_mine
+[WS] join_mine from 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX
+[WS] 📍 JOIN_MINE request: {
+  mineId: 'oil-ghawar',
+  wallet: '51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX',
+  authenticated: true,
+  previousMine: 'oil-ghawar'
+}
+[PoolManager] Wallet already connected, replacing connection
+[PoolManager] ✅ Miner ADDED to state.miners
+[PoolManager] Current miners AFTER add: 1
+[PoolManager] ✅ VERIFIED: 51GgxVqY... IS in state.miners
+[PoolManager] Miner connected: 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX (1 cores) from 86.48.12.151
+[PoolManager] Assigned work 39c0cfb85aa2b467b2e6f0d0ae755f70 to 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX [500000000, 550000000) target: 0000011e5fff... (mine: global)
+[PoolManager] ========== HANDLE_CONNECT COMPLETE ==========
+[PoolManager] Assigned work f7f0e32d71dc7d46688f44eb8436cb3f to 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX [550000000, 600000000) target: 0000011e5fff... (mine: oil-ghawar)
+[WS] 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX joined Ghawar Field (work assigned)
+[WS] Disconnected: 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX
+[MineRegistry] Miner 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX left Ghawar Field (0 miners remaining)
+[PoolManager] Miner disconnected: 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX
+[WS] New connection from 2.56.252.51
+[WS] New connection from 86.48.12.151
 [PoolManager] 📡 Broadcasting stats to 0 miners at mine oil-ghawar
 [PoolManager] ⚠️ NO MINERS to broadcast to! state.miners is empty
 [PoolManager] 📡 Broadcast stats complete: sent=0, failed=0, closed=0
-[PoolManager] 📡 Broadcasting stats to 0 miners at mine oil-ghawar
-[PoolManager] ⚠️ NO MINERS to broadcast to! state.miners is empty
-[PoolManager] 📡 Broadcast stats complete: sent=0, failed=0, closed=0
-   Hash:   000000d485853ecf...
-════════════════════════════════════════════════════════════
-[RewardOrchestrator] Processing discovery #0 at oil-ghawar by BhjWTLy3...
-[PoolManager] Timer fired - calling announceDiscovery()
-[DistributionService] Initialized
-[Vault] Added 40 COAL to oil-ghawar vault. Balance: 40
-[PoolManager] 🎉 ANNOUNCING WINNER: BhjWTLy36S54omh2gV3AkJbcMQNCZcBZCPzyzd5o28my for discovery #0!
-[RewardOrchestrator] No shares provided, using legacy distribution
-[PoolManager] 📊 Share-based distribution to 0 miners:
-[Work] Starting discovery #1
-[Work] Moved 12 work units to grace period
-[PoolManager] Contributions reset for new mining period
-[PoolManager] 📡 Broadcasting discovery_found to 0 miners at mine oil-ghawar
-[PoolManager] ⚠️ NO MINERS to broadcast to! state.miners is empty
-[PoolManager] 📡 Broadcast discovery_found complete: sent=0, failed=0, closed=0
-════════════════════════════════════════════════════════════
-🛢️  Seam #0 at Ghawar Field!
-   Winner: BhjWTLy36S54omh2gV3AkJbcMQNCZcBZCPzyzd5o28my
-[RewardOrchestrator] [MOCK] Would send 96 tCOAL to BhjWTLy3... (discovery_finder)
-[RewardOrchestrator] Discovery #0: 96 tCOAL to 1 miners, 40 to vault
-[PoolManager] 📡 Broadcast round_restart complete: sent=0, failed=0, closed=0
-[PoolManager] Mining resumed. New work assigned to 0 miners.
-[Redis] Stored discovery at mine oil-ghawar
-[Redis] Stored activity: discovery
-[WS] 📡 FALLBACK: Broadcasting discovery_found via clientConnections for oil-ghawar
-[WS] 📡 FALLBACK: Broadcasting round_restart via clientConnections for oil-ghawar
-[WS] 📡 FALLBACK: All discovery broadcasts complete for oil-ghawar
-[Difficulty] Scaled: 600s × 6148156 H/s = 2000000000 difficulty
-[MineRegistry] Ghawar Field difficulty recalculated: 2,000,000,000 (6148156 H/s, target: 10min)
-[PoolManager] Difficulty recalculated for oil-ghawar: 2,000,000,000, target: 0000000225bf...
-[PoolManager] 📡 Broadcasting round_restart to 0 miners at mine oil-ghawar
-[PoolManager] ⚠️ NO MINERS to broadcast to! state.miners is empty
-[Work] Cleaned up 2 grace period work units
-[PoolManager] 📡 Broadcasting stats to 0 miners at mine oil-ghawar
-[PoolManager] ⚠️ NO MINERS to broadcast to! state.miners is empty
-[PoolManager] 📡 Broadcast stats complete: sent=0, failed=0, closed=0
-1:M 13 Jan 2026 00:01:53.097 * 1 changes in 60 seconds. Saving...
-1:M 13 Jan 2026 00:01:53.098 * Background saving started by pid 53
-53:C 13 Jan 2026 00:01:53.129 * DB saved on disk
-53:C 13 Jan 2026 00:01:53.130 * Fork CoW for RDB: current 0 MB, peak 0 MB, average 0 MB
-1:M 13 Jan 2026 00:01:53.200 * Background saving terminated with success
-[PoolManager] 📡 Broadcasting stats to 0 miners at mine oil-ghawar
-[PoolManager] ⚠️ NO MINERS to broadcast to! state.miners is empty
-[PoolManager] 📡 Broadcast stats complete: sent=0, failed=0, closed=0
-[PoolManager] 📡 Broadcasting stats to 0 miners at mine oil-ghawar
-[PoolManager] ⚠️ NO MINERS to broadcast to! state.miners is empty
-[PoolManager] 📡 Broadcast stats complete: sent=0, failed=0, closed=0
+npm error path /app
+npm error command failed
+npm error signal SIGTERM
+npm error command sh -c tsx server/index.ts
+npm error A complete log of this run can be found in: /root/.npm/_logs/2026-01-12T23_18_10_913Z-debug-0.log
+[WS] New connection from 2.56.252.51
+[WS] Parsed message: type=connect
+[WS] connect from 2.56.252.51
+[StakeManager] Restored home mine for FToSaSs7...: oil-ghawar
+[WS] Auto-joining mine oil-ghawar for FToSaSs7eqGjuzmNyxhB7nETfdpYhvtPxa65U4swAxu3
+[WS] 📍 JOIN_MINE request: {
+  mineId: 'oil-ghawar',
+  wallet: 'FToSaSs7eqGjuzmNyxhB7nETfdpYhvtPxa65U4swAxu3',
+  authenticated: true,
+  previousMine: 'none'
+}
+[MineRegistry] Miner FToSaSs7eqGjuzmNyxhB7nETfdpYhvtPxa65U4swAxu3 joined Ghawar Field (1 miners, 0 H/s)
+[WS] 📥 Registering miner FToSaSs7 with PoolManager (pool EXISTING)
+[PoolManager] ========== HANDLE_CONNECT START ==========
+[PoolManager] Mine: oil-ghawar, Wallet: FToSaSs7...
+[PoolManager] Current miners BEFORE add: 0
+[PoolManager] IP 2.56.252.51 exceeded connection limit
+[PoolManager] ❌ IP limit check FAILED for FToSaSs7
+[WS] FToSaSs7eqGjuzmNyxhB7nETfdpYhvtPxa65U4swAxu3 joined Ghawar Field (work assigned)
+[WS] Client authenticated: FToSaSs7eqGjuzmNyxhB7nETfdpYhvtPxa65U4swAxu3 (home: oil-ghawar)
+[WS] Parsed message: type=join_mine
+[WS] join_mine from FToSaSs7eqGjuzmNyxhB7nETfdpYhvtPxa65U4swAxu3
+[WS] 📍 JOIN_MINE request: {
+  mineId: 'oil-ghawar',
+  wallet: 'FToSaSs7eqGjuzmNyxhB7nETfdpYhvtPxa65U4swAxu3',
+  authenticated: true,
+  previousMine: 'oil-ghawar'
+}
+[MineRegistry] Miner FToSaSs7eqGjuzmNyxhB7nETfdpYhvtPxa65U4swAxu3 joined Ghawar Field (1 miners, 0 H/s)
+[WS] 📥 Registering miner FToSaSs7 with PoolManager (pool EXISTING)
+[PoolManager] ========== HANDLE_CONNECT START ==========
+[PoolManager] Mine: oil-ghawar, Wallet: FToSaSs7...
+[PoolManager] Current miners BEFORE add: 0
+[PoolManager] IP 2.56.252.51 exceeded connection limit
+[PoolManager] ❌ IP limit check FAILED for FToSaSs7
+[WS] FToSaSs7eqGjuzmNyxhB7nETfdpYhvtPxa65U4swAxu3 joined Ghawar Field (work assigned)
+[WS] Parsed message: type=join_mine
+[WS] join_mine from FToSaSs7eqGjuzmNyxhB7nETfdpYhvtPxa65U4swAxu3
+[WS] 📍 JOIN_MINE request: {
+  mineId: 'oil-ghawar',
+  wallet: 'FToSaSs7eqGjuzmNyxhB7nETfdpYhvtPxa65U4swAxu3',
+  authenticated: true,
+  previousMine: 'oil-ghawar'
+}
+[MineRegistry] Miner FToSaSs7eqGjuzmNyxhB7nETfdpYhvtPxa65U4swAxu3 joined Ghawar Field (1 miners, 0 H/s)
+[PoolManager] Current miners BEFORE add: 0
+[PoolManager] IP 86.48.12.151 exceeded connection limit
+[PoolManager] ❌ IP limit check FAILED for 51GgxVqY
+[WS] 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX joined Ghawar Field (work assigned)
+[WS] Client authenticated: 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX (home: oil-ghawar)
+[WS] 📥 Registering miner FToSaSs7 with PoolManager (pool EXISTING)
+[PoolManager] ========== HANDLE_CONNECT START ==========
+[PoolManager] Mine: oil-ghawar, Wallet: FToSaSs7...
+[PoolManager] Current miners BEFORE add: 0
+[PoolManager] IP 2.56.252.51 exceeded connection limit
+[PoolManager] ❌ IP limit check FAILED for FToSaSs7
+[WS] FToSaSs7eqGjuzmNyxhB7nETfdpYhvtPxa65U4swAxu3 joined Ghawar Field (work assigned)
+[WS] New connection from 86.48.12.151
+[WS] New connection from 86.48.12.151
+[WS] Parsed message: type=connect
+[WS] connect from 86.48.12.151
+[StakeManager] Restored home mine for 51GgxVqY...: oil-ghawar
+[WS] Auto-joining mine oil-ghawar for 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX
+[WS] 📍 JOIN_MINE request: {
+  mineId: 'oil-ghawar',
+  wallet: '51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX',
+  authenticated: true,
+[PoolManager] Mine: oil-ghawar, Wallet: 51GgxVqY...
+  previousMine: 'none'
+}
+[MineRegistry] Miner 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX joined Ghawar Field (2 miners, 0 H/s)
+[WS] 📥 Registering miner 51GgxVqY with PoolManager (pool EXISTING)
+[PoolManager] ========== HANDLE_CONNECT START ==========
+[WS] Parsed message: type=join_mine
+[WS] join_mine from 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX
+[WS] 📍 JOIN_MINE request: {
+  mineId: 'oil-ghawar',
+  wallet: '51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX',
+  authenticated: true,
+  previousMine: 'oil-ghawar'
+}
+[MineRegistry] Miner 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX joined Ghawar Field (2 miners, 0 H/s)
+[WS] 📥 Registering miner 51GgxVqY with PoolManager (pool EXISTING)
+[PoolManager] ========== HANDLE_CONNECT START ==========
+[PoolManager] Mine: oil-ghawar, Wallet: 51GgxVqY...
+[PoolManager] Current miners BEFORE add: 0
+[PoolManager] IP 86.48.12.151 exceeded connection limit
+[PoolManager] ❌ IP limit check FAILED for 51GgxVqY
+[WS] 51GgxVqYyRXXMxE8XM1iNN4v3XfpzQGpR9c1YgeHLBWX joined Ghawar Field (work assigned)
+[WS] Parsed message: type=join_mine

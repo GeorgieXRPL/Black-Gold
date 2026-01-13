@@ -423,6 +423,15 @@ export class PoolManager {
       this.state.workTracker = invalidateWork(this.state.workTracker, workId);
     }
 
+    // CRITICAL: Decrement IP tracker connection count
+    // This was missing and caused connectionCount to accumulate forever,
+    // eventually blocking legitimate users after a few reconnections
+    const tracker = this.state.ipTrackers.get(miner.ip);
+    if (tracker && tracker.connectionCount > 0) {
+      tracker.connectionCount--;
+      console.log(`[PoolManager] IP ${miner.ip} connectionCount decremented to ${tracker.connectionCount}`);
+    }
+
     this.state.miners.delete(walletAddress);
 
     console.log(`[PoolManager] Miner disconnected: ${walletAddress}`);

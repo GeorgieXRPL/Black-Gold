@@ -196,10 +196,21 @@ export const TIMEOUT_REWARDS = {
 export const RATE_LIMIT_CONFIG = {
   /** Max submissions per minute per wallet */
   MAX_SUBMISSIONS_PER_MINUTE: 10,
-  /** Max concurrent connections per IP */
-  MAX_CONNECTIONS_PER_IP: 3,
-  /** Max IPs per wallet before flagging */
-  MAX_IPS_PER_WALLET: 3,
+  /** 
+   * Max concurrent connections per IP
+   * Increased from 3 to 10 to handle:
+   * - Reconnection scenarios (rapid disconnect/reconnect)
+   * - Multiple devices on same network (household/office)
+   * - Browser refresh spam
+   * Note: This doesn't increase mining power - each connection still does its own work
+   */
+  MAX_CONNECTIONS_PER_IP: 10,
+  /** 
+   * Max wallets per IP before flagging (sybil detection)
+   * Increased from 3 to 5 to handle household scenarios
+   * where multiple family members might mine from same IP
+   */
+  MAX_IPS_PER_WALLET: 5,
   /** Rate limit window in ms */
   WINDOW_MS: 60_000,
   /** Initial backoff time in ms */

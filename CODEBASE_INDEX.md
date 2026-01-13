@@ -1,14 +1,60 @@
-# Black Gold v3.1.6 - Codebase Index
+# Black Gold v3.1.7 - Codebase Index
 
 > Complete file-by-file documentation for the Black Gold Interactive Mining Globe platform
 
 **Last Updated**: January 13, 2026  
-**Version**: 3.1.6 (Auto-Restart Mining After Discovery)  
+**Version**: 3.1.7 (IP Rate Limiting Fix)  
 **Total Files**: 80+ TypeScript/TSX/JS files
 
 ---
 
-## 📋 Recent Changes (v3.1.6)
+## 📋 Recent Changes (v3.1.7)
+
+### IP Rate Limiting Bug Fix
+
+**Problem**: Users were being blocked with "IP exceeded connection limit" after a few reconnections. The `connectionCount` in the IP tracker was incremented on connect but **NEVER decremented on disconnect**, causing it to accumulate forever.
+
+#### The Bug
+```
+1. User connects → connectionCount++ (now 1)
+2. User disconnects → connectionCount stays 1 (BUG!)
+3. User reconnects → connectionCount++ (now 2)
+4. User disconnects → stays 2
+5. User reconnects → connectionCount++ (now 3)
+6. User reconnects → BLOCKED! (3 >= MAX_CONNECTIONS_PER_IP)
+```
+
+#### The Fix (`server/pool/manager.ts`)
+
+Added connection count decrement in `handleDisconnect`:
+```typescript
+// CRITICAL: Decrement IP tracker connection count
+const tracker = this.state.ipTrackers.get(miner.ip);
+if (tracker && tracker.connectionCount > 0) {
+  tracker.connectionCount--;
+  console.log(`[PoolManager] IP ${miner.ip} connectionCount decremented to ${tracker.connectionCount}`);
+}
+```
+
+#### Rate Limit Config Changes (`config/constants.ts`)
+
+Increased limits to be more lenient while still preventing abuse:
+
+| Setting | Old | New | Reason |
+|---------|-----|-----|--------|
+| `MAX_CONNECTIONS_PER_IP` | 3 | 10 | Handle reconnection spam, multiple devices |
+| `MAX_IPS_PER_WALLET` | 3 | 5 | Allow household/office scenarios |
+
+#### Why This Still Prevents Gaming
+
+1. **Sybil Protection**: `MAX_IPS_PER_WALLET` limits wallets per IP
+2. **Connection Spam**: 10 connections is still a reasonable limit
+3. **Submission Rate Limiting**: `MAX_SUBMISSIONS_PER_MINUTE` prevents proof spam
+4. **Work ID Validation**: Each miner gets unique work - more connections ≠ more mining power
+
+---
+
+## 📋 Previous Changes (v3.1.6)
 
 ### Auto-Restart Mining After Discovery/Timeout
 
