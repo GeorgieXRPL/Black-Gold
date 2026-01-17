@@ -147,7 +147,7 @@ export const AdminActionSchema = z.object({
   action: z.enum(['ban_user', 'unban_user', 'set_mine_config', 'force_buyback', 'trigger_distribution', 'clear_cache']),
   wallet: SolanaAddressSchema.optional(),
   mineId: MineIdSchema.optional(),
-  config: z.record(z.unknown()).optional(),
+  config: z.record(z.string(), z.unknown()).optional(),
 });
 
 // ============================================================================
