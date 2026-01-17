@@ -1,5 +1,5 @@
 /**
- * @fileoverview Raid Bet Escrow System for Black Gold
+ * @fileoverview Raid Bet Escrow System for Black Gold v3.3.1
  * 
  * Manages raid bet locking separate from Quarry staking:
  * - Bets are locked when raids start (can't escape mid-raid)
@@ -9,10 +9,40 @@
  * Architecture:
  * - Quarry = Staking (instant unstake OK, affects defense power)
  * - BetEscrow = Raid bets (locked until raid resolves)
+ * 
+ * On-chain flow:
+ * 1. Server builds deposit tx (user -> escrow)
+ * 2. User signs and sends tx
+ * 3. Server verifies deposit on-chain
+ * 4. After raid resolves, server executes payouts/burns
  */
 
-import { PublicKey } from '@solana/web3.js';
-import { TOKEN_CONFIG } from '../../config/constants';
+import {
+  PublicKey,
+  Transaction,
+  TransactionInstruction,
+  Connection,
+  Keypair,
+} from '@solana/web3.js';
+import { TOKEN_CONFIG, RPC_CONFIG } from '../../config/constants';
+import { createConnection } from '../solana/holder';
+
+// Use require to avoid TypeScript module resolution conflicts
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const splToken = require('@solana/spl-token') as {
+  getAssociatedTokenAddress: (mint: PublicKey, owner: PublicKey) => Promise<PublicKey>;
+  createAssociatedTokenAccountInstruction: (payer: PublicKey, associatedToken: PublicKey, owner: PublicKey, mint: PublicKey) => TransactionInstruction;
+  createTransferInstruction: (source: PublicKey, destination: PublicKey, owner: PublicKey, amount: bigint | number) => TransactionInstruction;
+  getAccount: (connection: Connection, address: PublicKey) => Promise<{ amount: bigint }>;
+  createBurnInstruction: (account: PublicKey, mint: PublicKey, owner: PublicKey, amount: bigint | number) => TransactionInstruction;
+};
+const {
+  getAssociatedTokenAddress,
+  createAssociatedTokenAccountInstruction,
+  createTransferInstruction,
+  getAccount,
+  createBurnInstruction,
+} = splToken;
 
 /**
  * Bet status in the escrow system
@@ -65,8 +95,18 @@ export interface EscrowResolution {
 }
 
 /**
+ * Transaction build result for bet operations
+ */
+export interface BetTransactionResult {
+  transaction: string; // Base64 serialized
+  message: string;
+  lastValidBlockHeight: number;
+  blockhash: string;
+}
+
+/**
  * Bet Escrow Manager
- * Handles all raid bet operations
+ * Handles all raid bet operations including on-chain transactions
  */
 export class BetEscrowManager {
   /** Active raid bet pools */
@@ -81,12 +121,319 @@ export class BetEscrowManager {
   /** Escrow wallet address (configured externally) */
   private escrowWallet: string;
   
+  /** COAL token mint address */
+  private tokenMint: string;
+  
   constructor() {
     this.escrowWallet = process.env.BET_ESCROW_WALLET || '';
+    this.tokenMint = TOKEN_CONFIG.MINT_ADDRESS;
+    
     if (!this.escrowWallet) {
       console.warn('[BetEscrow] BET_ESCROW_WALLET not configured - using placeholder');
       this.escrowWallet = 'ESCROW_WALLET_NOT_SET';
     }
+  }
+  
+  /**
+   * Check if escrow is properly configured
+   */
+  isConfigured(): boolean {
+    return this.escrowWallet !== 'ESCROW_WALLET_NOT_SET' && 
+           this.tokenMint !== 'TBD' &&
+           this.tokenMint !== 'DEVNET_TEST_TOKEN';
+  }
+  
+  /**
+   * Build a transaction for user to deposit their bet to escrow
+   * 
+   * @param walletAddress - User's wallet address
+   * @param amount - Bet amount in COAL tokens
+   * @param raidId - The raid ID this bet is for
+   */
+  async buildBetDepositTransaction(
+    walletAddress: string,
+    amount: number,
+    raidId: string
+  ): Promise<BetTransactionResult | { error: string }> {
+    if (!this.isConfigured()) {
+      return { error: 'Bet escrow not configured. Set BET_ESCROW_WALLET and TOKEN_MINT_ADDRESS.' };
+    }
+    
+    try {
+      const connection = createConnection();
+      const userPubkey = new PublicKey(walletAddress);
+      const escrowPubkey = new PublicKey(this.escrowWallet);
+      const mintPubkey = new PublicKey(this.tokenMint);
+      
+      // Convert amount to raw units
+      const rawAmount = BigInt(Math.floor(amount * Math.pow(10, TOKEN_CONFIG.DECIMALS)));
+      
+      // Get user's token account
+      const userATA = await getAssociatedTokenAddress(mintPubkey, userPubkey);
+      
+      // Get or create escrow's token account
+      const escrowATA = await getAssociatedTokenAddress(mintPubkey, escrowPubkey);
+      
+      const transaction = new Transaction();
+      
+      // Check if escrow ATA exists, if not create it
+      try {
+        await getAccount(connection, escrowATA);
+      } catch {
+        // Create ATA for escrow (user pays fee)
+        transaction.add(
+          createAssociatedTokenAccountInstruction(
+            userPubkey,
+            escrowATA,
+            escrowPubkey,
+            mintPubkey
+          )
+        );
+      }
+      
+      // Add transfer instruction
+      transaction.add(
+        createTransferInstruction(
+          userATA,
+          escrowATA,
+          userPubkey,
+          rawAmount
+        )
+      );
+      
+      // Add memo for tracking
+      const memoInstruction = this.createMemoInstruction(
+        `bet_deposit:${raidId}:${amount}`,
+        userPubkey
+      );
+      transaction.add(memoInstruction);
+      
+      // Get recent blockhash
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = userPubkey;
+      
+      // Serialize for frontend
+      const serialized = transaction.serialize({
+        requireAllSignatures: false,
+        verifySignatures: false,
+      });
+      
+      console.log(`[BetEscrow] Built deposit tx for ${walletAddress}: ${amount} COAL for raid ${raidId}`);
+      
+      return {
+        transaction: serialized.toString('base64'),
+        message: `Deposit ${amount} COAL bet for raid`,
+        lastValidBlockHeight,
+        blockhash,
+      };
+    } catch (error) {
+      console.error('[BetEscrow] Failed to build deposit tx:', error);
+      return { error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  }
+  
+  /**
+   * Verify a bet deposit transaction was successful
+   * 
+   * @param signature - Transaction signature
+   * @param walletAddress - User's wallet
+   * @param amount - Expected deposit amount
+   * @param raidId - The raid ID
+   */
+  async verifyBetDeposit(
+    signature: string,
+    walletAddress: string,
+    amount: number,
+    raidId: string
+  ): Promise<{ verified: boolean; error?: string }> {
+    if (!this.isConfigured()) {
+      return { verified: false, error: 'Bet escrow not configured' };
+    }
+    
+    try {
+      const connection = createConnection();
+      
+      // Wait for confirmation
+      const result = await connection.confirmTransaction(signature, 'confirmed');
+      
+      if (result.value.err) {
+        return { verified: false, error: 'Transaction failed on-chain' };
+      }
+      
+      // Get transaction details
+      const txDetails = await connection.getTransaction(signature, {
+        commitment: 'confirmed',
+        maxSupportedTransactionVersion: 0,
+      });
+      
+      if (!txDetails) {
+        return { verified: false, error: 'Transaction not found' };
+      }
+      
+      // Verify memo contains our bet deposit marker
+      const logs = txDetails.meta?.logMessages || [];
+      const betMemo = logs.find(log => log.includes(`bet_deposit:${raidId}`));
+      
+      if (!betMemo) {
+        return { verified: false, error: 'Not a valid bet deposit transaction' };
+      }
+      
+      console.log(`[BetEscrow] Verified deposit: ${signature} for ${walletAddress}`);
+      return { verified: true };
+    } catch (error) {
+      console.error('[BetEscrow] Verification failed:', error);
+      return { verified: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  }
+  
+  /**
+   * Build transaction to return winning bets (server-side execution)
+   * This requires the escrow wallet's private key
+   * 
+   * @param payouts - Map of wallet address -> amount to pay
+   */
+  async buildPayoutTransactions(
+    payouts: Map<string, number>,
+    escrowKeypair: Keypair
+  ): Promise<{ transactions: Transaction[]; errors: string[] }> {
+    const transactions: Transaction[] = [];
+    const errors: string[] = [];
+    
+    if (!this.isConfigured()) {
+      errors.push('Bet escrow not configured');
+      return { transactions, errors };
+    }
+    
+    try {
+      const connection = createConnection();
+      const escrowPubkey = escrowKeypair.publicKey;
+      const mintPubkey = new PublicKey(this.tokenMint);
+      const escrowATA = await getAssociatedTokenAddress(mintPubkey, escrowPubkey);
+      
+      // Check escrow balance
+      const escrowAccount = await getAccount(connection, escrowATA);
+      const escrowBalance = Number(escrowAccount.amount) / Math.pow(10, TOKEN_CONFIG.DECIMALS);
+      
+      const totalPayout = Array.from(payouts.values()).reduce((a, b) => a + b, 0);
+      
+      if (escrowBalance < totalPayout) {
+        errors.push(`Insufficient escrow balance: ${escrowBalance} < ${totalPayout}`);
+        return { transactions, errors };
+      }
+      
+      // Build individual payout transactions
+      for (const [walletAddress, amount] of payouts) {
+        try {
+          const recipientPubkey = new PublicKey(walletAddress);
+          const recipientATA = await getAssociatedTokenAddress(mintPubkey, recipientPubkey);
+          const rawAmount = BigInt(Math.floor(amount * Math.pow(10, TOKEN_CONFIG.DECIMALS)));
+          
+          const tx = new Transaction();
+          
+          // Check if recipient ATA exists
+          try {
+            await getAccount(connection, recipientATA);
+          } catch {
+            tx.add(
+              createAssociatedTokenAccountInstruction(
+                escrowPubkey,
+                recipientATA,
+                recipientPubkey,
+                mintPubkey
+              )
+            );
+          }
+          
+          tx.add(
+            createTransferInstruction(
+              escrowATA,
+              recipientATA,
+              escrowPubkey,
+              rawAmount
+            )
+          );
+          
+          // Add memo
+          tx.add(this.createMemoInstruction(`bet_payout:${walletAddress}:${amount}`, escrowPubkey));
+          
+          const { blockhash } = await connection.getLatestBlockhash('confirmed');
+          tx.recentBlockhash = blockhash;
+          tx.feePayer = escrowPubkey;
+          
+          transactions.push(tx);
+        } catch (error) {
+          errors.push(`Failed to build payout for ${walletAddress}: ${error}`);
+        }
+      }
+      
+      console.log(`[BetEscrow] Built ${transactions.length} payout transactions`);
+      return { transactions, errors };
+    } catch (error) {
+      errors.push(`Failed to build payouts: ${error}`);
+      return { transactions, errors };
+    }
+  }
+  
+  /**
+   * Build transaction to burn loser bets
+   * 
+   * @param burnAmount - Total amount to burn from escrow
+   * @param escrowKeypair - Escrow wallet keypair
+   */
+  async buildBurnTransaction(
+    burnAmount: number,
+    escrowKeypair: Keypair
+  ): Promise<Transaction | { error: string }> {
+    if (!this.isConfigured()) {
+      return { error: 'Bet escrow not configured' };
+    }
+    
+    try {
+      const connection = createConnection();
+      const escrowPubkey = escrowKeypair.publicKey;
+      const mintPubkey = new PublicKey(this.tokenMint);
+      const escrowATA = await getAssociatedTokenAddress(mintPubkey, escrowPubkey);
+      
+      const rawAmount = BigInt(Math.floor(burnAmount * Math.pow(10, TOKEN_CONFIG.DECIMALS)));
+      
+      const tx = new Transaction();
+      
+      tx.add(
+        createBurnInstruction(
+          escrowATA,
+          mintPubkey,
+          escrowPubkey,
+          rawAmount
+        )
+      );
+      
+      // Add memo
+      tx.add(this.createMemoInstruction(`bet_burn:${burnAmount}`, escrowPubkey));
+      
+      const { blockhash } = await connection.getLatestBlockhash('confirmed');
+      tx.recentBlockhash = blockhash;
+      tx.feePayer = escrowPubkey;
+      
+      console.log(`[BetEscrow] Built burn tx for ${burnAmount} COAL`);
+      return tx;
+    } catch (error) {
+      console.error('[BetEscrow] Failed to build burn tx:', error);
+      return { error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  }
+  
+  /**
+   * Create a memo instruction for transaction logging
+   */
+  private createMemoInstruction(memo: string, signer: PublicKey): TransactionInstruction {
+    const MEMO_PROGRAM_ID = new PublicKey('MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr');
+    
+    return new TransactionInstruction({
+      keys: [{ pubkey: signer, isSigner: true, isWritable: false }],
+      programId: MEMO_PROGRAM_ID,
+      data: Buffer.from(memo, 'utf-8'),
+    });
   }
 
   /**

@@ -53,6 +53,7 @@ import {
   verifyStakeTransaction,
   getStakingStatus,
 } from './solana/staking';
+import { getBetEscrowManager } from './game/bet-escrow';
 
 /** Extended message types for v2 */
 export type GameMessageType = 
@@ -1877,6 +1878,97 @@ export async function startServer(): Promise<WebSocketServer> {
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ verified: false, error: 'Verification failed' }));
       }
+      return;
+    }
+
+    // ===== BET ESCROW API ENDPOINTS =====
+    
+    // GET /api/escrow/config - Get escrow configuration
+    if (pathname === '/api/escrow/config' && req.method === 'GET') {
+      const escrow = getBetEscrowManager();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        configured: escrow.isConfigured(),
+        escrowWallet: escrow.getEscrowWallet(),
+        stats: escrow.getStats(),
+      }));
+      return;
+    }
+    
+    // POST /api/escrow/deposit - Build bet deposit transaction
+    if (pathname === '/api/escrow/deposit' && req.method === 'POST') {
+      try {
+        const body = await parseJsonBody(req);
+        const { walletAddress, amount, raidId } = body;
+        
+        if (!walletAddress || typeof amount !== 'number' || amount <= 0 || !raidId) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Invalid request: walletAddress, amount, and raidId required' }));
+          return;
+        }
+        
+        const escrow = getBetEscrowManager();
+        const result = await escrow.buildBetDepositTransaction(walletAddress, amount, raidId);
+        
+        if ('error' in result) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify(result));
+          return;
+        }
+        
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(result));
+      } catch (error) {
+        console.error('[API] Error building deposit tx:', error);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Failed to build deposit transaction' }));
+      }
+      return;
+    }
+    
+    // POST /api/escrow/verify - Verify bet deposit transaction
+    if (pathname === '/api/escrow/verify' && req.method === 'POST') {
+      try {
+        const body = await parseJsonBody(req);
+        const { signature, walletAddress, amount, raidId } = body;
+        
+        if (!signature || !walletAddress || !raidId) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Invalid request: signature, walletAddress, and raidId required' }));
+          return;
+        }
+        
+        const escrow = getBetEscrowManager();
+        const result = await escrow.verifyBetDeposit(signature, walletAddress, amount || 0, raidId);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(result));
+      } catch (error) {
+        console.error('[API] Error verifying deposit:', error);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ verified: false, error: 'Verification failed' }));
+      }
+      return;
+    }
+    
+    // GET /api/escrow/bets/:wallet - Get user's active bets
+    if (pathname.startsWith('/api/escrow/bets/') && req.method === 'GET') {
+      const walletAddress = pathname.replace('/api/escrow/bets/', '');
+      if (!walletAddress || walletAddress.length < 32) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Invalid wallet address' }));
+        return;
+      }
+      
+      const escrow = getBetEscrowManager();
+      const activeBets = escrow.getActiveBets(walletAddress);
+      const lockedAmount = escrow.getLockedBetAmount(walletAddress);
+      
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        activeBets,
+        lockedAmount,
+        hasLockedBets: escrow.hasLockedBets(walletAddress),
+      }));
       return;
     }
 

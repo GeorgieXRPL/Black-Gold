@@ -141,7 +141,41 @@ QUARRY_REWARDER_ADDRESS=<address>
 QUARRY_ADDRESS=<address>
 IOU_TOKEN_MINT=<address>
 REDEEMER_WALLET_ADDRESS=<address>
+
+# Bet Escrow (for raid betting)
+BET_ESCROW_WALLET=<address>
 ```
+
+---
+
+## 📋 Bet Escrow System (v3.3.1)
+
+### On-Chain Bet Locking for Raids
+
+Updated `server/game/bet-escrow.ts` to support on-chain SPL token transfers:
+
+**New Transaction Building Methods:**
+- `buildBetDepositTransaction()` - Build tx for user to deposit bet to escrow
+- `verifyBetDeposit()` - Verify deposit tx was successful on-chain
+- `buildPayoutTransactions()` - Build server-side payout txs for winners
+- `buildBurnTransaction()` - Build server-side burn tx for loser bets
+- `isConfigured()` - Check if escrow wallet is properly configured
+
+**New REST API Endpoints:**
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/escrow/config` | GET | Get escrow configuration and stats |
+| `/api/escrow/deposit` | POST | Build bet deposit transaction |
+| `/api/escrow/verify` | POST | Verify bet deposit on-chain |
+| `/api/escrow/bets/:wallet` | GET | Get user's active bets |
+
+**Bet Flow:**
+1. User calls `/api/escrow/deposit` to get unsigned transaction
+2. User signs and sends transaction (COAL → escrow wallet)
+3. Server calls `/api/escrow/verify` to confirm deposit
+4. Server calls `placeBet()` to record the bet in the pool
+5. When raid resolves, server builds payout/burn transactions
+6. Server signs and sends payout/burn with escrow keypair
 
 ---
 
