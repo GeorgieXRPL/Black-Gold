@@ -127,6 +127,30 @@ export const RequestWorkSchema = z.object({
 });
 
 // ============================================================================
+// Admin Message Schemas
+// ============================================================================
+
+/** Admin authentication message */
+export const AdminAuthSchema = z.object({
+  type: z.literal('admin_auth'),
+  password: z.string().min(1).max(256),
+});
+
+/** Admin subscribe to updates message */
+export const AdminSubscribeSchema = z.object({
+  type: z.literal('admin_subscribe'),
+});
+
+/** Admin action message */
+export const AdminActionSchema = z.object({
+  type: z.literal('admin_action'),
+  action: z.enum(['ban_user', 'unban_user', 'set_mine_config', 'force_buyback', 'trigger_distribution', 'clear_cache']),
+  wallet: SolanaAddressSchema.optional(),
+  mineId: MineIdSchema.optional(),
+  config: z.record(z.unknown()).optional(),
+});
+
+// ============================================================================
 // Union of all message types
 // ============================================================================
 
@@ -145,6 +169,10 @@ export const WSMessageSchema = z.discriminatedUnion('type', [
   StatsRequestSchema,
   GetActivitySchema,
   RequestWorkSchema,
+  // Admin message types
+  AdminAuthSchema,
+  AdminSubscribeSchema,
+  AdminActionSchema,
 ]);
 
 export type ValidatedWSMessage = z.infer<typeof WSMessageSchema>;
