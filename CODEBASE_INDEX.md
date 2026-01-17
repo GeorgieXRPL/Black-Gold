@@ -1,14 +1,122 @@
-# Black Gold v3.3.0 - Codebase Index
+# Black Gold v3.3.2 - Codebase Index
 
 > Complete file-by-file documentation for the Black Gold Interactive Mining Globe platform
 
 **Last Updated**: January 18, 2026  
-**Version**: 3.3.0 (Real-Time Admin Console)  
+**Version**: 3.3.2 (Admin Validation Fix)  
 **Total Files**: 85+ TypeScript/TSX/JS files
 
 ---
 
-## 📋 Recent Changes (v3.3.0)
+## 📋 Recent Changes (v3.3.2)
+
+### Admin Console Validation Fix
+
+This release fixes a critical bug where the admin console WebSocket messages were being rejected by the server's Zod validation.
+
+#### Root Cause
+
+Admin message types (`admin_auth`, `admin_subscribe`, `admin_action`) were added to the WebSocket handlers in `server/index.ts` but were never added to the Zod validation schema in `server/middleware/validate.ts`. This caused all admin messages to fail validation silently, preventing authentication.
+
+**Symptom:** Admin console showed "Connected" (yellow) status but never progressed to "Live" (green). Server logs showed `admin_auth` received but no authentication response.
+
+#### Fix (`server/middleware/validate.ts`)
+
+**New Admin Schemas:**
+- `AdminAuthSchema` - Validates `admin_auth` messages with password field
+- `AdminSubscribeSchema` - Validates `admin_subscribe` messages (no payload)
+- `AdminActionSchema` - Validates `admin_action` messages with action enum and optional params
+
+**Updated `WSMessageSchema`:**
+```typescript
+export const WSMessageSchema = z.discriminatedUnion('type', [
+  // ... existing schemas ...
+  AdminAuthSchema,
+  AdminSubscribeSchema,
+  AdminActionSchema,
+]);
+```
+
+---
+
+## 📋 Previous Changes (v3.3.1)
+
+### Quarry SDK Integration for On-Chain Staking
+
+This release implements full Quarry staking infrastructure, enabling users to stake COAL tokens on-chain and earn IOU-COAL rewards.
+
+#### Staking Backend (`server/solana/staking.ts`)
+
+**Updated to use real Quarry SDK:**
+- `loadQuarrySDK()` - Lazy load SDK to avoid initialization errors
+- `buildStakeTransaction()` - Build stake tx using Quarry SDK's `minerActions.stake()`
+- `buildUnstakeTransaction()` - Build withdraw tx using `minerActions.withdraw()`
+- `buildClaimRewardsTransaction()` - Build claim tx using `minerActions.claim()`
+- `getUserStakeInfo()` - Query on-chain miner account for stake/rewards
+- `verifyStakeTransaction()` - Verify tx success and parse memo
+- `getQuarryStats()` - Admin endpoint for Quarry metrics
+
+**New Transaction Flow:**
+1. Server builds unsigned transaction with Quarry instructions
+2. Frontend receives serialized tx (base64)
+3. User signs with Privy wallet
+4. Frontend sends to network
+5. Server verifies on-chain
+
+#### Staking REST API (`server/index.ts`)
+
+**New HTTP Endpoints:**
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/staking/config` | GET | Get Quarry configuration status |
+| `/api/staking/info/:wallet` | GET | Get user's on-chain stake info |
+| `/api/staking/stake` | POST | Build stake transaction |
+| `/api/staking/unstake` | POST | Build unstake transaction |
+| `/api/staking/claim` | POST | Build claim rewards transaction |
+| `/api/staking/verify` | POST | Verify transaction success |
+
+#### Wallet Provider (`app/providers/WalletProvider.tsx`)
+
+**New Transaction Signing Support:**
+- `signTransaction(serializedTx)` - Sign tx without sending
+- `signAndSendTransaction(serializedTx)` - Sign and send tx, return signature
+- Supports Privy embedded wallets and browser wallets (Phantom, etc.)
+- Graceful fallback chain for different wallet types
+
+#### Staking Hook (`app/hooks/useStaking.ts`)
+
+**Complete Rewrite for Quarry:**
+- `stake(amount)` - Request tx from server, sign, send, verify
+- `unstake(amount)` - Same flow for withdrawals
+- `claimRewards()` - Claim pending IOU-COAL rewards
+- `refreshStakeInfo()` - Refresh on-chain stake data
+- New state: `stakeInfo`, `isClaiming`, `config`
+- API client functions for server communication
+
+#### Deployment Documentation (`docs/QUARRY_DEPLOYMENT.md`)
+
+**New File:** Complete deployment guide including:
+- Prerequisites and wallet setup
+- Running deployment script
+- Environment variable configuration
+- Architecture overview (COAL → Quarry → IOU-COAL → Redeemer)
+- Troubleshooting guide
+- Mainnet deployment checklist
+
+#### Required Environment Variables
+
+```
+# Quarry Staking (set after running deploy-quarry.ts)
+QUARRY_MINT_WRAPPER=<address>
+QUARRY_REWARDER_ADDRESS=<address>
+QUARRY_ADDRESS=<address>
+IOU_TOKEN_MINT=<address>
+REDEEMER_WALLET_ADDRESS=<address>
+```
+
+---
+
+## 📋 Previous Changes (v3.3.0)
 
 ### Real-Time Admin Console
 
