@@ -163,6 +163,34 @@ function addServerLog(level: AdminLog['level'], source: string, message: string,
   console.log(`[${level.toUpperCase()}] [${source}] ${message}${details ? ` - ${details}` : ''}`);
 }
 
+/** Track recent errors to prevent duplicate log spam */
+const recentLogKeys: Map<string, number> = new Map(); // key -> lastLoggedTime
+const LOG_DEDUP_WINDOW_MS = 60_000; // Don't repeat same log within 60 seconds
+
+/** Add a deduplicated log entry - prevents spam from repeated errors */
+function addServerLogDeduped(level: AdminLog['level'], source: string, message: string, details?: string): void {
+  const key = `${level}:${source}:${message}`;
+  const lastLogged = recentLogKeys.get(key);
+  
+  if (lastLogged && Date.now() - lastLogged < LOG_DEDUP_WINDOW_MS) {
+    return; // Skip duplicate within window
+  }
+  
+  recentLogKeys.set(key, Date.now());
+  
+  // Clean up old entries periodically (keep map from growing)
+  if (recentLogKeys.size > 100) {
+    const now = Date.now();
+    for (const [k, time] of recentLogKeys) {
+      if (now - time > LOG_DEDUP_WINDOW_MS) {
+        recentLogKeys.delete(k);
+      }
+    }
+  }
+  
+  addServerLog(level, source, message, details);
+}
+
 /** WebSocket server instance */
 let wss: WebSocketServer;
 
@@ -577,6 +605,14 @@ async function handleDiscoveryFound(mineId: string, result: BarrelResult): Promi
   };
   await redisStore.storeActivity(activity);
 
+  // Log discovery to admin console
+  addServerLog(
+    'info',
+    'Mining',
+    `${discoveryEmoji} ${result.discoveryName || 'Discovery'} at ${mine.definition.name}`,
+    `Finder: ${result.winner.slice(0, 8)}... | Reward: ${rewardResult.finderReward.toFixed(2)} COAL | Contributors: ${rewardResult.minerPayouts.length}`
+  );
+
   // Check for jackpot (gold mines)
   if (mine.definition.resource === 'gold' && mine.isJackpotActive) {
     console.log('🎰 GOLD RUSH JACKPOT ACTIVATED!');
@@ -683,6 +719,23 @@ async function handleTimeoutWinnerEvent(mineId: string, result: TimeoutResult): 
     finderShare: result.finderShare,
     rolloverAmount: result.rolloverAmount,
   });
+  
+  // Log timeout to admin console
+  if (result.winner) {
+    addServerLog(
+      'info',
+      'Mining',
+      `⏱️ Timeout winner at ${result.mineName}`,
+      `Winner: ${result.winner.slice(0, 8)}... | Reward: ${result.finderShare?.toFixed(2) || '0'} COAL | Rollover: ${result.rolloverAmount?.toFixed(2) || '0'}`
+    );
+  } else {
+    addServerLog(
+      'warn',
+      'Mining',
+      `⏱️ Timeout with no winner at ${result.mineName}`,
+      `No qualified miners | Rollover: ${result.rolloverAmount?.toFixed(2) || '0'} COAL | Participants: ${result.participantCount || 0}`
+    );
+  }
   
   console.log(`[WS] 📡 FALLBACK: All timeout broadcasts complete for ${mineId}`);
 }
@@ -905,6 +958,16 @@ function handleStake(
       tier: tier.name,
       multiplier: tier.hashrateMultiplier,
     });
+
+    // Log significant stake events (>1000 COAL)
+    if (payload.amount >= 1000) {
+      addServerLog(
+        'info',
+        'Staking',
+        `🔒 Large stake: ${payload.amount.toLocaleString()} COAL`,
+        `Wallet: ${clientInfo.walletAddress!.slice(0, 8)}... | New total: ${newStake.toLocaleString()} | Tier: ${tier.name}`
+      );
+    }
   } else {
     sendError(ws, 'STAKE_FAILED', 'Failed to stake tokens');
   }
@@ -938,6 +1001,16 @@ function handleUnstake(
       message: `Unstaked ${payload.amount}`,
       totalStake: newStake,
     });
+
+    // Log significant unstake events (>1000 COAL)
+    if (payload.amount >= 1000) {
+      addServerLog(
+        'info',
+        'Staking',
+        `🔓 Large unstake: ${payload.amount.toLocaleString()} COAL`,
+        `Wallet: ${clientInfo.walletAddress!.slice(0, 8)}... | Remaining: ${newStake.toLocaleString()}`
+      );
+    }
   } else {
     sendError(ws, 'UNSTAKE_FAILED', 'Failed to unstake tokens');
   }
@@ -1023,6 +1096,7 @@ function handleStartExpedition(
   if (expedition) {
     const registry = getMineRegistry();
     const targetMine = registry.getMine(payload.targetMineId);
+    const sourceMine = registry.getMine(minerState.homeBaseMineId);
 
     sendMessage(ws, 'result', {
       success: true,
@@ -1038,6 +1112,14 @@ function handleStartExpedition(
       targetMineId: payload.targetMineId,
       attackerCount: expedition.attackers.length,
     });
+
+    // Log raid to admin console
+    addServerLog(
+      'info',
+      'Raids',
+      `⚔️ Raid started: ${sourceMine?.definition.name || 'Unknown'} → ${targetMine?.definition.name || 'Unknown'}`,
+      `Attacker: ${clientInfo.walletAddress!.slice(0, 8)}... | Bet: ${payload.betAmount || 0} COAL`
+    );
   } else {
     sendError(ws, 'EXPEDITION_FAILED', 'Failed to start expedition');
   }
@@ -1469,6 +1551,13 @@ async function handleMessage(
   if (!RATE_LIMIT_EXEMPT_TYPES.includes(message.type)) {
     const rateLimitResult = rateLimiter.check(clientInfo.ip, message.type);
     if (!rateLimitResult.allowed) {
+      // Log rate limit violations (deduped to prevent spam)
+      addServerLogDeduped(
+        'warn',
+        'Security',
+        `🚫 Rate limited: ${clientInfo.ip.split('.').slice(0, 3).join('.')}.x`,
+        `Type: ${message.type} | ${rateLimitResult.error || 'Too many requests'}`
+      );
       sendError(ws, 'RATE_LIMITED', rateLimitResult.error || 'Too many requests');
       return;
     }
@@ -1480,6 +1569,13 @@ async function handleMessage(
   // Validate payload for the specific message type
   const validation = validatePayload(message.type, message.payload);
   if (!validation.success) {
+    // Log validation errors (deduped to prevent spam)
+    addServerLogDeduped(
+      'warn',
+      'Security',
+      `⚠️ Validation failed: ${message.type}`,
+      `IP: ${clientInfo.ip.split('.').slice(0, 3).join('.')}.x | ${validation.error || 'Invalid payload'}`
+    );
     sendError(ws, 'VALIDATION_ERROR', validation.error || 'Invalid payload');
     return;
   }
@@ -1841,13 +1937,29 @@ export async function startServer(): Promise<WebSocketServer> {
 
     ws.on('message', (data: RawData) => {
       handleMessage(ws, data, clientInfo).catch((error) => {
-        console.error('[WS] Error:', error instanceof Error ? error.message : 'Unknown error');
+        const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+        console.error('[WS] Error:', errorMsg);
+        // Log internal errors to admin console
+        addServerLogDeduped(
+          'error',
+          'System',
+          `🔥 Internal error processing message`,
+          `IP: ${clientInfo.ip.split('.').slice(0, 3).join('.')}.x | ${errorMsg.slice(0, 100)}`
+        );
         sendError(ws, 'INTERNAL_ERROR', 'Internal server error');
       });
     });
 
     ws.on('close', () => handleClose(ws, clientInfo));
-    ws.on('error', (err) => console.error(`[WS] Error: ${sanitizeForLog(err.message)}`));
+    ws.on('error', (err) => {
+      console.error(`[WS] Error: ${sanitizeForLog(err.message)}`);
+      addServerLogDeduped(
+        'error',
+        'Network',
+        `🔌 WebSocket error`,
+        `IP: ${clientInfo.ip.split('.').slice(0, 3).join('.')}.x | ${err.message.slice(0, 100)}`
+      );
+    });
   });
 
   // Periodic cleanup
