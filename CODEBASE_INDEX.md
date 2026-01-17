@@ -1,41 +1,70 @@
-# Black Gold v3.3.2 - Codebase Index
+# Black Gold v3.3.3 - Codebase Index
 
 > Complete file-by-file documentation for the Black Gold Interactive Mining Globe platform
 
 **Last Updated**: January 18, 2026  
-**Version**: 3.3.2 (Admin Validation Fix)  
+**Version**: 3.3.3 (Enhanced Admin Logging)  
 **Total Files**: 85+ TypeScript/TSX/JS files
 
 ---
 
-## 📋 Recent Changes (v3.3.2)
+## 📋 Recent Changes (v3.3.3)
+
+### Enhanced Admin Console Logging
+
+This release adds comprehensive logging to the admin console with deduplication to prevent spam.
+
+#### Deduplication System (`server/index.ts`)
+
+**New Helper Function:**
+- `addServerLogDeduped()` - Prevents duplicate logs within 60-second window
+- Tracks recent log keys and skips duplicates
+- Auto-cleans old entries when map exceeds 100 items
+
+#### Events Now Logged
+
+| Event | Level | Source | Description |
+|-------|-------|--------|-------------|
+| Discovery found | `info` | Mining | When a miner finds a solution |
+| Timeout winner | `info` | Mining | Round times out with winner |
+| Timeout no winner | `warn` | Mining | Round times out, no qualified miners |
+| Raid started | `info` | Raids | When an expedition begins |
+| Large stake (≥1000) | `info` | Staking | Significant stake event |
+| Large unstake (≥1000) | `info` | Staking | Significant unstake event |
+| Rate limited | `warn` | Security | User hit rate limit (deduped) |
+| Validation error | `warn` | Security | Invalid message format (deduped) |
+| Internal error | `error` | System | Uncaught exception (deduped) |
+| WebSocket error | `error` | Network | Connection error (deduped) |
+
+#### Log Format
+
+Logs use consistent emoji prefixes for easy scanning:
+- ⛏️/🥇/🛢️/🥈 Mining discoveries (by resource)
+- ⏱️ Timeout events
+- ⚔️ Raid events
+- 🔒/🔓 Staking events
+- 🚫 Rate limit violations
+- ⚠️ Validation errors
+- 🔥 Internal errors
+- 🔌 Network errors
+
+**Privacy:** IP addresses are masked to show only first 3 octets (e.g., `192.168.1.x`)
+
+---
+
+## 📋 Previous Changes (v3.3.2)
 
 ### Admin Console Validation Fix
 
-This release fixes a critical bug where the admin console WebSocket messages were being rejected by the server's Zod validation.
+Fixed a critical bug where admin console WebSocket messages were being rejected by Zod validation.
 
 #### Root Cause
 
-Admin message types (`admin_auth`, `admin_subscribe`, `admin_action`) were added to the WebSocket handlers in `server/index.ts` but were never added to the Zod validation schema in `server/middleware/validate.ts`. This caused all admin messages to fail validation silently, preventing authentication.
-
-**Symptom:** Admin console showed "Connected" (yellow) status but never progressed to "Live" (green). Server logs showed `admin_auth` received but no authentication response.
+Admin message types (`admin_auth`, `admin_subscribe`, `admin_action`) were added to handlers but not to the validation schema.
 
 #### Fix (`server/middleware/validate.ts`)
 
-**New Admin Schemas:**
-- `AdminAuthSchema` - Validates `admin_auth` messages with password field
-- `AdminSubscribeSchema` - Validates `admin_subscribe` messages (no payload)
-- `AdminActionSchema` - Validates `admin_action` messages with action enum and optional params
-
-**Updated `WSMessageSchema`:**
-```typescript
-export const WSMessageSchema = z.discriminatedUnion('type', [
-  // ... existing schemas ...
-  AdminAuthSchema,
-  AdminSubscribeSchema,
-  AdminActionSchema,
-]);
-```
+Added `AdminAuthSchema`, `AdminSubscribeSchema`, `AdminActionSchema` to `WSMessageSchema`.
 
 ---
 
