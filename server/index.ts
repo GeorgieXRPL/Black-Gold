@@ -45,6 +45,14 @@ import {
 } from './middleware/validate';
 import { getRateLimiter, RateLimiter } from './middleware/rateLimit';
 import { initRedisStore, getRedisStore, StoredDiscovery, StoredActivity } from './storage';
+import {
+  buildStakeTransaction,
+  buildUnstakeTransaction,
+  buildClaimRewardsTransaction,
+  getUserStakeInfo,
+  verifyStakeTransaction,
+  getStakingStatus,
+} from './solana/staking';
 
 /** Extended message types for v2 */
 export type GameMessageType = 
@@ -1608,23 +1616,202 @@ export async function startServer(): Promise<WebSocketServer> {
     blockDurationMs: 300_000,
   });
 
-  // Create HTTP server for Railway compatibility
+  // Create HTTP server for Railway compatibility + REST API
   // Railway's proxy needs an HTTP server to properly upgrade to WebSocket
-  httpServer = createServer((req: IncomingMessage, res: ServerResponse) => {
-    // Health check endpoint
-    if (req.url === '/health') {
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ status: 'ok', server: 'Black Gold WebSocket' }));
+  httpServer = createServer(async (req: IncomingMessage, res: ServerResponse) => {
+    const url = new URL(req.url || '/', `http://${req.headers.host}`);
+    const pathname = url.pathname;
+    
+    // CORS headers
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    
+    // Handle preflight
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204);
+      res.end();
       return;
     }
-    // For non-WebSocket requests, return upgrade required
-    res.writeHead(426, { 
-      'Content-Type': 'text/plain',
-      'Upgrade': 'websocket',
-      'Connection': 'Upgrade'
-    });
-    res.end('Upgrade Required - This is a WebSocket server');
+
+    // Health check endpoint
+    if (pathname === '/health') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ status: 'ok', server: 'Black Gold WebSocket + API' }));
+      return;
+    }
+    
+    // ===== STAKING API ENDPOINTS =====
+    
+    // GET /api/staking/config - Get staking configuration
+    if (pathname === '/api/staking/config' && req.method === 'GET') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(getStakingStatus()));
+      return;
+    }
+    
+    // GET /api/staking/info/:wallet - Get user's stake info
+    if (pathname.startsWith('/api/staking/info/') && req.method === 'GET') {
+      const walletAddress = pathname.replace('/api/staking/info/', '');
+      if (!walletAddress || walletAddress.length < 32) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Invalid wallet address' }));
+        return;
+      }
+      
+      try {
+        const stakeInfo = await getUserStakeInfo(walletAddress);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(stakeInfo));
+      } catch (error) {
+        console.error('[API] Error getting stake info:', error);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Failed to get stake info' }));
+      }
+      return;
+    }
+    
+    // POST /api/staking/stake - Build stake transaction
+    if (pathname === '/api/staking/stake' && req.method === 'POST') {
+      try {
+        const body = await parseJsonBody(req);
+        const { walletAddress, amount } = body;
+        
+        if (!walletAddress || typeof amount !== 'number' || amount <= 0) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Invalid request: walletAddress and amount required' }));
+          return;
+        }
+        
+        const result = await buildStakeTransaction(walletAddress, amount);
+        
+        if ('error' in result) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify(result));
+          return;
+        }
+        
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(result));
+      } catch (error) {
+        console.error('[API] Error building stake tx:', error);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Failed to build stake transaction' }));
+      }
+      return;
+    }
+    
+    // POST /api/staking/unstake - Build unstake transaction
+    if (pathname === '/api/staking/unstake' && req.method === 'POST') {
+      try {
+        const body = await parseJsonBody(req);
+        const { walletAddress, amount } = body;
+        
+        if (!walletAddress || typeof amount !== 'number' || amount <= 0) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Invalid request: walletAddress and amount required' }));
+          return;
+        }
+        
+        const result = await buildUnstakeTransaction(walletAddress, amount);
+        
+        if ('error' in result) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify(result));
+          return;
+        }
+        
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(result));
+      } catch (error) {
+        console.error('[API] Error building unstake tx:', error);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Failed to build unstake transaction' }));
+      }
+      return;
+    }
+    
+    // POST /api/staking/claim - Build claim rewards transaction
+    if (pathname === '/api/staking/claim' && req.method === 'POST') {
+      try {
+        const body = await parseJsonBody(req);
+        const { walletAddress } = body;
+        
+        if (!walletAddress) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Invalid request: walletAddress required' }));
+          return;
+        }
+        
+        const result = await buildClaimRewardsTransaction(walletAddress);
+        
+        if ('error' in result) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify(result));
+          return;
+        }
+        
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(result));
+      } catch (error) {
+        console.error('[API] Error building claim tx:', error);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Failed to build claim transaction' }));
+      }
+      return;
+    }
+    
+    // POST /api/staking/verify - Verify a transaction
+    if (pathname === '/api/staking/verify' && req.method === 'POST') {
+      try {
+        const body = await parseJsonBody(req);
+        const { signature, walletAddress, type, amount } = body;
+        
+        if (!signature || !walletAddress) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Invalid request: signature and walletAddress required' }));
+          return;
+        }
+        
+        const result = await verifyStakeTransaction(signature, walletAddress, amount || 0);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(result));
+      } catch (error) {
+        console.error('[API] Error verifying tx:', error);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ verified: false, error: 'Verification failed' }));
+      }
+      return;
+    }
+
+    // For non-API, non-WebSocket requests, return upgrade required
+    if (!req.headers.upgrade || req.headers.upgrade.toLowerCase() !== 'websocket') {
+      res.writeHead(426, { 
+        'Content-Type': 'text/plain',
+        'Upgrade': 'websocket',
+        'Connection': 'Upgrade'
+      });
+      res.end('Upgrade Required - This is a WebSocket server');
+    }
   });
+  
+  /**
+   * Parse JSON body from incoming request
+   */
+  function parseJsonBody(req: IncomingMessage): Promise<any> {
+    return new Promise((resolve, reject) => {
+      let body = '';
+      req.on('data', (chunk) => { body += chunk; });
+      req.on('end', () => {
+        try {
+          resolve(JSON.parse(body));
+        } catch {
+          reject(new Error('Invalid JSON'));
+        }
+      });
+      req.on('error', reject);
+    });
+  }
 
   // Attach WebSocket server to HTTP server
   wss = new WebSocketServer({

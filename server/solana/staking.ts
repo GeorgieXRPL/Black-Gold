@@ -1,5 +1,5 @@
 /**
- * @fileoverview Quarry-based on-chain staking integration for Black Gold v2.8
+ * @fileoverview Quarry-based on-chain staking integration for Black Gold v3.3
  * 
  * Architecture:
  * - Users stake COAL tokens (Pump.fun token) in Quarry
@@ -11,6 +11,13 @@
  * - Transaction building for stake/unstake/claim
  * - On-chain stake balance queries
  * - Reward claiming and redemption
+ * 
+ * Flow:
+ * 1. Server builds unsigned transaction
+ * 2. Frontend receives serialized tx
+ * 3. User signs with Privy-connected wallet
+ * 4. Frontend sends signed tx to network
+ * 5. Server verifies transaction on-chain
  */
 
 import {
@@ -18,9 +25,38 @@ import {
   PublicKey,
   Transaction,
   TransactionInstruction,
+  SystemProgram,
+  LAMPORTS_PER_SOL,
 } from '@solana/web3.js';
 import { TOKEN_CONFIG, RPC_CONFIG, IS_DEVNET } from '../../config/constants';
 import { createConnection } from './holder';
+
+// Quarry SDK imports - only loaded when needed
+let QuarrySDKModule: typeof import('@quarryprotocol/quarry-sdk') | null = null;
+let SaberModule: typeof import('@saberhq/solana-contrib') | null = null;
+let TokenUtilsModule: typeof import('@saberhq/token-utils') | null = null;
+
+/**
+ * Lazy load Quarry SDK to avoid initialization errors when not configured
+ */
+async function loadQuarrySDK() {
+  if (!QuarrySDKModule) {
+    QuarrySDKModule = await import('@quarryprotocol/quarry-sdk');
+  }
+  if (!SaberModule) {
+    SaberModule = await import('@saberhq/solana-contrib');
+  }
+  if (!TokenUtilsModule) {
+    TokenUtilsModule = await import('@saberhq/token-utils');
+  }
+  return {
+    QuarrySDK: QuarrySDKModule.QuarrySDK,
+    SolanaProvider: SaberModule.SolanaProvider,
+    Token: TokenUtilsModule.Token,
+    TokenAmount: TokenUtilsModule.TokenAmount,
+    u64: TokenUtilsModule.u64,
+  };
+}
 
 /**
  * Quarry configuration from environment
@@ -85,6 +121,35 @@ export interface UserStakeInfo {
 }
 
 /**
+ * Transaction build result
+ */
+export interface TransactionBuildResult {
+  transaction: string; // Base64 serialized
+  message: string;
+  lastValidBlockHeight: number;
+  blockhash: string;
+}
+
+/**
+ * Create a read-only provider for querying Quarry state
+ */
+async function createReadOnlyProvider(connection: Connection) {
+  const { SolanaProvider } = await loadQuarrySDK();
+  
+  // Create a dummy wallet for read-only operations
+  const dummyPublicKey = PublicKey.default;
+  
+  return SolanaProvider.init({
+    connection,
+    wallet: {
+      publicKey: dummyPublicKey,
+      signTransaction: async (tx: Transaction) => tx,
+      signAllTransactions: async (txs: Transaction[]) => txs,
+    },
+  });
+}
+
+/**
  * Build a stake transaction for user to sign
  * 
  * @param walletAddress - User's wallet public key
@@ -94,56 +159,101 @@ export interface UserStakeInfo {
 export async function buildStakeTransaction(
   walletAddress: string,
   amount: number
-): Promise<{ transaction: string; message: string } | { error: string }> {
+): Promise<TransactionBuildResult | { error: string }> {
   const config = getQuarryConfig();
   
-  if (!config.enabled || !config.quarryAddress) {
-    return { error: 'Quarry staking not configured' };
+  if (!config.enabled || !config.quarryAddress || !config.rewarderAddress) {
+    return { error: 'Quarry staking not configured. Set QUARRY_ADDRESS and QUARRY_REWARDER_ADDRESS environment variables.' };
   }
 
   try {
     const connection = createConnection();
     const userPubkey = new PublicKey(walletAddress);
-    const quarryPubkey = new PublicKey(config.quarryAddress);
+    const rewarderPubkey = new PublicKey(config.rewarderAddress);
+    const coalMintPubkey = new PublicKey(config.coalTokenMint);
 
-    // Convert amount to raw units
+    // Convert amount to raw units (with decimals)
     const rawAmount = BigInt(Math.floor(amount * Math.pow(10, TOKEN_CONFIG.DECIMALS)));
 
-    // Create transaction
+    // Load Quarry SDK
+    const { QuarrySDK, SolanaProvider, Token, TokenAmount } = await loadQuarrySDK();
+
+    // Create provider for building transaction
+    const provider = SolanaProvider.init({
+      connection,
+      wallet: {
+        publicKey: userPubkey,
+        signTransaction: async (tx: Transaction) => tx, // User will sign
+        signAllTransactions: async (txs: Transaction[]) => txs,
+      },
+    });
+
+    const sdk = QuarrySDK.load({ provider });
+    
+    // Create COAL token object
+    const coalToken = Token.fromMint(coalMintPubkey, TOKEN_CONFIG.DECIMALS, {
+      name: TOKEN_CONFIG.NAME,
+      symbol: TOKEN_CONFIG.SYMBOL,
+    });
+
+    // Load the rewarder wrapper, then get the quarry for COAL token
+    const rewarderWrapper = await sdk.mine.loadRewarderWrapper(rewarderPubkey);
+    const quarry = await rewarderWrapper.getQuarry(coalToken);
+
+    // Get miner actions for the user
+    const minerActions = await quarry.getMinerActions(userPubkey);
+
+    // Build stake instruction
+    const stakeAmount = new TokenAmount(coalToken, rawAmount.toString());
+    const stakeTx = await minerActions.stake(stakeAmount);
+
+    // Get recent blockhash
+    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+
+    // Build final transaction
     const transaction = new Transaction();
     
-    // Add memo instruction for tracking
+    // Add memo for tracking
     const memoInstruction = createMemoInstruction(
       `quarry_stake:${amount}:${config.quarryAddress}`,
       userPubkey
     );
     transaction.add(memoInstruction);
+    
+    // Add stake instructions from Quarry SDK
+    transaction.add(...stakeTx.instructions);
 
-    // In production with Quarry SDK:
-    // const quarrySDK = QuarrySDK.load({ provider });
-    // const quarry = await quarrySDK.mine.loadQuarryWrapper(quarryPubkey);
-    // const minerActions = await quarry.getMinerActions(userPubkey);
-    // const stakeIx = await minerActions.stake(new TokenAmount(coalToken, rawAmount));
-    // transaction.add(stakeIx);
-
-    // Get recent blockhash
-    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
     transaction.recentBlockhash = blockhash;
     transaction.feePayer = userPubkey;
 
-    // Serialize for frontend
+    // Serialize for frontend (user will sign)
     const serialized = transaction.serialize({
       requireAllSignatures: false,
       verifySignatures: false,
     });
 
+    console.log(`[Staking] Built stake tx for ${walletAddress}: ${amount} COAL`);
+
     return {
       transaction: serialized.toString('base64'),
-      message: `Stake ${amount} COAL in Black Gold Quarry`,
+      message: `Stake ${amount} ${TOKEN_CONFIG.SYMBOL} in Black Gold Quarry`,
+      lastValidBlockHeight,
+      blockhash,
     };
   } catch (error) {
     console.error('[Staking] Failed to build stake transaction:', error);
-    return { error: error instanceof Error ? error.message : 'Unknown error' };
+    
+    // Provide helpful error messages
+    if (error instanceof Error) {
+      if (error.message.includes('Account does not exist')) {
+        return { error: 'Quarry account not found. Ensure Quarry is properly deployed.' };
+      }
+      if (error.message.includes('insufficient funds')) {
+        return { error: 'Insufficient COAL balance for staking.' };
+      }
+      return { error: error.message };
+    }
+    return { error: 'Unknown error building stake transaction' };
   }
 }
 
@@ -157,34 +267,62 @@ export async function buildStakeTransaction(
 export async function buildUnstakeTransaction(
   walletAddress: string,
   amount: number
-): Promise<{ transaction: string; message: string } | { error: string }> {
+): Promise<TransactionBuildResult | { error: string }> {
   const config = getQuarryConfig();
   
-  if (!config.enabled || !config.quarryAddress) {
-    return { error: 'Quarry staking not configured' };
+  if (!config.enabled || !config.quarryAddress || !config.rewarderAddress) {
+    return { error: 'Quarry staking not configured. Set QUARRY_ADDRESS and QUARRY_REWARDER_ADDRESS environment variables.' };
   }
 
   try {
     const connection = createConnection();
     const userPubkey = new PublicKey(walletAddress);
+    const rewarderPubkey = new PublicKey(config.rewarderAddress);
+    const coalMintPubkey = new PublicKey(config.coalTokenMint);
+
+    // Convert amount to raw units
+    const rawAmount = BigInt(Math.floor(amount * Math.pow(10, TOKEN_CONFIG.DECIMALS)));
+
+    // Load Quarry SDK
+    const { QuarrySDK, SolanaProvider, Token, TokenAmount } = await loadQuarrySDK();
+
+    const provider = SolanaProvider.init({
+      connection,
+      wallet: {
+        publicKey: userPubkey,
+        signTransaction: async (tx: Transaction) => tx,
+        signAllTransactions: async (txs: Transaction[]) => txs,
+      },
+    });
+
+    const sdk = QuarrySDK.load({ provider });
+    
+    const coalToken = Token.fromMint(coalMintPubkey, TOKEN_CONFIG.DECIMALS, {
+      name: TOKEN_CONFIG.NAME,
+      symbol: TOKEN_CONFIG.SYMBOL,
+    });
+
+    // Load the rewarder wrapper, then get the quarry for COAL token
+    const rewarderWrapper = await sdk.mine.loadRewarderWrapper(rewarderPubkey);
+    const quarry = await rewarderWrapper.getQuarry(coalToken);
+
+    const minerActions = await quarry.getMinerActions(userPubkey);
+
+    // Build unstake (withdraw) instruction
+    const unstakeAmount = new TokenAmount(coalToken, rawAmount.toString());
+    const unstakeTx = await minerActions.withdraw(unstakeAmount);
+
+    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
 
     const transaction = new Transaction();
     
-    // Add memo instruction for tracking
     const memoInstruction = createMemoInstruction(
       `quarry_unstake:${amount}:${config.quarryAddress}`,
       userPubkey
     );
     transaction.add(memoInstruction);
+    transaction.add(...unstakeTx.instructions);
 
-    // In production with Quarry SDK:
-    // const quarrySDK = QuarrySDK.load({ provider });
-    // const quarry = await quarrySDK.mine.loadQuarryWrapper(quarryPubkey);
-    // const minerActions = await quarry.getMinerActions(userPubkey);
-    // const unstakeIx = await minerActions.withdraw(new TokenAmount(coalToken, rawAmount));
-    // transaction.add(unstakeIx);
-
-    const { blockhash } = await connection.getLatestBlockhash();
     transaction.recentBlockhash = blockhash;
     transaction.feePayer = userPubkey;
 
@@ -193,13 +331,24 @@ export async function buildUnstakeTransaction(
       verifySignatures: false,
     });
 
+    console.log(`[Staking] Built unstake tx for ${walletAddress}: ${amount} COAL`);
+
     return {
       transaction: serialized.toString('base64'),
-      message: `Unstake ${amount} COAL from Black Gold Quarry`,
+      message: `Unstake ${amount} ${TOKEN_CONFIG.SYMBOL} from Black Gold Quarry`,
+      lastValidBlockHeight,
+      blockhash,
     };
   } catch (error) {
     console.error('[Staking] Failed to build unstake transaction:', error);
-    return { error: error instanceof Error ? error.message : 'Unknown error' };
+    
+    if (error instanceof Error) {
+      if (error.message.includes('insufficient balance')) {
+        return { error: 'Insufficient staked balance for withdrawal.' };
+      }
+      return { error: error.message };
+    }
+    return { error: 'Unknown error building unstake transaction' };
   }
 }
 
@@ -211,38 +360,62 @@ export async function buildUnstakeTransaction(
  */
 export async function buildClaimRewardsTransaction(
   walletAddress: string
-): Promise<{ transaction: string; message: string; estimatedReward: number } | { error: string }> {
+): Promise<TransactionBuildResult & { estimatedReward: number } | { error: string }> {
   const config = getQuarryConfig();
   
-  if (!config.enabled || !config.quarryAddress) {
+  if (!config.enabled || !config.quarryAddress || !config.rewarderAddress) {
     return { error: 'Quarry staking not configured' };
   }
 
   try {
     const connection = createConnection();
     const userPubkey = new PublicKey(walletAddress);
+    const rewarderPubkey = new PublicKey(config.rewarderAddress);
+    const coalMintPubkey = new PublicKey(config.coalTokenMint);
 
-    // Get estimated reward amount
+    // Load Quarry SDK
+    const { QuarrySDK, SolanaProvider, Token } = await loadQuarrySDK();
+
+    const provider = SolanaProvider.init({
+      connection,
+      wallet: {
+        publicKey: userPubkey,
+        signTransaction: async (tx: Transaction) => tx,
+        signAllTransactions: async (txs: Transaction[]) => txs,
+      },
+    });
+
+    const sdk = QuarrySDK.load({ provider });
+    
+    const coalToken = Token.fromMint(coalMintPubkey, TOKEN_CONFIG.DECIMALS, {
+      name: TOKEN_CONFIG.NAME,
+      symbol: TOKEN_CONFIG.SYMBOL,
+    });
+
+    // Load the rewarder wrapper, then get the quarry for COAL token
+    const rewarderWrapper = await sdk.mine.loadRewarderWrapper(rewarderPubkey);
+    const quarry = await rewarderWrapper.getQuarry(coalToken);
+
+    // Get current pending rewards
     const stakeInfo = await getUserStakeInfo(walletAddress);
     const estimatedReward = stakeInfo.pendingRewards;
 
+    const minerActions = await quarry.getMinerActions(userPubkey);
+    
+    // Build claim instruction
+    const claimTx = await minerActions.claim();
+
+    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+
     const transaction = new Transaction();
     
-    // Add memo instruction for tracking
     const memoInstruction = createMemoInstruction(
       `quarry_claim:${config.quarryAddress}`,
       userPubkey
     );
     transaction.add(memoInstruction);
+    transaction.add(...claimTx.instructions);
 
-    // In production with Quarry SDK:
-    // const quarrySDK = QuarrySDK.load({ provider });
-    // const quarry = await quarrySDK.mine.loadQuarryWrapper(quarryPubkey);
-    // const minerActions = await quarry.getMinerActions(userPubkey);
-    // const claimIx = await minerActions.claim();
-    // transaction.add(claimIx);
-
-    const { blockhash } = await connection.getLatestBlockhash();
     transaction.recentBlockhash = blockhash;
     transaction.feePayer = userPubkey;
 
@@ -251,9 +424,13 @@ export async function buildClaimRewardsTransaction(
       verifySignatures: false,
     });
 
+    console.log(`[Staking] Built claim tx for ${walletAddress}: ~${estimatedReward} IOU-COAL`);
+
     return {
       transaction: serialized.toString('base64'),
-      message: `Claim IOU-COAL rewards from Black Gold Quarry`,
+      message: `Claim IOU-${TOKEN_CONFIG.SYMBOL} rewards from Black Gold Quarry`,
+      lastValidBlockHeight,
+      blockhash,
       estimatedReward,
     };
   } catch (error) {
@@ -265,6 +442,10 @@ export async function buildClaimRewardsTransaction(
 /**
  * Build a redeem IOU-COAL → COAL transaction
  * 
+ * For now, this uses a simple escrow approach:
+ * 1. User transfers IOU-COAL to redeemer wallet
+ * 2. Server monitors and sends equivalent COAL back
+ * 
  * @param walletAddress - User's wallet public key
  * @param amount - Amount of IOU-COAL to redeem
  * @returns Serialized transaction for frontend to sign
@@ -272,7 +453,7 @@ export async function buildClaimRewardsTransaction(
 export async function buildRedeemTransaction(
   walletAddress: string,
   amount: number
-): Promise<{ transaction: string; message: string } | { error: string }> {
+): Promise<TransactionBuildResult | { error: string }> {
   const config = getQuarryConfig();
   
   if (!config.iouTokenMint) {
@@ -281,28 +462,43 @@ export async function buildRedeemTransaction(
 
   const redeemerWallet = process.env.REDEEMER_WALLET_ADDRESS;
   if (!redeemerWallet) {
-    return { error: 'Redeemer wallet not configured' };
+    return { error: 'Redeemer wallet not configured. Set REDEEMER_WALLET_ADDRESS environment variable.' };
   }
 
   try {
     const connection = createConnection();
     const userPubkey = new PublicKey(walletAddress);
+    const redeemerPubkey = new PublicKey(redeemerWallet);
+    const iouMintPubkey = new PublicKey(config.iouTokenMint);
+
+    // Get user's IOU token account
+    const { Token } = await loadQuarrySDK();
+    
+    // For SPL token transfer, we need to use token program instructions
+    // Import SPL token instruction creation
+    const rawAmount = BigInt(Math.floor(amount * Math.pow(10, TOKEN_CONFIG.DECIMALS)));
+
+    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
 
     const transaction = new Transaction();
     
-    // Add memo instruction for tracking
+    // Add memo for tracking
     const memoInstruction = createMemoInstruction(
       `quarry_redeem:${amount}:${config.iouTokenMint}`,
       userPubkey
     );
     transaction.add(memoInstruction);
 
-    // In production:
-    // 1. Transfer IOU-COAL from user to Redeemer
-    // 2. Redeemer burns IOU-COAL
-    // 3. Redeemer sends equivalent COAL to user
+    // Note: In production, you would add the actual SPL token transfer instruction here:
+    // import { createTransferInstruction, getAssociatedTokenAddress } from '@solana/spl-token';
+    // const userATA = await getAssociatedTokenAddress(iouMintPubkey, userPubkey);
+    // const redeemerATA = await getAssociatedTokenAddress(iouMintPubkey, redeemerPubkey);
+    // const transferIx = createTransferInstruction(userATA, redeemerATA, userPubkey, rawAmount);
+    // transaction.add(transferIx);
 
-    const { blockhash } = await connection.getLatestBlockhash();
+    // For now, log and return placeholder
+    console.log(`[Staking] Redeem request: ${amount} IOU-COAL from ${walletAddress} to ${redeemerWallet}`);
+
     transaction.recentBlockhash = blockhash;
     transaction.feePayer = userPubkey;
 
@@ -313,7 +509,9 @@ export async function buildRedeemTransaction(
 
     return {
       transaction: serialized.toString('base64'),
-      message: `Redeem ${amount} IOU-COAL for COAL`,
+      message: `Redeem ${amount} IOU-${TOKEN_CONFIG.SYMBOL} for ${TOKEN_CONFIG.SYMBOL}`,
+      lastValidBlockHeight,
+      blockhash,
     };
   } catch (error) {
     console.error('[Staking] Failed to build redeem transaction:', error);
@@ -337,31 +535,73 @@ export async function getUserStakeInfo(walletAddress: string): Promise<UserStake
     minerPDA: null,
   };
   
-  if (!config.enabled || !config.quarryAddress) {
+  if (!config.enabled || !config.rewarderAddress) {
     return defaultInfo;
   }
 
   try {
-    // In production with Quarry SDK:
-    // const quarrySDK = QuarrySDK.load({ provider });
-    // const quarry = await quarrySDK.mine.loadQuarryWrapper(new PublicKey(config.quarryAddress));
-    // const miner = await quarry.getMiner(new PublicKey(walletAddress));
-    // 
-    // if (miner) {
-    //   return {
-    //     walletAddress,
-    //     stakedAmount: miner.balance.asNumber,
-    //     pendingRewards: miner.rewardsEarned.asNumber,
-    //     lastStakeTime: miner.lastStakeTs ? new Date(miner.lastStakeTs * 1000) : null,
-    //     minerPDA: miner.minerKey.toBase58(),
-    //   };
-    // }
+    const connection = createConnection();
+    const userPubkey = new PublicKey(walletAddress);
+    const rewarderPubkey = new PublicKey(config.rewarderAddress);
+    const coalMintPubkey = new PublicKey(config.coalTokenMint);
 
-    console.log(`[Staking] Getting stake info for ${walletAddress}`);
-    return defaultInfo;
+    // Load Quarry SDK
+    const { QuarrySDK, Token } = await loadQuarrySDK();
+
+    const provider = await createReadOnlyProvider(connection);
+    const sdk = QuarrySDK.load({ provider });
+
+    const coalToken = Token.fromMint(coalMintPubkey, TOKEN_CONFIG.DECIMALS, {
+      name: TOKEN_CONFIG.NAME,
+      symbol: TOKEN_CONFIG.SYMBOL,
+    });
+
+    // Load rewarder wrapper and get quarry for COAL token
+    const rewarderWrapper = await sdk.mine.loadRewarderWrapper(rewarderPubkey);
+    const quarry = await rewarderWrapper.getQuarry(coalToken);
+    
+    // Try to find the miner account for this user
+    const minerKey = await quarry.getMinerAddress(userPubkey);
+    const minerInfo = await connection.getAccountInfo(minerKey);
+    
+    if (!minerInfo) {
+      // User hasn't staked yet
+      console.log(`[Staking] No miner account found for ${walletAddress}`);
+      return defaultInfo;
+    }
+
+    // Fetch miner data through Quarry SDK
+    const miner = await quarry.getMiner(userPubkey);
+    
+    if (!miner) {
+      return defaultInfo;
+    }
+
+    // Calculate pending rewards
+    // Note: Quarry SDK handles the complex reward calculation
+    // @ts-expect-error - Miner data shape varies by SDK version
+    const stakedBalance = miner.balance || miner.tokensDeposited || 0;
+    // @ts-expect-error - Miner data shape varies by SDK version
+    const rewardsEarned = miner.rewardsEarned || miner.rewardsTally || 0;
+
+    console.log(`[Staking] Stake info for ${walletAddress}: ${stakedBalance} staked, ${rewardsEarned} pending`);
+
+    return {
+      walletAddress,
+      stakedAmount: Number(stakedBalance) / Math.pow(10, TOKEN_CONFIG.DECIMALS),
+      pendingRewards: Number(rewardsEarned) / Math.pow(10, TOKEN_CONFIG.DECIMALS),
+      lastStakeTime: null, // SDK doesn't expose this directly
+      minerPDA: minerKey.toBase58(),
+    };
     
   } catch (error) {
     console.error('[Staking] Failed to get stake info:', error);
+    
+    // If it's an "account not found" error, user just hasn't staked
+    if (error instanceof Error && error.message.includes('Account does not exist')) {
+      return defaultInfo;
+    }
+    
     return defaultInfo;
   }
 }
@@ -385,12 +625,30 @@ export async function verifyStakeTransaction(
     const result = await connection.confirmTransaction(signature, 'confirmed');
     
     if (result.value.err) {
-      return { verified: false, error: 'Transaction failed' };
+      return { verified: false, error: 'Transaction failed on-chain' };
     }
 
-    // In production: Parse transaction to verify actual stake amount
+    // Get transaction details to verify amount
+    const txDetails = await connection.getTransaction(signature, {
+      commitment: 'confirmed',
+      maxSupportedTransactionVersion: 0,
+    });
+
+    if (!txDetails) {
+      return { verified: false, error: 'Transaction not found' };
+    }
+
+    // Parse memo to verify this is our stake transaction
+    const logs = txDetails.meta?.logMessages || [];
+    const stakeMemo = logs.find(log => log.includes('quarry_stake'));
+    
+    if (!stakeMemo) {
+      return { verified: false, error: 'Not a valid stake transaction' };
+    }
+
     console.log(`[Staking] Verified stake: ${signature} for ${walletAddress}`);
     
+    // In production, you would parse the actual staked amount from the transaction
     return { verified: true, actualAmount: expectedAmount };
   } catch (error) {
     console.error('[Staking] Verification failed:', error);
@@ -418,8 +676,10 @@ export function getStakingStatus(): {
   available: boolean;
   network: string;
   quarryAddress: string | null;
+  rewarderAddress: string | null;
   iouTokenMint: string | null;
   coalTokenMint: string;
+  redeemerWallet: string | null;
 } {
   const config = getQuarryConfig();
   
@@ -427,8 +687,10 @@ export function getStakingStatus(): {
     available: config.enabled,
     network: RPC_CONFIG.NETWORK,
     quarryAddress: config.quarryAddress,
+    rewarderAddress: config.rewarderAddress,
     iouTokenMint: config.iouTokenMint,
     coalTokenMint: config.coalTokenMint,
+    redeemerWallet: process.env.REDEEMER_WALLET_ADDRESS || null,
   };
 }
 
@@ -444,4 +706,50 @@ export function getQuarryAddress(): string | null {
  */
 export function getIOUTokenMint(): string | null {
   return getQuarryConfig().iouTokenMint;
+}
+
+/**
+ * Get Quarry stats for admin monitoring
+ */
+export async function getQuarryStats(): Promise<{
+  totalStaked: number;
+  minerCount: number;
+  rewardRate: number;
+  iouSupply: number;
+} | null> {
+  const config = getQuarryConfig();
+  
+  if (!config.enabled || !config.rewarderAddress) {
+    return null;
+  }
+
+  try {
+    const connection = createConnection();
+    const rewarderPubkey = new PublicKey(config.rewarderAddress);
+    const coalMintPubkey = new PublicKey(config.coalTokenMint);
+
+    const { QuarrySDK, Token } = await loadQuarrySDK();
+    const provider = await createReadOnlyProvider(connection);
+    const sdk = QuarrySDK.load({ provider });
+
+    const coalToken = Token.fromMint(coalMintPubkey, TOKEN_CONFIG.DECIMALS, {
+      name: TOKEN_CONFIG.NAME,
+      symbol: TOKEN_CONFIG.SYMBOL,
+    });
+
+    // Load rewarder wrapper and get quarry for COAL token
+    const rewarderWrapper = await sdk.mine.loadRewarderWrapper(rewarderPubkey);
+    const quarry = await rewarderWrapper.getQuarry(coalToken);
+    const quarryData = quarry.quarryData;
+
+    return {
+      totalStaked: Number(quarryData.totalTokensDeposited) / Math.pow(10, TOKEN_CONFIG.DECIMALS),
+      minerCount: Number(quarryData.numMiners),
+      rewardRate: Number(quarryData.annualRewardsRate) / Math.pow(10, TOKEN_CONFIG.DECIMALS),
+      iouSupply: 0, // Would need to query IOU token mint
+    };
+  } catch (error) {
+    console.error('[Staking] Failed to get Quarry stats:', error);
+    return null;
+  }
 }

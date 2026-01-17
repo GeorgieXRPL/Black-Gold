@@ -16,13 +16,22 @@ import {
   TransactionInstruction,
   ComputeBudgetProgram,
 } from '@solana/web3.js';
-import {
+// Use require to avoid TypeScript module resolution conflicts with @saberhq/token-utils
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const splToken = require('@solana/spl-token') as {
+  getAssociatedTokenAddress: (mint: import('@solana/web3.js').PublicKey, owner: import('@solana/web3.js').PublicKey) => Promise<import('@solana/web3.js').PublicKey>;
+  createAssociatedTokenAccountInstruction: (payer: import('@solana/web3.js').PublicKey, associatedToken: import('@solana/web3.js').PublicKey, owner: import('@solana/web3.js').PublicKey, mint: import('@solana/web3.js').PublicKey) => import('@solana/web3.js').TransactionInstruction;
+  createTransferInstruction: (source: import('@solana/web3.js').PublicKey, destination: import('@solana/web3.js').PublicKey, owner: import('@solana/web3.js').PublicKey, amount: bigint | number) => import('@solana/web3.js').TransactionInstruction;
+  getAccount: (connection: import('@solana/web3.js').Connection, address: import('@solana/web3.js').PublicKey) => Promise<{ amount: bigint }>;
+  TokenAccountNotFoundError: typeof Error;
+};
+const {
   getAssociatedTokenAddress,
   createAssociatedTokenAccountInstruction,
   createTransferInstruction,
   getAccount,
   TokenAccountNotFoundError,
-} from '@solana/spl-token';
+} = splToken;
 import { TOKEN_CONFIG, RPC_CONFIG, WALLET_CONFIG } from '../../config/constants';
 import { createConnection } from './holder';
 

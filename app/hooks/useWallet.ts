@@ -1,6 +1,7 @@
 /**
- * @fileoverview Wallet state management hook for Black Gold
+ * @fileoverview Wallet state management hook for Black Gold v3.3
  * Provides unified wallet connection state
+ * Supports both message signing and transaction signing
  * 
  * SSR-safe: Returns default values during server-side rendering
  */
@@ -33,6 +34,10 @@ export interface WalletActions {
   disconnect: () => Promise<void>;
   /** Sign a message with the connected wallet */
   signMessage: (message: string) => Promise<string | null>;
+  /** Sign a serialized transaction (returns signed tx as base64) */
+  signTransaction: (serializedTx: string) => Promise<string | null>;
+  /** Sign and send a serialized transaction (returns signature) */
+  signAndSendTransaction: (serializedTx: string) => Promise<string | null>;
 }
 
 export interface UseWalletReturn extends WalletState, WalletActions {}
