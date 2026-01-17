@@ -159,7 +159,16 @@ export type WSMessageType =
   | 'timeout_pending'    // Round timed out, 30s countdown to winner announcement
   | 'timeout_winner'     // Round ended by timeout, closest hash won
   | 'rollover_update'    // Rollover jackpot amount changed
-  | 'round_restart';     // Mining round restarting, new work being assigned
+  | 'round_restart'      // Mining round restarting, new work being assigned
+  // Admin message types
+  | 'admin_auth'         // Admin authentication
+  | 'admin_subscribe'    // Subscribe to admin updates
+  | 'admin_stats'        // Admin dashboard stats
+  | 'admin_users'        // Connected users list
+  | 'admin_mines'        // Mine statistics
+  | 'admin_raids'        // Active/recent raids
+  | 'admin_logs'         // Server logs
+  | 'admin_action';      // Admin action (ban, unban, set_mine_config, etc.)
 
 /** WebSocket message envelope */
 export interface WSMessage<T = unknown> {
@@ -332,4 +341,108 @@ export interface SyndicateRaidPayload {
   targetMineId?: string;
   /** Bet amount */
   betAmount?: number;
+}
+
+// ============================================================================
+// ADMIN CONSOLE TYPES (v3.3.0)
+// ============================================================================
+
+/** Admin authentication payload */
+export interface AdminAuthPayload {
+  password: string;
+}
+
+/** Admin action payload */
+export interface AdminActionPayload {
+  action: 'ban_user' | 'unban_user' | 'set_mine_config' | 'force_buyback' | 'trigger_distribution' | 'clear_cache';
+  /** Target wallet for ban/unban */
+  wallet?: string;
+  /** Mine ID for set_mine_config */
+  mineId?: string;
+  /** Config values for set_mine_config */
+  config?: {
+    difficultyMultiplier?: number;
+    rewardMultiplier?: number;
+    isActive?: boolean;
+  };
+}
+
+/** Admin dashboard statistics */
+export interface AdminStats {
+  activeMiners: number;
+  totalHashrate: number;
+  discoveriesToday: number;
+  activeRaids: number;
+  totalStaked: number;
+  rewardWalletBalance: number;
+  serverUptime: string;
+  wsConnections: number;
+  errorsToday: number;
+  pendingDistributions: number;
+  serverHealth: {
+    cpu: number;
+    memory: number;
+    wsLatency: number;
+    rpcLatency: number;
+    status: 'healthy' | 'degraded' | 'critical';
+  };
+}
+
+/** Admin user entry */
+export interface AdminUser {
+  id: string;
+  wallet: string;
+  homeMine: string;
+  stakeAmount: number;
+  hashrate: number;
+  discoveryCount: number;
+  raidWins: number;
+  raidLosses: number;
+  lastActive: string;
+  status: 'active' | 'idle' | 'banned';
+  joinedAt: string;
+}
+
+/** Admin mine entry */
+export interface AdminMine {
+  id: string;
+  name: string;
+  resource: string;
+  activeMiners: number;
+  hashrate: number;
+  totalStake: number;
+  discoveriesToday: number;
+  vaultBalance: number;
+  isActive: boolean;
+  difficultyMultiplier: number;
+  rewardMultiplier: number;
+  roundTimeRemaining?: number;
+  rolloverAmount?: number;
+}
+
+/** Admin raid entry */
+export interface AdminRaid {
+  id: string;
+  attackerWallet: string;
+  defenderMine: string;
+  sourceMine: string;
+  betAmount: number;
+  attackPower: number;
+  defensePower: number;
+  outcome: 'attacker_won' | 'defender_won' | 'pending';
+  stolenAmount?: number;
+  burnedAmount?: number;
+  spoilsDistributed?: number;
+  timestamp: string;
+  duration: number;
+}
+
+/** Admin log entry */
+export interface AdminLog {
+  id: string;
+  level: 'info' | 'warn' | 'error' | 'debug';
+  source: string;
+  message: string;
+  details?: string;
+  timestamp: string;
 }

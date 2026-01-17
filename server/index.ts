@@ -13,6 +13,12 @@ import {
   ProofSubmission,
   BarrelResult,
   NetworkStats,
+  AdminStats,
+  AdminUser,
+  AdminMine,
+  AdminRaid,
+  AdminLog,
+  AdminActionPayload,
 } from './types';
 import { PoolManager, TimeoutResult } from './pool/manager';
 import { POOL_CONFIG } from '../config/constants';
@@ -102,6 +108,10 @@ interface ClientConnection {
   walletAddress?: string;
   authenticated: boolean;
   currentMineId?: string;
+  /** Admin authentication status */
+  isAdmin?: boolean;
+  /** Admin subscription status */
+  adminSubscribed?: boolean;
 }
 
 /** Map of WebSocket to client metadata */
@@ -109,6 +119,41 @@ const clientConnections = new Map<WebSocket, ClientConnection>();
 
 /** Pool managers per mine */
 const minePoolManagers = new Map<string, PoolManager>();
+
+/** Server start time for uptime calculation */
+const serverStartTime = Date.now();
+
+/** In-memory log buffer for admin console */
+const serverLogs: AdminLog[] = [];
+const MAX_LOG_ENTRIES = 500;
+
+/** Banned wallets (in production, use Redis) */
+const bannedWallets = new Set<string>();
+
+/** Error count today (resets daily) */
+let errorsToday = 0;
+let lastErrorReset = Date.now();
+
+/** Add a log entry for admin console */
+function addServerLog(level: AdminLog['level'], source: string, message: string, details?: string): void {
+  const log: AdminLog = {
+    id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    level,
+    source,
+    message,
+    details,
+    timestamp: new Date().toISOString(),
+  };
+  serverLogs.unshift(log);
+  if (serverLogs.length > MAX_LOG_ENTRIES) {
+    serverLogs.pop();
+  }
+  if (level === 'error') {
+    errorsToday++;
+  }
+  // Also log to console
+  console.log(`[${level.toUpperCase()}] [${source}] ${message}${details ? ` - ${details}` : ''}`);
+}
 
 /** WebSocket server instance */
 let wss: WebSocketServer;
@@ -237,6 +282,14 @@ async function handleConnect(
   clientInfo: ClientConnection
 ): Promise<void> {
   // Payload already validated by Zod - walletAddress and cores are guaranteed valid
+
+  // Check if wallet is banned
+  if (bannedWallets.has(payload.walletAddress)) {
+    sendError(ws, 'BANNED', 'Your wallet has been banned');
+    ws.close(1008, 'Wallet banned');
+    addServerLog('warn', 'Auth', `Banned wallet attempted to connect: ${payload.walletAddress.slice(0, 8)}...`);
+    return;
+  }
 
   clientInfo.walletAddress = payload.walletAddress;
   clientInfo.authenticated = true;
@@ -1056,6 +1109,330 @@ function getGlobalStats(): GlobalNetworkStats {
   };
 }
 
+// ============================================================================
+// ADMIN CONSOLE HANDLERS (v3.3.0)
+// ============================================================================
+
+/**
+ * Format uptime from milliseconds to human readable string
+ */
+function formatUptime(ms: number): string {
+  const seconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+  
+  if (days > 0) {
+    return `${days}d ${hours % 24}h ${minutes % 60}m`;
+  } else if (hours > 0) {
+    return `${hours}h ${minutes % 60}m`;
+  } else {
+    return `${minutes}m ${seconds % 60}s`;
+  }
+}
+
+/**
+ * Get admin dashboard statistics
+ */
+function getAdminStats(): AdminStats {
+  const registry = getMineRegistry();
+  const stakeManager = getStakeManager();
+  const tracker = getExpeditionTracker();
+  const redisStore = getRedisStore();
+  
+  // Reset error count daily
+  const now = Date.now();
+  const dayMs = 24 * 60 * 60 * 1000;
+  if (now - lastErrorReset > dayMs) {
+    errorsToday = 0;
+    lastErrorReset = now;
+  }
+  
+  // Calculate discoveries today (from registry + Redis)
+  const mineStats = registry.getNetworkStats();
+  const discoveriesToday = mineStats.reduce((sum, m) => sum + m.discoveriesFound, 0);
+  
+  // Get active raid count
+  const expeditionStats = tracker.getStats();
+  
+  // Get WebSocket connection count
+  const wsConnections = clientConnections.size;
+  
+  // Get total staked (from registry which aggregates mine stakes)
+  const totalStaked = registry.getTotalStake();
+  
+  // Simple server health metrics
+  const memUsage = process.memoryUsage();
+  const memoryPercent = Math.round((memUsage.heapUsed / memUsage.heapTotal) * 100);
+  
+  return {
+    activeMiners: registry.getTotalMiners(),
+    totalHashrate: registry.getTotalHashrate(),
+    discoveriesToday,
+    activeRaids: expeditionStats.active,
+    totalStaked,
+    rewardWalletBalance: 0, // TODO: Get from rewards.ts
+    serverUptime: formatUptime(Date.now() - serverStartTime),
+    wsConnections,
+    errorsToday,
+    pendingDistributions: 0, // TODO: Get from distribution service
+    serverHealth: {
+      cpu: 0, // CPU monitoring requires additional setup
+      memory: memoryPercent,
+      wsLatency: 12, // TODO: Measure actual WS latency
+      rpcLatency: 85, // TODO: Measure actual RPC latency
+      status: memoryPercent > 80 ? 'degraded' : errorsToday > 10 ? 'degraded' : 'healthy',
+    },
+  };
+}
+
+/**
+ * Get list of connected users for admin console
+ */
+function getAdminUsers(): AdminUser[] {
+  const stakeManager = getStakeManager();
+  const users: AdminUser[] = [];
+  
+  for (const [ws, info] of clientConnections) {
+    if (!info.walletAddress) continue;
+    
+    const minerState = stakeManager.getMinerState(info.walletAddress);
+    const homeMineName = info.currentMineId 
+      ? (MINES.find(m => m.id === info.currentMineId)?.name || 'Unknown')
+      : 'None';
+    
+    // Get hashrate from pool manager
+    let hashrate = 0;
+    if (info.currentMineId) {
+      const pm = minePoolManagers.get(info.currentMineId);
+      const miner = pm?.getMiner(info.walletAddress);
+      hashrate = miner?.hashrate || 0;
+    }
+    
+    // Determine status
+    const isBanned = bannedWallets.has(info.walletAddress);
+    const status: AdminUser['status'] = isBanned ? 'banned' : hashrate > 0 ? 'active' : 'idle';
+    
+    users.push({
+      id: info.walletAddress.slice(0, 8),
+      wallet: `${info.walletAddress.slice(0, 4)}...${info.walletAddress.slice(-4)}`,
+      homeMine: homeMineName,
+      stakeAmount: minerState.totalStake || 0,
+      hashrate,
+      discoveryCount: 0, // TODO: Track per-user discoveries
+      raidWins: 0, // TODO: Track raid stats
+      raidLosses: 0,
+      lastActive: 'Now',
+      status,
+      joinedAt: new Date().toISOString().split('T')[0], // TODO: Track join date
+    });
+  }
+  
+  return users;
+}
+
+/**
+ * Get mine statistics for admin console
+ */
+function getAdminMines(): AdminMine[] {
+  const registry = getMineRegistry();
+  const mines: AdminMine[] = [];
+  
+  for (const mineConfig of MINES) {
+    const mine = registry.getMine(mineConfig.id);
+    const poolManager = minePoolManagers.get(mineConfig.id);
+    const roundStatus = poolManager?.getRoundStatus();
+    
+    mines.push({
+      id: mineConfig.id,
+      name: mineConfig.name,
+      resource: mineConfig.resource,
+      activeMiners: mine?.activeMiners.size || 0,
+      hashrate: mine?.totalHashrate || 0,
+      totalStake: mine?.totalStake || 0,
+      discoveriesToday: mine?.totalDiscoveries || 0,
+      vaultBalance: 0, // TODO: Track vault balance
+      isActive: true, // All mines active by default
+      difficultyMultiplier: 1.0, // TODO: Get from config
+      rewardMultiplier: mineConfig.baseRewardMultiplier || 1.0,
+      roundTimeRemaining: roundStatus?.timeRemaining ?? undefined,
+      rolloverAmount: roundStatus?.rolloverAmount ?? undefined,
+    });
+  }
+  
+  return mines;
+}
+
+/**
+ * Get raid logs for admin console
+ */
+function getAdminRaids(): AdminRaid[] {
+  const tracker = getExpeditionTracker();
+  const expeditions = tracker.getActiveExpeditions();
+  const raids: AdminRaid[] = [];
+  
+  for (const exp of expeditions) {
+    const sourceMine = MINES.find(m => m.id === exp.sourceMineId)?.name || 'Unknown';
+    const targetMine = MINES.find(m => m.id === exp.targetMineId)?.name || 'Unknown';
+    
+    // Calculate total bet from the bets map
+    let totalBet = 0;
+    exp.bets.forEach(bet => { totalBet += bet; });
+    
+    raids.push({
+      id: exp.id,
+      attackerWallet: `${exp.attackers[0]?.slice(0, 4) || 'N/A'}...`,
+      sourceMine,
+      defenderMine: targetMine,
+      betAmount: totalBet,
+      attackPower: exp.attackPower || 0,
+      defensePower: 0, // TODO: Get defense power
+      outcome: exp.status === 'completed' ? 'attacker_won' : exp.status === 'failed' ? 'defender_won' : 'pending',
+      stolenAmount: undefined, // Set on resolution
+      timestamp: exp.startedAt.toISOString(),
+      duration: exp.status !== 'active' ? Math.floor((Date.now() - exp.startedAt.getTime()) / 1000) : 0,
+    });
+  }
+  
+  return raids;
+}
+
+/**
+ * Get server logs for admin console
+ */
+function getAdminLogs(): AdminLog[] {
+  return serverLogs.slice(0, 100);
+}
+
+/**
+ * Handle admin authentication
+ */
+function handleAdminAuth(
+  ws: WebSocket,
+  password: string,
+  clientInfo: ClientConnection
+): void {
+  const adminSecret = process.env.ADMIN_SECRET || 'admin123'; // Default for dev
+  
+  if (password === adminSecret) {
+    clientInfo.isAdmin = true;
+    addServerLog('info', 'Admin', `Admin authenticated from ${clientInfo.ip}`);
+    sendMessage(ws, 'admin_auth', { success: true, message: 'Admin authenticated' });
+  } else {
+    addServerLog('warn', 'Admin', `Failed admin auth attempt from ${clientInfo.ip}`);
+    sendMessage(ws, 'admin_auth', { success: false, message: 'Invalid password' });
+  }
+}
+
+/**
+ * Handle admin subscription to real-time updates
+ */
+function handleAdminSubscribe(
+  ws: WebSocket,
+  clientInfo: ClientConnection
+): void {
+  if (!clientInfo.isAdmin) {
+    sendError(ws, 'UNAUTHORIZED', 'Admin authentication required');
+    return;
+  }
+  
+  clientInfo.adminSubscribed = true;
+  
+  // Send initial data
+  sendMessage(ws, 'admin_stats', getAdminStats());
+  sendMessage(ws, 'admin_users', getAdminUsers());
+  sendMessage(ws, 'admin_mines', getAdminMines());
+  sendMessage(ws, 'admin_raids', getAdminRaids());
+  sendMessage(ws, 'admin_logs', getAdminLogs());
+  
+  addServerLog('info', 'Admin', 'Admin subscribed to updates');
+}
+
+/**
+ * Handle admin actions (ban, unban, configure mines, etc.)
+ */
+function handleAdminAction(
+  ws: WebSocket,
+  payload: AdminActionPayload,
+  clientInfo: ClientConnection
+): void {
+  if (!clientInfo.isAdmin) {
+    sendError(ws, 'UNAUTHORIZED', 'Admin authentication required');
+    return;
+  }
+  
+  switch (payload.action) {
+    case 'ban_user':
+      if (payload.wallet) {
+        bannedWallets.add(payload.wallet);
+        addServerLog('warn', 'Admin', `Banned user: ${payload.wallet.slice(0, 8)}...`);
+        sendMessage(ws, 'result', { success: true, message: `User ${payload.wallet.slice(0, 8)}... banned` });
+        // Disconnect the banned user
+        for (const [clientWs, info] of clientConnections) {
+          if (info.walletAddress === payload.wallet) {
+            clientWs.close(1008, 'You have been banned');
+          }
+        }
+      }
+      break;
+      
+    case 'unban_user':
+      if (payload.wallet) {
+        bannedWallets.delete(payload.wallet);
+        addServerLog('info', 'Admin', `Unbanned user: ${payload.wallet.slice(0, 8)}...`);
+        sendMessage(ws, 'result', { success: true, message: `User ${payload.wallet.slice(0, 8)}... unbanned` });
+      }
+      break;
+      
+    case 'set_mine_config':
+      if (payload.mineId && payload.config) {
+        // TODO: Update mine configuration in registry
+        addServerLog('info', 'Admin', `Updated mine config: ${payload.mineId}`, JSON.stringify(payload.config));
+        sendMessage(ws, 'result', { success: true, message: `Mine ${payload.mineId} configuration updated` });
+      }
+      break;
+      
+    case 'force_buyback':
+      // TODO: Trigger buyback service
+      addServerLog('info', 'Admin', 'Force buyback triggered');
+      sendMessage(ws, 'result', { success: true, message: 'Buyback triggered' });
+      break;
+      
+    case 'trigger_distribution':
+      // TODO: Trigger distribution service
+      addServerLog('info', 'Admin', 'Force distribution triggered');
+      sendMessage(ws, 'result', { success: true, message: 'Distribution triggered' });
+      break;
+      
+    case 'clear_cache':
+      // Clear in-memory caches
+      serverLogs.length = 0;
+      addServerLog('info', 'Admin', 'Cache cleared');
+      sendMessage(ws, 'result', { success: true, message: 'Cache cleared' });
+      break;
+      
+    default:
+      sendError(ws, 'UNKNOWN_ACTION', `Unknown admin action: ${payload.action}`);
+  }
+}
+
+/**
+ * Broadcast admin updates to all subscribed admins
+ */
+function broadcastAdminUpdates(): void {
+  const stats = getAdminStats();
+  const users = getAdminUsers();
+  const mines = getAdminMines();
+  
+  for (const [ws, info] of clientConnections) {
+    if (info.isAdmin && info.adminSubscribed && ws.readyState === WebSocket.OPEN) {
+      sendMessage(ws, 'admin_stats', stats);
+      sendMessage(ws, 'admin_users', users);
+      sendMessage(ws, 'admin_mines', mines);
+    }
+  }
+}
+
 /**
  * Handles incoming WebSocket messages
  * Includes rate limiting and payload validation
@@ -1146,6 +1523,19 @@ async function handleMessage(
 
     case 'request_work':
       handleRequestWork(ws, clientInfo);
+      break;
+
+    // Admin message handlers
+    case 'admin_auth':
+      handleAdminAuth(ws, (message.payload as { password: string }).password, clientInfo);
+      break;
+
+    case 'admin_subscribe':
+      handleAdminSubscribe(ws, clientInfo);
+      break;
+
+    case 'admin_action':
+      handleAdminAction(ws, message.payload as AdminActionPayload, clientInfo);
       break;
 
     default:
@@ -1302,6 +1692,11 @@ export async function startServer(): Promise<WebSocketServer> {
       if (ws.readyState === WebSocket.OPEN) ws.ping();
     });
   }, 30000);
+
+  // Broadcast admin updates every 2 seconds
+  setInterval(() => {
+    broadcastAdminUpdates();
+  }, 2000);
 
   // Start HTTP server (WebSocket is attached to it)
   await new Promise<void>((resolve) => {

@@ -2,22 +2,10 @@
 
 /**
  * @fileoverview Admin Dashboard - Overview of system health and key metrics
+ * Uses real-time WebSocket data from useAdminSocket hook
  */
 
-import { useState, useEffect } from 'react';
-
-interface SystemStats {
-  activeMiners: number;
-  totalHashrate: number;
-  discoveriesToday: number;
-  activeRaids: number;
-  totalStaked: number;
-  rewardWalletBalance: number;
-  serverUptime: string;
-  wsConnections: number;
-  errorsToday: number;
-  pendingDistributions: number;
-}
+import { useAdminContext } from './layout';
 
 interface ServerHealth {
   cpu: number;
@@ -121,45 +109,53 @@ function HealthIndicator({ health }: { health: ServerHealth }) {
   );
 }
 
-function RecentActivity() {
-  const activities = [
-    { type: 'discovery', message: 'Coal Seam found at Appalachian Basin', time: '2m ago' },
-    { type: 'raid', message: 'Raid started: Witwatersrand → Grasberg', time: '5m ago' },
-    { type: 'stake', message: 'User staked 500 COAL at Permian Basin', time: '8m ago' },
-    { type: 'payout', message: 'Hourly vault distribution: 1,250 COAL', time: '15m ago' },
-    { type: 'error', message: 'RPC timeout - retrying...', time: '22m ago' },
-  ];
-
-  const typeColors = {
+function RecentActivity({ logs }: { logs: Array<{ type: string; message: string; timestamp: string }> }) {
+  const typeColors: Record<string, string> = {
     discovery: 'bg-gold-500/20 text-gold-400',
     raid: 'bg-red-500/20 text-red-400',
     stake: 'bg-purple-500/20 text-purple-400',
     payout: 'bg-green-500/20 text-green-400',
     error: 'bg-red-500/20 text-red-400',
+    info: 'bg-blue-500/20 text-blue-400',
+    warn: 'bg-yellow-500/20 text-yellow-400',
   };
+
+  // Convert logs to activity format
+  const activities = logs.slice(0, 5).map(log => ({
+    type: log.type || 'info',
+    message: log.message,
+    time: new Date(log.timestamp).toLocaleTimeString(),
+  }));
 
   return (
     <div className="bg-coal-900 border border-coal-700 rounded-xl p-6">
       <h3 className="text-lg font-bold text-white mb-4">Recent Activity</h3>
       <div className="space-y-3">
-        {activities.map((activity, i) => (
-          <div key={i} className="flex items-start gap-3">
-            <div className={`px-2 py-1 rounded text-xs font-medium ${typeColors[activity.type as keyof typeof typeColors]}`}>
-              {activity.type}
+        {activities.length === 0 ? (
+          <p className="text-coal-500 text-sm">No recent activity</p>
+        ) : (
+          activities.map((activity, i) => (
+            <div key={i} className="flex items-start gap-3">
+              <div className={`px-2 py-1 rounded text-xs font-medium ${typeColors[activity.type] || typeColors.info}`}>
+                {activity.type}
+              </div>
+              <div className="flex-1">
+                <p className="text-coal-300 text-sm">{activity.message}</p>
+              </div>
+              <span className="text-coal-600 text-xs">{activity.time}</span>
             </div>
-            <div className="flex-1">
-              <p className="text-coal-300 text-sm">{activity.message}</p>
-            </div>
-            <span className="text-coal-600 text-xs">{activity.time}</span>
-          </div>
-        ))}
+          ))
+        )}
       </div>
     </div>
   );
 }
 
 export default function AdminDashboard() {
-  const [stats, setStats] = useState<SystemStats>({
+  const { stats, logs, executeAction, status } = useAdminContext();
+
+  // Default values when no data yet
+  const displayStats = stats || {
     activeMiners: 0,
     totalHashrate: 0,
     discoveriesToday: 0,
@@ -170,40 +166,31 @@ export default function AdminDashboard() {
     wsConnections: 0,
     errorsToday: 0,
     pendingDistributions: 0,
-  });
+    serverHealth: {
+      cpu: 0,
+      memory: 0,
+      wsLatency: 0,
+      rpcLatency: 0,
+      status: 'healthy' as const,
+    },
+  };
 
-  const [health, setHealth] = useState<ServerHealth>({
-    cpu: 0,
-    memory: 0,
-    wsLatency: 0,
-    rpcLatency: 0,
-    status: 'healthy',
-  });
+  const handleRefreshStats = () => {
+    // Stats are auto-refreshed via WebSocket, this is just for UI feedback
+    console.log('[Admin] Manual refresh triggered');
+  };
 
-  // Simulate loading stats (replace with real API calls)
-  useEffect(() => {
-    // Simulated data - replace with actual API calls
-    setStats({
-      activeMiners: 847,
-      totalHashrate: 125_000_000,
-      discoveriesToday: 156,
-      activeRaids: 3,
-      totalStaked: 2_500_000,
-      rewardWalletBalance: 45_000,
-      serverUptime: '14d 6h 23m',
-      wsConnections: 412,
-      errorsToday: 7,
-      pendingDistributions: 2,
-    });
+  const handleForceBuyback = () => {
+    executeAction('force_buyback');
+  };
 
-    setHealth({
-      cpu: 32,
-      memory: 48,
-      wsLatency: 12,
-      rpcLatency: 85,
-      status: 'healthy',
-    });
-  }, []);
+  const handleTriggerDistribution = () => {
+    executeAction('trigger_distribution');
+  };
+
+  const handleClearCache = () => {
+    executeAction('clear_cache');
+  };
 
   return (
     <div className="space-y-8">
@@ -213,9 +200,17 @@ export default function AdminDashboard() {
           <h1 className="text-3xl font-display font-bold text-white">Dashboard</h1>
           <p className="text-coal-500 mt-1">System overview and key metrics</p>
         </div>
-        <div className="flex items-center gap-2 text-coal-500 text-sm">
-          <span>Last updated:</span>
-          <span className="text-white font-mono">{new Date().toLocaleTimeString()}</span>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 text-coal-500 text-sm">
+            <span>Status:</span>
+            <span className={`font-bold ${status === 'authenticated' ? 'text-green-400' : 'text-yellow-400'}`}>
+              {status === 'authenticated' ? 'Live' : status}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 text-coal-500 text-sm">
+            <span>Last updated:</span>
+            <span className="text-white font-mono">{new Date().toLocaleTimeString()}</span>
+          </div>
         </div>
       </div>
 
@@ -223,28 +218,25 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard 
           label="Active Miners" 
-          value={stats.activeMiners.toLocaleString()} 
+          value={displayStats.activeMiners.toLocaleString()} 
           icon="👷"
-          change="+12 from yesterday"
           changeType="positive"
         />
         <StatCard 
           label="Network Hashrate" 
-          value={`${(stats.totalHashrate / 1_000_000).toFixed(1)} MH/s`} 
+          value={`${(displayStats.totalHashrate / 1_000_000).toFixed(1)} MH/s`} 
           icon="⚡"
-          change="+5.2% from yesterday"
           changeType="positive"
         />
         <StatCard 
           label="Discoveries Today" 
-          value={stats.discoveriesToday} 
+          value={displayStats.discoveriesToday} 
           icon="💎"
-          change="On pace for 180"
           changeType="neutral"
         />
         <StatCard 
           label="Active Raids" 
-          value={stats.activeRaids} 
+          value={displayStats.activeRaids} 
           icon="⚔️"
         />
       </div>
@@ -253,32 +245,32 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard 
           label="Total Staked" 
-          value={`${(stats.totalStaked / 1_000_000).toFixed(2)}M COAL`} 
+          value={`${(displayStats.totalStaked / 1_000_000).toFixed(2)}M COAL`} 
           icon="🔒"
         />
         <StatCard 
           label="Reward Wallet" 
-          value={`${stats.rewardWalletBalance.toLocaleString()} COAL`} 
+          value={`${displayStats.rewardWalletBalance.toLocaleString()} COAL`} 
           icon="💰"
         />
         <StatCard 
           label="WS Connections" 
-          value={stats.wsConnections} 
+          value={displayStats.wsConnections} 
           icon="🔗"
         />
         <StatCard 
           label="Errors Today" 
-          value={stats.errorsToday} 
+          value={displayStats.errorsToday} 
           icon="⚠️"
-          changeType={stats.errorsToday > 10 ? 'negative' : 'neutral'}
+          changeType={displayStats.errorsToday > 10 ? 'negative' : 'neutral'}
         />
       </div>
 
       {/* Health and Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <HealthIndicator health={health} />
+        <HealthIndicator health={displayStats.serverHealth} />
         <div className="lg:col-span-2">
-          <RecentActivity />
+          <RecentActivity logs={logs.map(l => ({ type: l.level, message: l.message, timestamp: l.timestamp }))} />
         </div>
       </div>
 
@@ -286,19 +278,31 @@ export default function AdminDashboard() {
       <div className="bg-coal-900 border border-coal-700 rounded-xl p-6">
         <h3 className="text-lg font-bold text-white mb-4">Quick Actions</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <button className="p-4 bg-coal-800 hover:bg-coal-700 rounded-lg text-center transition-colors">
+          <button 
+            onClick={handleRefreshStats}
+            className="p-4 bg-coal-800 hover:bg-coal-700 rounded-lg text-center transition-colors"
+          >
             <div className="text-2xl mb-2">🔄</div>
             <div className="text-sm text-coal-300">Refresh Stats</div>
           </button>
-          <button className="p-4 bg-coal-800 hover:bg-coal-700 rounded-lg text-center transition-colors">
+          <button 
+            onClick={handleForceBuyback}
+            className="p-4 bg-coal-800 hover:bg-coal-700 rounded-lg text-center transition-colors"
+          >
             <div className="text-2xl mb-2">💸</div>
             <div className="text-sm text-coal-300">Force Buyback</div>
           </button>
-          <button className="p-4 bg-coal-800 hover:bg-coal-700 rounded-lg text-center transition-colors">
+          <button 
+            onClick={handleTriggerDistribution}
+            className="p-4 bg-coal-800 hover:bg-coal-700 rounded-lg text-center transition-colors"
+          >
             <div className="text-2xl mb-2">📤</div>
             <div className="text-sm text-coal-300">Trigger Distribution</div>
           </button>
-          <button className="p-4 bg-coal-800 hover:bg-coal-700 rounded-lg text-center transition-colors">
+          <button 
+            onClick={handleClearCache}
+            className="p-4 bg-coal-800 hover:bg-coal-700 rounded-lg text-center transition-colors"
+          >
             <div className="text-2xl mb-2">🧹</div>
             <div className="text-sm text-coal-300">Clear Cache</div>
           </button>
@@ -307,7 +311,7 @@ export default function AdminDashboard() {
 
       {/* Server Info */}
       <div className="text-center text-coal-600 text-sm">
-        Server Uptime: {stats.serverUptime} • Pending Distributions: {stats.pendingDistributions}
+        Server Uptime: {displayStats.serverUptime} • Pending Distributions: {displayStats.pendingDistributions}
       </div>
     </div>
   );

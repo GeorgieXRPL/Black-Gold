@@ -2,61 +2,35 @@
 
 /**
  * @fileoverview Admin Mines Page - Manage mine configurations and view stats
+ * Uses real-time WebSocket data from useAdminSocket hook
  */
 
 import { useState } from 'react';
-import { MINES, RESOURCE_COLORS, ResourceType } from '../../lib/mines';
-
-interface MineAdminData {
-  id: string;
-  name: string;
-  resource: ResourceType;
-  activeMiners: number;
-  hashrate: number;
-  totalStake: number;
-  discoveriesToday: number;
-  vaultBalance: number;
-  isActive: boolean;
-  difficultyMultiplier: number;
-  rewardMultiplier: number;
-}
-
-// Generate mock admin data from MINES
-const generateMockMineData = (): MineAdminData[] => {
-  return MINES.map(mine => ({
-    id: mine.id,
-    name: mine.name,
-    resource: mine.resource,
-    activeMiners: Math.floor(Math.random() * 50) + 5,
-    hashrate: Math.floor(Math.random() * 5000000) + 500000,
-    totalStake: Math.floor(Math.random() * 100000) + 10000,
-    discoveriesToday: Math.floor(Math.random() * 20),
-    vaultBalance: Math.floor(Math.random() * 500) + 50,
-    isActive: true,
-    difficultyMultiplier: 1.0,
-    rewardMultiplier: 1.0,
-  }));
-};
+import { useAdminContext } from '../layout';
+import { RESOURCE_COLORS, ResourceType } from '../../lib/mines';
+import { AdminMine } from '../../../server/types';
 
 export default function MinesPage() {
-  const [mines, setMines] = useState<MineAdminData[]>(generateMockMineData());
-  const [selectedMine, setSelectedMine] = useState<MineAdminData | null>(null);
+  const { mines, executeAction } = useAdminContext();
+  const [selectedMine, setSelectedMine] = useState<AdminMine | null>(null);
   const [resourceFilter, setResourceFilter] = useState<'all' | ResourceType>('all');
 
   const filteredMines = mines.filter(mine => 
     resourceFilter === 'all' || mine.resource === resourceFilter
   );
 
-  const handleToggleActive = (mineId: string) => {
-    setMines(mines.map(m => m.id === mineId ? { ...m, isActive: !m.isActive } : m));
+  const handleToggleActive = (mineId: string, currentlyActive: boolean) => {
+    executeAction('set_mine_config', { 
+      mineId, 
+      config: { isActive: !currentlyActive } 
+    });
   };
 
   const handleUpdateMultipliers = (mineId: string, difficulty: number, reward: number) => {
-    setMines(mines.map(m => m.id === mineId ? { 
-      ...m, 
-      difficultyMultiplier: difficulty,
-      rewardMultiplier: reward 
-    } : m));
+    executeAction('set_mine_config', {
+      mineId,
+      config: { difficultyMultiplier: difficulty, rewardMultiplier: reward },
+    });
     setSelectedMine(null);
   };
 
@@ -65,6 +39,12 @@ export default function MinesPage() {
     hashrate: filteredMines.reduce((a, b) => a + b.hashrate, 0),
     stake: filteredMines.reduce((a, b) => a + b.totalStake, 0),
     discoveries: filteredMines.reduce((a, b) => a + b.discoveriesToday, 0),
+  };
+
+  // Get resource color with fallback
+  const getResourceColor = (resource: string): string => {
+    const colors = RESOURCE_COLORS[resource as ResourceType];
+    return colors?.glow || '#888';
   };
 
   return (
@@ -121,7 +101,7 @@ export default function MinesPage() {
           >
             <div 
               className="w-3 h-3 rounded-full"
-              style={{ backgroundColor: RESOURCE_COLORS[resource].glow }}
+              style={{ backgroundColor: getResourceColor(resource) }}
             />
             <span className="capitalize">{resource}</span>
           </button>
@@ -130,72 +110,86 @@ export default function MinesPage() {
 
       {/* Mines Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredMines.map(mine => (
-          <div 
-            key={mine.id}
-            className={`bg-coal-900 border rounded-xl p-5 ${
-              mine.isActive ? 'border-coal-700' : 'border-red-900/50 bg-red-950/20'
-            }`}
-          >
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <div className="flex items-center gap-2">
-                  <div 
-                    className="w-3 h-3 rounded-full"
-                    style={{ backgroundColor: RESOURCE_COLORS[mine.resource].glow }}
-                  />
-                  <h3 className="font-bold text-white">{mine.name}</h3>
+        {filteredMines.length === 0 ? (
+          <div className="col-span-3 text-center py-8 text-coal-500">
+            No mines data available
+          </div>
+        ) : (
+          filteredMines.map(mine => (
+            <div 
+              key={mine.id}
+              className={`bg-coal-900 border rounded-xl p-5 ${
+                mine.isActive ? 'border-coal-700' : 'border-red-900/50 bg-red-950/20'
+              }`}
+            >
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <div 
+                      className="w-3 h-3 rounded-full"
+                      style={{ backgroundColor: getResourceColor(mine.resource) }}
+                    />
+                    <h3 className="font-bold text-white">{mine.name}</h3>
+                  </div>
+                  <p className="text-coal-500 text-sm capitalize">{mine.resource}</p>
                 </div>
-                <p className="text-coal-500 text-sm capitalize">{mine.resource}</p>
+                <button
+                  onClick={() => handleToggleActive(mine.id, mine.isActive)}
+                  className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+                    mine.isActive 
+                      ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30' 
+                      : 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
+                  }`}
+                >
+                  {mine.isActive ? 'Active' : 'Disabled'}
+                </button>
               </div>
+
+              <div className="grid grid-cols-2 gap-3 text-sm mb-4">
+                <div>
+                  <p className="text-coal-500">Miners</p>
+                  <p className="text-white font-mono">{mine.activeMiners}</p>
+                </div>
+                <div>
+                  <p className="text-coal-500">Hashrate</p>
+                  <p className="text-ember-400 font-mono">{(mine.hashrate / 1000).toFixed(0)} KH/s</p>
+                </div>
+                <div>
+                  <p className="text-coal-500">Staked</p>
+                  <p className="text-purple-400 font-mono">{mine.totalStake.toLocaleString()}</p>
+                </div>
+                <div>
+                  <p className="text-coal-500">Vault</p>
+                  <p className="text-gold-400 font-mono">{mine.vaultBalance}</p>
+                </div>
+              </div>
+
+              {/* Round status if available */}
+              {mine.roundTimeRemaining !== undefined && (
+                <div className="text-xs text-coal-500 mb-2">
+                  Round time: {Math.floor((mine.roundTimeRemaining || 0) / 1000)}s remaining
+                  {mine.rolloverAmount ? ` • Rollover: ${mine.rolloverAmount}` : ''}
+                </div>
+              )}
+
+              <div className="flex gap-2 text-xs border-t border-coal-800 pt-3">
+                <span className="text-coal-500">
+                  Difficulty: <span className="text-white">{mine.difficultyMultiplier}x</span>
+                </span>
+                <span className="text-coal-500">
+                  Reward: <span className="text-white">{mine.rewardMultiplier}x</span>
+                </span>
+              </div>
+
               <button
-                onClick={() => handleToggleActive(mine.id)}
-                className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
-                  mine.isActive 
-                    ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30' 
-                    : 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
-                }`}
+                onClick={() => setSelectedMine(mine)}
+                className="w-full mt-3 py-2 bg-coal-800 hover:bg-coal-700 text-coal-300 rounded-lg transition-colors text-sm"
               >
-                {mine.isActive ? 'Active' : 'Disabled'}
+                Configure
               </button>
             </div>
-
-            <div className="grid grid-cols-2 gap-3 text-sm mb-4">
-              <div>
-                <p className="text-coal-500">Miners</p>
-                <p className="text-white font-mono">{mine.activeMiners}</p>
-              </div>
-              <div>
-                <p className="text-coal-500">Hashrate</p>
-                <p className="text-ember-400 font-mono">{(mine.hashrate / 1000).toFixed(0)} KH/s</p>
-              </div>
-              <div>
-                <p className="text-coal-500">Staked</p>
-                <p className="text-purple-400 font-mono">{mine.totalStake.toLocaleString()}</p>
-              </div>
-              <div>
-                <p className="text-coal-500">Vault</p>
-                <p className="text-gold-400 font-mono">{mine.vaultBalance}</p>
-              </div>
-            </div>
-
-            <div className="flex gap-2 text-xs border-t border-coal-800 pt-3">
-              <span className="text-coal-500">
-                Difficulty: <span className="text-white">{mine.difficultyMultiplier}x</span>
-              </span>
-              <span className="text-coal-500">
-                Reward: <span className="text-white">{mine.rewardMultiplier}x</span>
-              </span>
-            </div>
-
-            <button
-              onClick={() => setSelectedMine(mine)}
-              className="w-full mt-3 py-2 bg-coal-800 hover:bg-coal-700 text-coal-300 rounded-lg transition-colors text-sm"
-            >
-              Configure
-            </button>
-          </div>
-        ))}
+          ))
+        )}
       </div>
 
       {/* Configure Modal */}

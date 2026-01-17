@@ -2,37 +2,14 @@
 
 /**
  * @fileoverview Admin Raids Page - View raid logs and analytics
+ * Uses real-time WebSocket data from useAdminSocket hook
  */
 
 import { useState } from 'react';
-
-interface RaidLog {
-  id: string;
-  attackerWallet: string;
-  defenderMine: string;
-  sourceMine: string;
-  betAmount: number;
-  attackPower: number;
-  defensePower: number;
-  outcome: 'attacker_won' | 'defender_won' | 'pending';
-  stolenAmount?: number;
-  burnedAmount?: number;
-  spoilsDistributed?: number;
-  timestamp: string;
-  duration: number; // in seconds
-}
-
-// Mock data
-const MOCK_RAIDS: RaidLog[] = [
-  { id: '1', attackerWallet: 'Abc1...xyz9', sourceMine: 'Appalachian Basin', defenderMine: 'Hunter Valley', betAmount: 100, attackPower: 1500, defensePower: 1200, outcome: 'attacker_won', stolenAmount: 45, timestamp: '2026-01-07T10:30:00Z', duration: 320 },
-  { id: '2', attackerWallet: 'Def2...uvw8', sourceMine: 'Witwatersrand', defenderMine: 'Super Pit', betAmount: 200, attackPower: 1800, defensePower: 2200, outcome: 'defender_won', burnedAmount: 180, spoilsDistributed: 20, timestamp: '2026-01-07T10:15:00Z', duration: 180 },
-  { id: '3', attackerWallet: 'Ghi3...rst7', sourceMine: 'Permian Basin', defenderMine: 'Ghawar Field', betAmount: 50, attackPower: 2000, defensePower: 1900, outcome: 'pending', timestamp: '2026-01-07T10:45:00Z', duration: 0 },
-  { id: '4', attackerWallet: 'Jkl4...opq6', sourceMine: 'Kuzbass', defenderMine: 'Silesia', betAmount: 0, attackPower: 800, defensePower: 600, outcome: 'attacker_won', stolenAmount: 25, timestamp: '2026-01-07T09:50:00Z', duration: 450 },
-  { id: '5', attackerWallet: 'Mno5...lmn5', sourceMine: 'Carlin Trend', defenderMine: 'Muruntau', betAmount: 150, attackPower: 1200, defensePower: 1600, outcome: 'defender_won', burnedAmount: 135, spoilsDistributed: 15, timestamp: '2026-01-07T09:30:00Z', duration: 280 },
-];
+import { useAdminContext } from '../layout';
 
 export default function RaidsPage() {
-  const [raids] = useState<RaidLog[]>(MOCK_RAIDS);
+  const { raids } = useAdminContext();
   const [outcomeFilter, setOutcomeFilter] = useState<'all' | 'attacker_won' | 'defender_won' | 'pending'>('all');
 
   const filteredRaids = raids.filter(raid => 
@@ -128,47 +105,55 @@ export default function RaidsPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-coal-800">
-            {filteredRaids.map((raid) => (
-              <tr key={raid.id} className="hover:bg-coal-800/50 transition-colors">
-                <td className="px-6 py-4 text-coal-400 text-sm">{formatTime(raid.timestamp)}</td>
-                <td className="px-6 py-4 font-mono text-white">{raid.attackerWallet}</td>
-                <td className="px-6 py-4 text-coal-300 text-sm">
-                  {raid.sourceMine} <span className="text-coal-600">→</span> {raid.defenderMine}
-                </td>
-                <td className="px-6 py-4 text-right text-ember-400 font-mono">
-                  {raid.betAmount > 0 ? raid.betAmount : '-'}
-                </td>
-                <td className="px-6 py-4 text-center font-mono text-sm">
-                  <span className="text-red-400">{raid.attackPower}</span>
-                  <span className="text-coal-600"> / </span>
-                  <span className="text-green-400">{raid.defensePower}</span>
-                </td>
-                <td className="px-6 py-4 text-center">
-                  <span className={`px-2 py-1 rounded text-xs font-medium ${outcomeColors[raid.outcome]}`}>
-                    {raid.outcome === 'attacker_won' ? 'Attacker Won' : 
-                     raid.outcome === 'defender_won' ? 'Defender Won' : 'Pending'}
-                  </span>
-                </td>
-                <td className="px-6 py-4 text-right text-sm">
-                  {raid.stolenAmount && (
-                    <span className="text-red-400">-{raid.stolenAmount} stolen</span>
-                  )}
-                  {raid.burnedAmount && (
-                    <span className="text-orange-400">{raid.burnedAmount} burned</span>
-                  )}
-                  {raid.outcome === 'pending' && (
-                    <span className="text-yellow-400">Waiting...</span>
-                  )}
-                </td>
-                <td className="px-6 py-4">
-                  {raid.outcome === 'pending' && (
-                    <button className="text-xs px-2 py-1 bg-red-600/20 text-red-400 rounded hover:bg-red-600/30 transition-colors">
-                      Force Resolve
-                    </button>
-                  )}
+            {filteredRaids.length === 0 ? (
+              <tr>
+                <td colSpan={8} className="px-6 py-8 text-center text-coal-500">
+                  {raids.length === 0 ? 'No raid data available' : 'No raids match your filter'}
                 </td>
               </tr>
-            ))}
+            ) : (
+              filteredRaids.map((raid) => (
+                <tr key={raid.id} className="hover:bg-coal-800/50 transition-colors">
+                  <td className="px-6 py-4 text-coal-400 text-sm">{formatTime(raid.timestamp)}</td>
+                  <td className="px-6 py-4 font-mono text-white">{raid.attackerWallet}</td>
+                  <td className="px-6 py-4 text-coal-300 text-sm">
+                    {raid.sourceMine} <span className="text-coal-600">→</span> {raid.defenderMine}
+                  </td>
+                  <td className="px-6 py-4 text-right text-ember-400 font-mono">
+                    {raid.betAmount > 0 ? raid.betAmount : '-'}
+                  </td>
+                  <td className="px-6 py-4 text-center font-mono text-sm">
+                    <span className="text-red-400">{raid.attackPower}</span>
+                    <span className="text-coal-600"> / </span>
+                    <span className="text-green-400">{raid.defensePower}</span>
+                  </td>
+                  <td className="px-6 py-4 text-center">
+                    <span className={`px-2 py-1 rounded text-xs font-medium ${outcomeColors[raid.outcome]}`}>
+                      {raid.outcome === 'attacker_won' ? 'Attacker Won' : 
+                       raid.outcome === 'defender_won' ? 'Defender Won' : 'Pending'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-right text-sm">
+                    {raid.stolenAmount && (
+                      <span className="text-red-400">-{raid.stolenAmount} stolen</span>
+                    )}
+                    {raid.burnedAmount && (
+                      <span className="text-orange-400">{raid.burnedAmount} burned</span>
+                    )}
+                    {raid.outcome === 'pending' && (
+                      <span className="text-yellow-400">Waiting...</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4">
+                    {raid.outcome === 'pending' && (
+                      <button className="text-xs px-2 py-1 bg-red-600/20 text-red-400 rounded hover:bg-red-600/30 transition-colors">
+                        Force Resolve
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
@@ -179,7 +164,9 @@ export default function RaidsPage() {
         <div className="h-40 flex items-center justify-center text-coal-500">
           <div className="text-center">
             <p>Defender Win Rate: <span className="text-green-400 font-bold">
-              {stats.total > 0 ? ((stats.defenderWins / (stats.total - stats.pending)) * 100).toFixed(1) : 0}%
+              {stats.total > 0 && (stats.total - stats.pending) > 0 
+                ? ((stats.defenderWins / (stats.total - stats.pending)) * 100).toFixed(1) 
+                : 0}%
             </span></p>
             <p className="text-sm mt-2">Defense advantage working as intended (1.2x bonus)</p>
           </div>

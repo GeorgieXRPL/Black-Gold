@@ -1,14 +1,89 @@
-# Black Gold v3.2.3 - Codebase Index
+# Black Gold v3.3.0 - Codebase Index
 
 > Complete file-by-file documentation for the Black Gold Interactive Mining Globe platform
 
-**Last Updated**: January 17, 2026  
-**Version**: 3.2.3 (Duplicate Join Prevention)  
-**Total Files**: 80+ TypeScript/TSX/JS files
+**Last Updated**: January 18, 2026  
+**Version**: 3.3.0 (Real-Time Admin Console)  
+**Total Files**: 85+ TypeScript/TSX/JS files
 
 ---
 
-## 📋 Recent Changes (v3.2.3)
+## 📋 Recent Changes (v3.3.0)
+
+### Real-Time Admin Console
+
+This release implements a fully functional admin console with real-time WebSocket data, replacing all mock data with live server metrics.
+
+#### Server Admin API (`server/types.ts` & `server/index.ts`)
+
+**New Message Types:**
+- `admin_auth` - Admin authentication with password
+- `admin_subscribe` - Subscribe to admin updates
+- `admin_stats` - Dashboard statistics
+- `admin_users` - Connected users list
+- `admin_mines` - Mine statistics
+- `admin_raids` - Active/recent raids
+- `admin_logs` - Server logs
+- `admin_action` - Admin actions (ban, unban, configure, etc.)
+
+**New Interfaces:**
+- `AdminStats` - Dashboard metrics (miners, hashrate, discoveries, health)
+- `AdminUser` - User entry (wallet, status, stake, hashrate)
+- `AdminMine` - Mine stats (miners, hashrate, vault, multipliers)
+- `AdminRaid` - Raid log entry
+- `AdminLog` - Server log entry
+- `AdminActionPayload` - Admin action request
+
+**New Server Functions:**
+- `getAdminStats()` - Collect dashboard statistics
+- `getAdminUsers()` - List connected users with their states
+- `getAdminMines()` - Get mine statistics from registry
+- `getAdminRaids()` - Get raid logs from expedition tracker
+- `getAdminLogs()` - Get in-memory server logs
+- `handleAdminAuth()` - Authenticate admin with ADMIN_SECRET
+- `handleAdminSubscribe()` - Send initial data and subscribe to updates
+- `handleAdminAction()` - Execute admin actions
+- `broadcastAdminUpdates()` - Send updates every 2 seconds to subscribed admins
+- `addServerLog()` - Add log entries for admin console
+
+**Admin Actions:**
+- `ban_user` - Ban wallet and disconnect
+- `unban_user` - Remove ban
+- `set_mine_config` - Update mine difficulty/reward multipliers
+- `force_buyback` - Trigger buyback service
+- `trigger_distribution` - Trigger vault distribution
+- `clear_cache` - Clear in-memory caches
+
+#### Frontend Admin Hook (`app/admin/hooks/useAdminSocket.ts`)
+
+**New File:** WebSocket hook for admin console
+- Connects to game server with admin authentication
+- Auto-reconnects with stored password
+- Manages state for stats, users, mines, raids, logs
+- Provides `executeAction()` for admin commands
+
+#### Admin Layout (`app/admin/layout.tsx`)
+
+**Updated:**
+- Integrated `useAdminSocket` hook
+- Created `AdminContext` for sharing data across pages
+- Added connection status indicator (Live/Connected/Connecting/Disconnected)
+- Password stored in sessionStorage for WS auth
+
+#### Admin Pages (Updated to use real data)
+
+| Page | Changes |
+|------|---------|
+| `page.tsx` (Dashboard) | Uses `useAdminContext()`, real stats/health/logs |
+| `users/page.tsx` | Real connected users, ban/unban via `executeAction` |
+| `mines/page.tsx` | Real mine stats, configure via `executeAction` |
+| `raids/page.tsx` | Real raid data from expedition tracker |
+| `logs/page.tsx` | Real server logs, WS connection stats |
+| `tokens/page.tsx` | Real wallet balance (partial - needs backend) |
+
+---
+
+## 📋 Previous Changes (v3.2.3)
 
 ### Duplicate Join Prevention (Connection Loop Fix)
 

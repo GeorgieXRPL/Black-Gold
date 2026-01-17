@@ -2,9 +2,11 @@
 
 /**
  * @fileoverview Admin Tokens Page - Token configuration and wallet management
+ * Uses real-time WebSocket data from useAdminSocket hook
  */
 
 import { useState } from 'react';
+import { useAdminContext } from '../layout';
 
 interface TokenConfig {
   minHolderPercent: number;
@@ -13,15 +15,6 @@ interface TokenConfig {
   distributionInterval: number; // minutes
   buybackThreshold: number;
   buybackEnabled: boolean;
-}
-
-interface WalletInfo {
-  address: string;
-  solBalance: number;
-  coalBalance: number;
-  pendingRewards: number;
-  lastBuyback: string;
-  totalDistributed: number;
 }
 
 interface Transaction {
@@ -35,6 +28,8 @@ interface Transaction {
 }
 
 export default function TokensPage() {
+  const { stats, executeAction } = useAdminContext();
+
   const [config, setConfig] = useState<TokenConfig>({
     minHolderPercent: 0.01,
     baseRewardAmount: 100,
@@ -44,26 +39,30 @@ export default function TokensPage() {
     buybackEnabled: true,
   });
 
-  const [wallet] = useState<WalletInfo>({
-    address: 'BLkG...rWdX',
-    solBalance: 2.45,
-    coalBalance: 45000,
-    pendingRewards: 1250,
-    lastBuyback: '2026-01-07T09:00:00Z',
-    totalDistributed: 125000,
-  });
+  // Use stats from WebSocket for wallet info
+  const wallet = {
+    address: process.env.NEXT_PUBLIC_REWARD_WALLET || 'Not configured',
+    solBalance: 0, // TODO: Get from backend
+    coalBalance: stats?.rewardWalletBalance || 0,
+    pendingRewards: stats?.pendingDistributions || 0,
+    lastBuyback: 'N/A',
+    totalDistributed: 0, // TODO: Track in backend
+  };
 
-  const [transactions] = useState<Transaction[]>([
-    { id: '1', type: 'distribution', amount: 1250, txHash: 'abc123...xyz', timestamp: '2026-01-07T10:00:00Z', status: 'confirmed' },
-    { id: '2', type: 'reward', amount: 75, recipient: 'Abc1...xyz9', txHash: 'def456...uvw', timestamp: '2026-01-07T09:45:00Z', status: 'confirmed' },
-    { id: '3', type: 'buyback', amount: 5000, txHash: 'ghi789...rst', timestamp: '2026-01-07T09:00:00Z', status: 'confirmed' },
-    { id: '4', type: 'reward', amount: 50, recipient: 'Def2...uvw8', txHash: 'jkl012...opq', timestamp: '2026-01-07T08:30:00Z', status: 'confirmed' },
-    { id: '5', type: 'distribution', amount: 980, txHash: 'mno345...lmn', timestamp: '2026-01-07T08:00:00Z', status: 'pending' },
-  ]);
+  // TODO: Get real transactions from backend
+  const [transactions] = useState<Transaction[]>([]);
 
   const handleSaveConfig = () => {
-    // TODO: Save to backend
-    alert('Configuration saved!');
+    // TODO: Save config to backend via admin action
+    alert('Configuration saved! (Note: Backend integration pending)');
+  };
+
+  const handleForceBuyback = () => {
+    executeAction('force_buyback');
+  };
+
+  const handleTriggerDistribution = () => {
+    executeAction('trigger_distribution');
   };
 
   const typeColors = {
@@ -185,12 +184,12 @@ export default function TokensPage() {
             <div className="space-y-4">
               <div>
                 <label className="text-coal-500 text-sm">Address</label>
-                <p className="font-mono text-white">{wallet.address}</p>
+                <p className="font-mono text-white text-sm truncate">{wallet.address}</p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-coal-500 text-sm">SOL Balance</label>
-                  <p className="text-2xl font-bold text-purple-400">{wallet.solBalance}</p>
+                  <p className="text-2xl font-bold text-purple-400">{wallet.solBalance.toFixed(2)}</p>
                 </div>
                 <div>
                   <label className="text-coal-500 text-sm">COAL Balance</label>
@@ -213,10 +212,16 @@ export default function TokensPage() {
           <div className="bg-coal-900 border border-coal-700 rounded-xl p-6">
             <h3 className="text-lg font-bold text-white mb-4">Quick Actions</h3>
             <div className="space-y-2">
-              <button className="w-full py-2 bg-purple-600/20 hover:bg-purple-600/30 text-purple-400 rounded-lg transition-colors">
+              <button 
+                onClick={handleForceBuyback}
+                className="w-full py-2 bg-purple-600/20 hover:bg-purple-600/30 text-purple-400 rounded-lg transition-colors"
+              >
                 Force Buyback Now
               </button>
-              <button className="w-full py-2 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 rounded-lg transition-colors">
+              <button 
+                onClick={handleTriggerDistribution}
+                className="w-full py-2 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 rounded-lg transition-colors"
+              >
                 Trigger Distribution
               </button>
               <button className="w-full py-2 bg-coal-800 hover:bg-coal-700 text-coal-300 rounded-lg transition-colors">
@@ -231,26 +236,30 @@ export default function TokensPage() {
       <div className="bg-coal-900 border border-coal-700 rounded-xl p-6">
         <h3 className="text-lg font-bold text-white mb-4">Recent Transactions</h3>
         <div className="space-y-3">
-          {transactions.map(tx => (
-            <div key={tx.id} className="flex items-center justify-between py-3 border-b border-coal-800 last:border-0">
-              <div className="flex items-center gap-4">
-                <span className={`px-2 py-1 rounded text-xs font-medium ${typeColors[tx.type]}`}>
-                  {tx.type}
-                </span>
-                <div>
-                  <p className="text-white">
-                    {tx.amount.toLocaleString()} COAL
-                    {tx.recipient && <span className="text-coal-500"> → {tx.recipient}</span>}
-                  </p>
-                  <p className="text-coal-600 text-sm font-mono">{tx.txHash}</p>
+          {transactions.length === 0 ? (
+            <p className="text-coal-500 text-center py-4">No recent transactions</p>
+          ) : (
+            transactions.map(tx => (
+              <div key={tx.id} className="flex items-center justify-between py-3 border-b border-coal-800 last:border-0">
+                <div className="flex items-center gap-4">
+                  <span className={`px-2 py-1 rounded text-xs font-medium ${typeColors[tx.type]}`}>
+                    {tx.type}
+                  </span>
+                  <div>
+                    <p className="text-white">
+                      {tx.amount.toLocaleString()} COAL
+                      {tx.recipient && <span className="text-coal-500"> → {tx.recipient}</span>}
+                    </p>
+                    <p className="text-coal-600 text-sm font-mono">{tx.txHash}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className={`text-sm ${statusColors[tx.status]}`}>{tx.status}</p>
+                  <p className="text-coal-600 text-xs">{new Date(tx.timestamp).toLocaleTimeString()}</p>
                 </div>
               </div>
-              <div className="text-right">
-                <p className={`text-sm ${statusColors[tx.status]}`}>{tx.status}</p>
-                <p className="text-coal-600 text-xs">{new Date(tx.timestamp).toLocaleTimeString()}</p>
-              </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
     </div>
