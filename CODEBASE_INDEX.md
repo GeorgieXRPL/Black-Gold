@@ -1,14 +1,66 @@
-# Black Gold v3.2.2 - Codebase Index
+# Black Gold v3.2.3 - Codebase Index
 
 > Complete file-by-file documentation for the Black Gold Interactive Mining Globe platform
 
-**Last Updated**: January 13, 2026  
-**Version**: 3.2.2 (IP Connection Tracking Fix)  
+**Last Updated**: January 17, 2026  
+**Version**: 3.2.3 (Duplicate Join Prevention)  
 **Total Files**: 80+ TypeScript/TSX/JS files
 
 ---
 
-## 📋 Recent Changes (v3.2.2)
+## 📋 Recent Changes (v3.2.3)
+
+### Duplicate Join Prevention (Connection Loop Fix)
+
+**Problem**: Client and server kept disconnecting in an infinite loop, even when the user clicked "stop mining". The WebSocket would connect, disconnect after 1-5 seconds, reconnect, and repeat.
+
+#### Root Cause Analysis
+
+From logs - a repeating pattern every ~1 second:
+```
+[WS] Auto-joining mine coal-appalachian for FToSaSs7...      <- Server auto-joins
+[WS] Client authenticated: FToSaSs7... (home: coal-appalachian)
+[WS] join_mine from FToSaSs7...                              <- Client ALSO sends join_mine
+[PoolManager] Wallet already connected, replacing connection  <- Server closes the WS!
+[WS] Disconnected: FToSaSs7...                               <- Client reconnects
+```
+
+**The Bug**: Both server AND client try to join the mine:
+1. Server: On `connect`, auto-joins the restored home mine (added in v3.2.2)
+2. Client: When receiving `result` with `homeMineId`, sends `join_mine` as "belt-and-suspenders"
+3. Server sees the same wallet joining → calls `handleConnect` → "Wallet already connected"
+4. Server closes the **existing WebSocket** (which is the **SAME** WebSocket!)
+5. Client's onclose fires → triggers reconnection
+6. Cycle repeats indefinitely
+
+#### The Fix (`server/pool/manager.ts`)
+
+Detect when the **same WebSocket** is trying to register again and skip the operation:
+```typescript
+if (this.state.miners.has(walletAddress)) {
+  const existingMiner = this.state.miners.get(walletAddress)!;
+  
+  // CRITICAL FIX: If same WebSocket is trying to join again, skip duplicate registration
+  // This happens when client sends join_mine after server already auto-joined on connect
+  if (existingMiner.ws === ws) {
+    console.log(`[PoolManager] Same wallet/WS already registered, skipping duplicate join`);
+    this.assignWork(walletAddress);  // Still give them fresh work
+    return true;
+  }
+  
+  // Only replace if it's a DIFFERENT WebSocket (e.g., browser refresh)
+  console.log(`[PoolManager] Wallet already connected with DIFFERENT WS, replacing connection`);
+  // ... rest of replacement logic
+}
+```
+
+This allows:
+- Duplicate `join_mine` from same WS → silently ignored, fresh work assigned
+- New connection from different WS → old connection replaced (existing behavior)
+
+---
+
+## 📋 Previous Changes (v3.2.2)
 
 ### IP Connection Count Tracking Fix
 

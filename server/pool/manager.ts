@@ -341,8 +341,18 @@ export class PoolManager {
 
     // Check if wallet is already connected
     if (this.state.miners.has(walletAddress)) {
-      console.log(`[PoolManager] Wallet already connected, replacing connection`);
       const existingMiner = this.state.miners.get(walletAddress)!;
+      
+      // CRITICAL FIX: If same WebSocket is trying to join again, skip the duplicate registration
+      // This happens when client sends join_mine after server already auto-joined on connect
+      if (existingMiner.ws === ws) {
+        console.log(`[PoolManager] Same wallet/WS already registered, skipping duplicate join`);
+        // Just assign fresh work if they're asking to re-join
+        this.assignWork(walletAddress);
+        return true;
+      }
+      
+      console.log(`[PoolManager] Wallet already connected with DIFFERENT WS, replacing connection`);
       
       // CRITICAL FIX: Decrement the IP connection count for the replaced miner
       // This must happen BEFORE we delete the miner entry, because handleDisconnect
