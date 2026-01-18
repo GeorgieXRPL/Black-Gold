@@ -131,29 +131,36 @@ function PrivyHooksBridge({
   useEffect(() => {
     const createHooksComponent = async () => {
       try {
-        // Import Privy hooks
-        const { usePrivy, useLogin, useLogout } = await import('@privy-io/react-auth');
+        // Import Privy hooks - including useWallets for Solana wallet access
+        const { usePrivy, useLogin, useLogout, useWallets } = await import('@privy-io/react-auth');
 
         // Create a component that uses the hooks
         const HooksUser = ({ children, setContextValue }: {
           children: ReactNode;
           setContextValue: (value: WalletContextValue) => void;
         }) => {
-          const { ready, authenticated, user, signMessage: privySignMessage } = usePrivy();
+          const { ready, authenticated, user } = usePrivy();
           const { login } = useLogin();
           const { logout } = useLogout();
+          const { wallets } = useWallets();
 
-          // Get wallet from user object - Privy stores linked wallets here
+          // Find the Solana wallet from Privy's wallet list
+          // This handles both embedded wallets and external wallets (Phantom, etc.)
+          const solanaWallet = wallets.find(
+            (w: any) => w.walletClientType === 'solana' || w.chainType === 'solana'
+          );
+
+          // Also check linked accounts for wallet address (backup)
           const linkedWallet = user?.linkedAccounts?.find(
             (account: any) => account.type === 'wallet' && account.chainType === 'solana'
           ) as { address?: string } | undefined;
           
-          const walletAddress = linkedWallet?.address || null;
+          const walletAddress = solanaWallet?.address || linkedWallet?.address || null;
           const displayAddress = walletAddress 
             ? `${walletAddress.slice(0, 4)}...${walletAddress.slice(-4)}`
             : null;
 
-          // Sign message function using Privy
+          // Sign message function using Privy Solana wallet
           const handleSignMessage = useCallback(async (message: string): Promise<string | null> => {
             if (!authenticated || !walletAddress) {
               console.warn('[Wallet] Cannot sign: not authenticated');
@@ -161,21 +168,34 @@ function PrivyHooksBridge({
             }
 
             try {
-              // Try to use Privy's signMessage if available
-              if (privySignMessage) {
-                const result = await privySignMessage({ message });
-                // Handle both possible return formats
-                const signature = typeof result === 'string' ? result : result?.signature;
-                return signature || null;
+              // Use Privy's Solana wallet for signing
+              if (solanaWallet) {
+                console.log('[Wallet] Signing message with Privy Solana wallet...');
+                const provider = await (solanaWallet as any).getProvider();
+                if (provider?.signMessage) {
+                  const encodedMessage = new TextEncoder().encode(message);
+                  const signedMessage = await provider.signMessage(encodedMessage);
+                  // Convert signature to base64 or hex string
+                  const signature = Buffer.from(signedMessage.signature || signedMessage).toString('base64');
+                  return signature;
+                }
+              }
+
+              // Fallback: Use window.solana if Phantom or other wallet is connected
+              if (typeof window !== 'undefined' && (window as any).solana?.signMessage) {
+                console.log('[Wallet] Signing message with window.solana...');
+                const encodedMessage = new TextEncoder().encode(message);
+                const { signature } = await (window as any).solana.signMessage(encodedMessage, 'utf8');
+                return Buffer.from(signature).toString('base64');
               }
               
-              console.warn('[Wallet] signMessage not available from Privy');
+              console.warn('[Wallet] signMessage not available from any wallet');
               return null;
             } catch (error) {
               console.error('[Wallet] Sign message error:', error);
               return null;
             }
-          }, [authenticated, walletAddress, privySignMessage]);
+          }, [authenticated, walletAddress, solanaWallet]);
 
           // Sign transaction function (returns signed but not sent)
           const handleSignTransaction = useCallback(async (serializedTx: string): Promise<string | null> => {
@@ -197,20 +217,19 @@ function PrivyHooksBridge({
                 transaction = Transaction.from(txBuffer);
               }
 
-              // For Privy, we need to use their wallet adapter
-              // This depends on how Privy is configured for Solana
-              // The exact implementation depends on Privy version and configuration
-              
-              // For now, try using the embedded wallet if available
-              // @ts-expect-error - Privy types may not include this yet
-              if (user?.wallet?.signTransaction) {
-                // @ts-expect-error
-                const signedTx = await user.wallet.signTransaction(transaction);
-                return Buffer.from(signedTx.serialize()).toString('base64');
+              // Use Privy's Solana wallet for signing
+              if (solanaWallet) {
+                console.log('[Wallet] Signing transaction with Privy Solana wallet...');
+                const provider = await (solanaWallet as any).getProvider();
+                if (provider?.signTransaction) {
+                  const signedTx = await provider.signTransaction(transaction);
+                  return Buffer.from(signedTx.serialize()).toString('base64');
+                }
               }
 
-              // Alternative: Use window.solana if Phantom or other wallet is connected through Privy
+              // Fallback: Use window.solana if Phantom or other wallet is connected
               if (typeof window !== 'undefined' && (window as any).solana?.signTransaction) {
+                console.log('[Wallet] Signing transaction with window.solana...');
                 const signedTx = await (window as any).solana.signTransaction(transaction);
                 return Buffer.from(signedTx.serialize()).toString('base64');
               }
@@ -221,7 +240,7 @@ function PrivyHooksBridge({
               console.error('[Wallet] Sign transaction error:', error);
               return null;
             }
-          }, [authenticated, walletAddress, user]);
+          }, [authenticated, walletAddress, solanaWallet]);
 
           // Sign and send transaction function
           const handleSignAndSendTransaction = useCallback(async (serializedTx: string): Promise<string | null> => {
@@ -244,49 +263,74 @@ function PrivyHooksBridge({
               // Create connection
               const connection = new Connection(getRpcEndpoint(), 'confirmed');
 
-              // Try Privy embedded wallet first
-              // @ts-expect-error
-              if (user?.wallet?.signAndSendTransaction) {
-                // @ts-expect-error
-                const { signature } = await user.wallet.signAndSendTransaction(transaction);
-                console.log('[Wallet] Transaction sent via Privy:', signature);
-                return signature;
+              // Use Privy's Solana wallet for signing and sending
+              if (solanaWallet) {
+                console.log('[Wallet] Signing and sending with Privy Solana wallet...');
+                const provider = await (solanaWallet as any).getProvider();
+                
+                // Try signAndSendTransaction if available
+                if (provider?.signAndSendTransaction) {
+                  const { signature } = await provider.signAndSendTransaction(transaction);
+                  console.log('[Wallet] Transaction sent via Privy Solana wallet:', signature);
+                  return signature;
+                }
+                
+                // Otherwise sign and send manually
+                if (provider?.signTransaction) {
+                  const signedTx = await provider.signTransaction(transaction);
+                  const signature = await connection.sendRawTransaction(signedTx.serialize(), {
+                    skipPreflight: false,
+                    preflightCommitment: 'confirmed',
+                  });
+                  
+                  // Wait for confirmation
+                  const confirmation = await connection.confirmTransaction(signature, 'confirmed');
+                  if (confirmation.value.err) {
+                    console.error('[Wallet] Transaction failed:', confirmation.value.err);
+                    return null;
+                  }
+                  
+                  console.log('[Wallet] Transaction confirmed via Privy:', signature);
+                  return signature;
+                }
               }
 
-              // Try window.solana (Phantom/other wallets)
-              if (typeof window !== 'undefined' && (window as any).solana?.signAndSendTransaction) {
-                const { signature } = await (window as any).solana.signAndSendTransaction(transaction);
-                console.log('[Wallet] Transaction sent via window.solana:', signature);
-                return signature;
+              // Fallback: Try window.solana (Phantom/other wallets)
+              if (typeof window !== 'undefined' && (window as any).solana) {
+                console.log('[Wallet] Trying window.solana fallback...');
+                const windowSolana = (window as any).solana;
+                
+                if (windowSolana.signAndSendTransaction) {
+                  const { signature } = await windowSolana.signAndSendTransaction(transaction);
+                  console.log('[Wallet] Transaction sent via window.solana:', signature);
+                  return signature;
+                }
+                
+                if (windowSolana.signTransaction) {
+                  const signedTx = await windowSolana.signTransaction(transaction);
+                  const signature = await connection.sendRawTransaction(signedTx.serialize(), {
+                    skipPreflight: false,
+                    preflightCommitment: 'confirmed',
+                  });
+                  
+                  const confirmation = await connection.confirmTransaction(signature, 'confirmed');
+                  if (confirmation.value.err) {
+                    console.error('[Wallet] Transaction failed:', confirmation.value.err);
+                    return null;
+                  }
+                  
+                  console.log('[Wallet] Transaction confirmed via window.solana:', signature);
+                  return signature;
+                }
               }
 
-              // Fallback: sign and manually send
-              const signedTxBase64 = await handleSignTransaction(serializedTx);
-              if (!signedTxBase64) {
-                console.error('[Wallet] Failed to sign transaction');
-                return null;
-              }
-
-              const signedTxBuffer = Buffer.from(signedTxBase64, 'base64');
-              const signature = await connection.sendRawTransaction(signedTxBuffer, {
-                skipPreflight: false,
-                preflightCommitment: 'confirmed',
-              });
-
-              // Wait for confirmation
-              const confirmation = await connection.confirmTransaction(signature, 'confirmed');
-              if (confirmation.value.err) {
-                console.error('[Wallet] Transaction failed:', confirmation.value.err);
-                return null;
-              }
-
-              console.log('[Wallet] Transaction confirmed:', signature);
-              return signature;
+              console.error('[Wallet] No wallet signing method available');
+              return null;
             } catch (error) {
               console.error('[Wallet] Sign and send transaction error:', error);
               return null;
             }
-          }, [authenticated, walletAddress, user, handleSignTransaction]);
+          }, [authenticated, walletAddress, solanaWallet]);
 
           // Update context when state changes
           useEffect(() => {

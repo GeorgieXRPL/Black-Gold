@@ -1,14 +1,46 @@
-# Black Gold v3.3.3 - Codebase Index
+# Black Gold v3.3.4 - Codebase Index
 
 > Complete file-by-file documentation for the Black Gold Interactive Mining Globe platform
 
 **Last Updated**: January 18, 2026  
-**Version**: 3.3.3 (Enhanced Admin Logging)  
+**Version**: 3.3.4 (Privy Solana Wallet Fix)  
 **Total Files**: 85+ TypeScript/TSX/JS files
 
 ---
 
-## 📋 Recent Changes (v3.3.3)
+## 📋 Recent Changes (v3.3.4)
+
+### Privy Solana Wallet Signing Fix
+
+Fixed a critical bug where transaction signing failed with "No embedded or connected wallet found for address" error.
+
+#### Root Cause
+
+The `WalletProvider.tsx` was using Privy's `signMessage` function from `usePrivy()`, which is designed for Ethereum embedded wallets, not Solana wallets. Solana wallets require the `useWallets()` hook to access the wallet provider.
+
+#### Fix (`app/providers/WalletProvider.tsx`)
+
+**Updated to use `useWallets()` hook:**
+- Now imports `useWallets` from `@privy-io/react-auth`
+- Finds Solana wallet using `wallets.find(w => w.walletClientType === 'solana')`
+- Gets provider via `await solanaWallet.getProvider()`
+- Uses provider's `signMessage()`, `signTransaction()`, `signAndSendTransaction()` methods
+- Maintains fallback to `window.solana` for external wallets (Phantom, etc.)
+
+**Transaction Signing Flow:**
+1. Check for Privy Solana wallet first (`solanaWallet`)
+2. Get wallet provider via `getProvider()`
+3. Use provider's signing methods
+4. Fallback to `window.solana` if Privy wallet unavailable
+
+**Affected Functions:**
+- `handleSignMessage()` - Now uses `provider.signMessage(encodedMessage)`
+- `handleSignTransaction()` - Now uses `provider.signTransaction(transaction)`
+- `handleSignAndSendTransaction()` - Now uses `provider.signAndSendTransaction()` or signs and sends manually
+
+---
+
+## 📋 Previous Changes (v3.3.3)
 
 ### Enhanced Admin Console Logging
 
@@ -106,11 +138,13 @@ This release implements full Quarry staking infrastructure, enabling users to st
 
 #### Wallet Provider (`app/providers/WalletProvider.tsx`)
 
-**New Transaction Signing Support:**
+**Transaction Signing Support (v3.3.4 Fix):**
+- `signMessage(message)` - Sign arbitrary message using Solana wallet
 - `signTransaction(serializedTx)` - Sign tx without sending
 - `signAndSendTransaction(serializedTx)` - Sign and send tx, return signature
-- Supports Privy embedded wallets and browser wallets (Phantom, etc.)
-- Graceful fallback chain for different wallet types
+- Uses `useWallets()` hook to find Solana wallet from Privy
+- Gets wallet provider via `solanaWallet.getProvider()` for signing
+- Graceful fallback chain: Privy Solana wallet → `window.solana` (Phantom, etc.)
 
 #### Staking Hook (`app/hooks/useStaking.ts`)
 
