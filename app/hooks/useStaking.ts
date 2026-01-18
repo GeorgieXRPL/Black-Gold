@@ -221,6 +221,50 @@ async function verifyTransaction(
 }
 
 /**
+ * Pre-flight check before staking - verify user has tokens and SOL
+ */
+async function preflightCheck(walletAddress: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const response = await fetch(`/api/staking/debug?wallet=${walletAddress}`);
+    if (!response.ok) {
+      return { ok: false, error: 'Failed to verify wallet status' };
+    }
+    
+    const debug = await response.json();
+    
+    // Check for configuration errors
+    if (!debug.configuration.isQuarryConfigured) {
+      return { ok: false, error: 'Staking system not configured. Contact support.' };
+    }
+    
+    if (debug.accountStatus.errors.length > 0) {
+      // Find the most relevant error for the user
+      const userErrors = debug.accountStatus.errors.filter((e: string) => 
+        e.includes(walletAddress.slice(0, 8)) || e.includes('needs SOL') || e.includes('no COAL')
+      );
+      if (userErrors.length > 0) {
+        return { ok: false, error: userErrors[0] };
+      }
+    }
+    
+    // Check wallet balances
+    if (debug.walletCheck) {
+      if (!debug.walletCheck.hasSol) {
+        return { ok: false, error: `You need SOL for transaction fees (current: ${debug.walletCheck.solBalance.toFixed(4)} SOL)` };
+      }
+      if (!debug.walletCheck.hasCoal) {
+        return { ok: false, error: 'You have no COAL tokens to stake' };
+      }
+    }
+    
+    return { ok: true };
+  } catch (error) {
+    console.error('[Staking] Preflight check failed:', error);
+    return { ok: true }; // Don't block if check fails, let the actual transaction determine
+  }
+}
+
+/**
  * Hook for managing on-chain staking operations
  */
 export function useStaking(): UseStakingReturn {
@@ -279,6 +323,15 @@ export function useStaking(): UseStakingReturn {
     setState(prev => ({ ...prev, isStaking: true, error: null }));
 
     try {
+      // 0. Pre-flight check - verify user has tokens and SOL
+      console.log('[Staking] Running pre-flight check...');
+      const preflight = await preflightCheck(wallet.walletAddress);
+      if (!preflight.ok) {
+        const preflightError = preflight.error || 'Pre-flight check failed';
+        setState(prev => ({ ...prev, isStaking: false, error: preflightError }));
+        return { success: false, error: preflightError };
+      }
+
       // 1. Request transaction from server
       console.log('[Staking] Requesting stake transaction for', amount, 'tokens');
       const txResult = await requestStakeTransaction(wallet.walletAddress, amount);
@@ -290,20 +343,54 @@ export function useStaking(): UseStakingReturn {
 
       // 2. Sign and send transaction with wallet
       console.log('[Staking] Signing and sending transaction...');
-      const signature = await wallet.signAndSendTransaction(txResult.transaction);
+      console.log('[Staking] Transaction blockhash:', txResult.blockhash);
+      
+      let signature: string | null = null;
+      try {
+        signature = await wallet.signAndSendTransaction(txResult.transaction);
+      } catch (signError) {
+        const signErrorMsg = signError instanceof Error ? signError.message : 'Unknown signing error';
+        console.error('[Staking] Sign error:', signError);
+        
+        // Check for common error patterns
+        if (signErrorMsg.includes('User rejected')) {
+          setState(prev => ({ ...prev, isStaking: false, error: 'Transaction cancelled by user' }));
+          return { success: false, error: 'Transaction cancelled by user' };
+        }
+        if (signErrorMsg.includes('insufficient')) {
+          setState(prev => ({ ...prev, isStaking: false, error: 'Insufficient balance for transaction' }));
+          return { success: false, error: 'Insufficient balance for transaction' };
+        }
+        
+        setState(prev => ({ ...prev, isStaking: false, error: `Signing failed: ${signErrorMsg}` }));
+        return { success: false, error: `Signing failed: ${signErrorMsg}` };
+      }
       
       if (!signature) {
-        setState(prev => ({ ...prev, isStaking: false, error: 'Transaction signing failed or rejected' }));
-        return { success: false, error: 'Transaction signing failed or rejected' };
+        setState(prev => ({ ...prev, isStaking: false, error: 'Transaction signing failed - check browser console for details' }));
+        return { success: false, error: 'Transaction signing failed - check browser console for details' };
       }
 
       // 3. Verify transaction
-      console.log('[Staking] Verifying transaction:', signature);
+      console.log('[Staking] Transaction sent! Signature:', signature);
+      console.log('[Staking] View on Solana Explorer: https://explorer.solana.com/tx/' + signature + '?cluster=devnet');
+      
       const verification = await verifyTransaction(signature, wallet.walletAddress, 'stake', amount);
       
       if (!verification.verified) {
-        setState(prev => ({ ...prev, isStaking: false, error: verification.error || 'Transaction verification failed' }));
-        return { success: false, error: verification.error || 'Transaction verification failed' };
+        // Transaction was sent but verification failed - it might still be processing
+        console.warn('[Staking] Verification failed but transaction was sent:', signature);
+        setState(prev => ({ 
+          ...prev, 
+          isStaking: false, 
+          lastSignature: signature,
+          error: `Transaction sent (${signature.slice(0, 8)}...) but verification pending. Check explorer.`
+        }));
+        return { 
+          success: true, // Transaction was sent
+          signature,
+          error: 'Verification pending - check Solana Explorer'
+        };
       }
 
       // 4. Success - refresh stake info
@@ -320,7 +407,7 @@ export function useStaking(): UseStakingReturn {
       return { success: true, signature };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error('[Staking] Stake error:', errorMessage);
+      console.error('[Staking] Stake error:', errorMessage, error);
       setState(prev => ({ ...prev, isStaking: false, error: errorMessage }));
       return { success: false, error: errorMessage };
     }
@@ -353,20 +440,44 @@ export function useStaking(): UseStakingReturn {
 
       // 2. Sign and send transaction
       console.log('[Staking] Signing and sending unstake transaction...');
-      const signature = await wallet.signAndSendTransaction(txResult.transaction);
+      console.log('[Staking] Transaction blockhash:', txResult.blockhash);
+      
+      let signature: string | null = null;
+      try {
+        signature = await wallet.signAndSendTransaction(txResult.transaction);
+      } catch (signError) {
+        const signErrorMsg = signError instanceof Error ? signError.message : 'Unknown signing error';
+        console.error('[Staking] Sign error:', signError);
+        
+        if (signErrorMsg.includes('User rejected')) {
+          setState(prev => ({ ...prev, isUnstaking: false, error: 'Transaction cancelled by user' }));
+          return { success: false, error: 'Transaction cancelled by user' };
+        }
+        
+        setState(prev => ({ ...prev, isUnstaking: false, error: `Signing failed: ${signErrorMsg}` }));
+        return { success: false, error: `Signing failed: ${signErrorMsg}` };
+      }
       
       if (!signature) {
-        setState(prev => ({ ...prev, isUnstaking: false, error: 'Transaction signing failed or rejected' }));
-        return { success: false, error: 'Transaction signing failed or rejected' };
+        setState(prev => ({ ...prev, isUnstaking: false, error: 'Transaction signing failed - check browser console for details' }));
+        return { success: false, error: 'Transaction signing failed - check browser console for details' };
       }
 
       // 3. Verify transaction
-      console.log('[Staking] Verifying unstake transaction:', signature);
+      console.log('[Staking] Transaction sent! Signature:', signature);
+      console.log('[Staking] View on Solana Explorer: https://explorer.solana.com/tx/' + signature + '?cluster=devnet');
+      
       const verification = await verifyTransaction(signature, wallet.walletAddress, 'unstake', amount);
       
       if (!verification.verified) {
-        setState(prev => ({ ...prev, isUnstaking: false, error: verification.error || 'Transaction verification failed' }));
-        return { success: false, error: verification.error || 'Transaction verification failed' };
+        console.warn('[Staking] Verification failed but transaction was sent:', signature);
+        setState(prev => ({ 
+          ...prev, 
+          isUnstaking: false, 
+          lastSignature: signature,
+          error: `Transaction sent (${signature.slice(0, 8)}...) but verification pending.`
+        }));
+        return { success: true, signature, error: 'Verification pending' };
       }
 
       // 4. Success - refresh stake info

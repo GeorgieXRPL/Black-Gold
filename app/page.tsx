@@ -572,6 +572,37 @@ export default function Home() {
     }
   }, [mining.hashrate]);
 
+  // Fetch real token balance when wallet is connected
+  useEffect(() => {
+    if (USE_MOCK_DATA) return;
+    
+    async function fetchBalance() {
+      if (!walletState.isConnected || !walletState.walletAddress) {
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/balance?wallet=${walletState.walletAddress}`);
+        if (response.ok) {
+          const data = await response.json();
+          console.log('[Balance] Fetched on-chain balance:', data.balance, data.symbol);
+          setWalletState(prev => ({
+            ...prev,
+            tokenBalance: data.balance || 0,
+          }));
+        }
+      } catch (error) {
+        console.error('[Balance] Failed to fetch balance:', error);
+      }
+    }
+
+    fetchBalance();
+    
+    // Refresh balance every 30 seconds while connected
+    const interval = setInterval(fetchBalance, 30000);
+    return () => clearInterval(interval);
+  }, [walletState.isConnected, walletState.walletAddress]);
+
   // Handlers
   const handleMineSelect = useCallback((mineId: string) => {
     setSelectedMineId(mineId);
