@@ -1,14 +1,63 @@
-# Black Gold v3.3.5 - Codebase Index
+# Black Gold v3.3.6 - Codebase Index
 
 > Complete file-by-file documentation for the Black Gold Interactive Mining Globe platform
 
 **Last Updated**: January 18, 2026  
-**Version**: 3.3.5 (Staking Flow Fix)  
-**Total Files**: 87+ TypeScript/TSX/JS files
+**Version**: 3.3.6 (Connection & Balance Fix)  
+**Total Files**: 88+ TypeScript/TSX/JS files
 
 ---
 
-## 📋 Recent Changes (v3.3.5)
+## 📋 Recent Changes (v3.3.6)
+
+### WebSocket Connection, Balance Display, and Privy Hook Fixes
+
+Fixed three critical issues: WebSocket reconnection spam, dual balance display (10M vs 1B), and Privy useWallets hook error.
+
+#### 1. WebSocket Reconnection Strategy (`app/hooks/useGameSocket.ts`)
+
+Added exponential backoff to prevent connection spam:
+- Initial delay: 1 second
+- Backoff multiplier: 2x each failure
+- Max delay: 30 seconds
+- Max retries: 10 attempts
+- New `failed` status for giving up
+- New `reconnect()` function to manually retry (resets backoff)
+- New `connectionError` and `retryCount` state for UI feedback
+
+```typescript
+const RECONNECT_CONFIG = {
+  INITIAL_DELAY_MS: 1000,
+  MAX_DELAY_MS: 30000,
+  MAX_RETRIES: 10,
+  BACKOFF_MULTIPLIER: 2,
+};
+```
+
+#### 2. Real Balance Display (`app/api/verify-holder/route.ts`)
+
+Fixed devnet bypass to return REAL balance instead of fake 1% supply:
+- Renamed `BYPASS_HOLDER_CHECK` to `BYPASS_ELIGIBILITY_CHECK`
+- Now only bypasses eligibility CHECK (always eligible), not balance display
+- Always fetches real on-chain balance via Helius or RPC fallback
+- Removed all fake balance returns (10M was 1% of 1B supply)
+
+#### 3. Privy Hook Context Fix (`app/providers/`)
+
+Fixed "useWallets called outside PrivyProvider" error:
+- Created new `PrivyBridge.tsx` with static Privy imports
+- Uses Next.js `dynamic()` to lazy-load PrivyBridge
+- Ensures hooks are called within proper React context
+- Removed problematic dynamic component creation in useEffect
+
+**New File**: `app/providers/PrivyBridge.tsx`
+- Statically imports `usePrivy`, `useLogin`, `useLogout`, `useWallets`
+- Contains all wallet signing logic
+- Exported as default for dynamic import
+
+---
+
+## 📋 Previous Changes (v3.3.5)
 
 ### Staking Transaction Flow and Balance Display Fix
 
