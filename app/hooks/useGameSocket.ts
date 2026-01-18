@@ -7,7 +7,15 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { MineStats, ResourceType } from '../lib/mines';
 
 /** Connection status */
-export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
+export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error' | 'failed';
+
+/** Reconnection configuration */
+const RECONNECT_CONFIG = {
+  INITIAL_DELAY_MS: 1000,    // Start with 1 second
+  MAX_DELAY_MS: 30000,       // Max 30 seconds between retries
+  MAX_RETRIES: 10,           // Give up after 10 attempts
+  BACKOFF_MULTIPLIER: 2,     // Double delay each time
+};
 
 /** Game event types */
 export interface GameEvent {
@@ -99,8 +107,11 @@ interface UseGameSocketReturn {
   globalStats: GlobalStats | null;
   mineStats: Map<string, MineStats>;
   currentMineId: string | null;
+  connectionError: string | null;
+  retryCount: number;
   connect: () => void;
   disconnect: () => void;
+  reconnect: () => void;  // Manual reconnect (resets backoff)
   joinMine: (mineId: string) => void;
   leaveMine: () => void;
   setHomeBase: (mineId: string) => void;
@@ -127,16 +138,28 @@ export function useGameSocket({
   const [globalStats, setGlobalStats] = useState<GlobalStats | null>(null);
   const [mineStats, setMineStats] = useState<Map<string, MineStats>>(new Map());
   const [currentMineId, setCurrentMineId] = useState<string | null>(null);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
   
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const currentMineIdRef = useRef<string | null>(null);
   const isMiningRef = useRef<boolean>(isMining);
+  const reconnectDelayRef = useRef<number>(RECONNECT_CONFIG.INITIAL_DELAY_MS);
+  const retryCountRef = useRef<number>(0);
   
   // Keep isMiningRef in sync with prop
   useEffect(() => {
     isMiningRef.current = isMining;
   }, [isMining]);
+
+  // Reset backoff on successful connection or manual reconnect
+  const resetBackoff = useCallback(() => {
+    reconnectDelayRef.current = RECONNECT_CONFIG.INITIAL_DELAY_MS;
+    retryCountRef.current = 0;
+    setRetryCount(0);
+    setConnectionError(null);
+  }, []);
 
   const send = useCallback((type: string, payload: object) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -350,15 +373,29 @@ export function useGameSocket({
   const connect = useCallback(() => {
     if (!walletAddress) return;
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
+    if (wsRef.current?.readyState === WebSocket.CONNECTING) return;
+
+    // Check if we've exceeded max retries
+    if (retryCountRef.current >= RECONNECT_CONFIG.MAX_RETRIES) {
+      console.error('[WS] ❌ Max reconnection attempts reached. Giving up.');
+      setStatus('failed');
+      setConnectionError('Unable to connect to game server after multiple attempts. Please check your connection and try again.');
+      return;
+    }
 
     setStatus('connecting');
+    setConnectionError(null);
 
     try {
+      console.log(`[WS] 🔌 Connecting... (attempt ${retryCountRef.current + 1}/${RECONNECT_CONFIG.MAX_RETRIES})`);
       const ws = new WebSocket(url);
       wsRef.current = ws;
 
       ws.onopen = () => {
         setStatus('connected');
+        // Reset backoff on successful connection
+        resetBackoff();
+        
         console.log('[WS] 🔌 WebSocket OPEN - sending connect message');
         console.log('[WS] 🔌 State at connect:', {
           walletAddress: walletAddress?.slice(0, 8),
@@ -393,37 +430,76 @@ export function useGameSocket({
 
       ws.onmessage = handleMessage;
 
-      ws.onclose = () => {
+      ws.onclose = (event) => {
         setStatus('disconnected');
         wsRef.current = null;
         
-        // Auto-reconnect after 3 seconds
+        // Don't auto-reconnect if closed intentionally (code 1000) or we've given up
+        if (event.code === 1000 || retryCountRef.current >= RECONNECT_CONFIG.MAX_RETRIES) {
+          console.log('[WS] Connection closed intentionally or max retries reached');
+          return;
+        }
+        
+        // Increment retry count
+        retryCountRef.current += 1;
+        setRetryCount(retryCountRef.current);
+        
+        // Calculate delay with exponential backoff
+        const delay = Math.min(
+          reconnectDelayRef.current,
+          RECONNECT_CONFIG.MAX_DELAY_MS
+        );
+        
+        console.log(`[WS] 🔄 Reconnecting in ${delay / 1000}s (attempt ${retryCountRef.current}/${RECONNECT_CONFIG.MAX_RETRIES})`);
+        
+        // Double delay for next attempt
+        reconnectDelayRef.current = Math.min(
+          reconnectDelayRef.current * RECONNECT_CONFIG.BACKOFF_MULTIPLIER,
+          RECONNECT_CONFIG.MAX_DELAY_MS
+        );
+        
+        // Schedule reconnection
         reconnectTimeoutRef.current = setTimeout(() => {
           if (walletAddress) {
             connect();
           }
-        }, 3000);
+        }, delay);
       };
 
-      ws.onerror = () => {
+      ws.onerror = (err) => {
+        console.error('[WS] Connection error:', err);
         setStatus('error');
+        setConnectionError('Connection error. Will retry automatically.');
       };
     } catch (err) {
       console.error('[WS] Connection error:', err);
       setStatus('error');
+      setConnectionError(err instanceof Error ? err.message : 'Unknown connection error');
     }
-  }, [url, walletAddress, cores, send, handleMessage]);
+  }, [url, walletAddress, cores, send, handleMessage, resetBackoff]);
 
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
     }
     if (wsRef.current) {
-      wsRef.current.close();
+      wsRef.current.close(1000, 'User disconnected'); // Code 1000 prevents auto-reconnect
       wsRef.current = null;
     }
     setStatus('disconnected');
-  }, []);
+    resetBackoff();
+  }, [resetBackoff]);
+
+  // Manual reconnect - resets backoff and tries again
+  const reconnect = useCallback(() => {
+    console.log('[WS] 🔄 Manual reconnect triggered - resetting backoff');
+    resetBackoff();
+    disconnect();
+    // Small delay to ensure cleanup completes
+    setTimeout(() => {
+      connect();
+    }, 100);
+  }, [resetBackoff, disconnect, connect]);
 
   const joinMine = useCallback((mineId: string) => {
     console.log('[WS] 📍 joinMine called:', mineId, {
@@ -492,8 +568,11 @@ export function useGameSocket({
     globalStats,
     mineStats,
     currentMineId,
+    connectionError,
+    retryCount,
     connect,
     disconnect,
+    reconnect,
     joinMine,
     leaveMine,
     setHomeBase,

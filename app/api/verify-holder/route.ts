@@ -29,8 +29,11 @@ const IS_DEVNET = process.env.SOLANA_NETWORK === 'devnet';
 const DEVNET_CONFIG = {
   /** Simulated market cap for devnet (uses Genesis tier: 0.5% required) */
   SIMULATED_MARKET_CAP: 5000,
-  /** Whether to bypass holder requirements entirely on devnet */
-  BYPASS_HOLDER_CHECK: true,
+  /** 
+   * Whether to bypass holder ELIGIBILITY requirements on devnet
+   * NOTE: This bypasses the eligibility CHECK only - it still fetches real balance
+   */
+  BYPASS_ELIGIBILITY_CHECK: true,
 };
 
 /**
@@ -64,7 +67,8 @@ function getHeliusApiBase(): string {
 }
 
 /**
- * Fetch token balance from Helius API
+ * Fetch REAL token balance from Helius API or RPC fallback
+ * Always returns the actual on-chain balance - never fake values
  */
 async function getTokenBalance(walletAddress: string): Promise<number> {
   const mintAddress = TOKEN_CONFIG.MINT_ADDRESS;
@@ -75,21 +79,11 @@ async function getTokenBalance(walletAddress: string): Promise<number> {
     return Infinity;
   }
 
-  // ═══════════════════════════════════════════════════════════════════
-  // DEVNET MODE: Bypass holder check if configured
-  // TODO [MAINNET]: Remove this block for production
-  // ═══════════════════════════════════════════════════════════════════
-  if (IS_DEVNET && DEVNET_CONFIG.BYPASS_HOLDER_CHECK) {
-    console.log('[API] DEVNET MODE: Bypassing holder check, returning eligible balance');
-    return TOKEN_CONFIG.TOTAL_SUPPLY * 0.01; // 1% = always eligible
-  }
-  // ═══════════════════════════════════════════════════════════════════
-  
-  // Use Helius API if available
+  // Try Helius API first (works for both devnet and mainnet)
   if (RPC_CONFIG.HELIUS_API_KEY) {
     try {
       const heliusBase = getHeliusApiBase();
-      console.log(`[API] Fetching balance from ${heliusBase} for mint ${mintAddress}`);
+      console.log(`[API] Fetching REAL balance from ${heliusBase} for mint ${mintAddress}`);
       
       const response = await fetch(
         `${heliusBase}/v0/addresses/${walletAddress}/balances?api-key=${RPC_CONFIG.HELIUS_API_KEY}`,
@@ -109,7 +103,7 @@ async function getTokenBalance(walletAddress: string): Promise<number> {
       
       if (tokenBalance) {
         const balance = tokenBalance.amount / Math.pow(10, TOKEN_CONFIG.DECIMALS);
-        console.log(`[API] Found balance: ${balance.toLocaleString()} tokens`);
+        console.log(`[API] Found REAL balance: ${balance.toLocaleString()} tokens`);
         return balance;
       }
       
@@ -117,29 +111,64 @@ async function getTokenBalance(walletAddress: string): Promise<number> {
       return 0;
     } catch (error) {
       console.error('[API] Helius balance fetch failed:', error);
-      
-      // DEVNET FALLBACK: If Helius fails on devnet, still allow testing
-      // TODO [MAINNET]: Remove this fallback
-      if (IS_DEVNET) {
-        console.log('[API] DEVNET FALLBACK: Helius failed, returning eligible balance');
-        return TOKEN_CONFIG.TOTAL_SUPPLY * 0.01;
-      }
-      
-      throw error;
+      // Fall through to RPC fallback
     }
   }
   
-  // No Helius key
-  if (IS_DEVNET) {
-    // DEVNET: Allow testing without Helius
-    // TODO [MAINNET]: Remove this branch
-    console.log('[API] DEVNET: No Helius key, returning test balance');
-    return TOKEN_CONFIG.TOTAL_SUPPLY * 0.01;
+  // RPC Fallback: Use direct Solana RPC to get token balance
+  try {
+    const rpcEndpoint = IS_DEVNET 
+      ? 'https://api.devnet.solana.com'
+      : 'https://api.mainnet-beta.solana.com';
+    
+    console.log(`[API] Falling back to RPC for balance: ${rpcEndpoint}`);
+    
+    // Use getTokenAccountsByOwner RPC method
+    const response = await fetch(rpcEndpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'getTokenAccountsByOwner',
+        params: [
+          walletAddress,
+          { mint: mintAddress },
+          { encoding: 'jsonParsed' }
+        ]
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`RPC error: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    if (data.result?.value?.length > 0) {
+      let totalBalance = 0;
+      for (const account of data.result.value) {
+        const amount = account.account?.data?.parsed?.info?.tokenAmount?.uiAmount || 0;
+        totalBalance += amount;
+      }
+      console.log(`[API] Found REAL balance via RPC: ${totalBalance.toLocaleString()} tokens`);
+      return totalBalance;
+    }
+    
+    console.log('[API] No token accounts found via RPC');
+    return 0;
+  } catch (error) {
+    console.error('[API] RPC balance fetch failed:', error);
+    
+    // If we're on devnet and everything fails, return 0 (not fake balance)
+    // The eligibility bypass will handle allowing access
+    if (IS_DEVNET) {
+      console.log('[API] DEVNET: All balance fetch methods failed, returning 0');
+      return 0;
+    }
+    
+    throw error;
   }
-  
-  // MAINNET: No Helius key is an error
-  console.error('[API] MAINNET ERROR: HELIUS_API_KEY not configured');
-  throw new Error('Holder verification not configured');
 }
 
 /**
@@ -219,7 +248,12 @@ export async function GET(request: NextRequest) {
       : (balance / TOKEN_CONFIG.TOTAL_SUPPLY) * 100;
     const requiredPercent = getRequiredPercent(marketCap);
     const tier = getTier(marketCap);
-    const isEligible = percentOfSupply >= requiredPercent;
+    
+    // Calculate eligibility - can be bypassed on devnet for testing
+    const meetsRequirement = percentOfSupply >= requiredPercent;
+    const isEligible = IS_DEVNET && DEVNET_CONFIG.BYPASS_ELIGIBILITY_CHECK 
+      ? true  // Bypass on devnet - always eligible for testing
+      : meetsRequirement;
     
     const response: HolderVerificationResponse = {
       walletAddress: wallet,
@@ -236,7 +270,7 @@ export async function GET(request: NextRequest) {
     
     // Log for debugging
     if (IS_DEVNET) {
-      console.log(`[API] DEVNET verification for ${wallet.slice(0,8)}...: eligible=${isEligible}, balance=${balance.toLocaleString()}`);
+      console.log(`[API] DEVNET verification for ${wallet.slice(0,8)}...: eligible=${isEligible} (bypassed=${DEVNET_CONFIG.BYPASS_ELIGIBILITY_CHECK}), REAL balance=${balance.toLocaleString()}`);
     }
     
     // Update cache
@@ -256,16 +290,17 @@ export async function GET(request: NextRequest) {
     
     // ═══════════════════════════════════════════════════════════════════
     // DEVNET EMERGENCY FALLBACK: If everything fails, allow testing
+    // NOTE: Returns 0 balance but isEligible=true due to bypass
     // TODO [MAINNET]: Remove this entire block for production
     // ═══════════════════════════════════════════════════════════════════
-    if (IS_DEVNET) {
-      console.log('[API] DEVNET EMERGENCY FALLBACK: All verification failed, allowing access');
+    if (IS_DEVNET && DEVNET_CONFIG.BYPASS_ELIGIBILITY_CHECK) {
+      console.log('[API] DEVNET EMERGENCY FALLBACK: All verification failed, allowing access with 0 balance');
       const fallbackResponse: HolderVerificationResponse = {
         walletAddress: wallet,
-        balance: TOKEN_CONFIG.TOTAL_SUPPLY * 0.01,
-        percentOfSupply: 1,
+        balance: 0, // Return 0, not fake balance
+        percentOfSupply: 0,
         requiredPercent: 0.5,
-        isEligible: true,
+        isEligible: true, // Bypassed on devnet
         cachedAt: new Date().toISOString(),
         marketCap: DEVNET_CONFIG.SIMULATED_MARKET_CAP,
         tier: 'Genesis',
