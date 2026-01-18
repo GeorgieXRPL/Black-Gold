@@ -1,14 +1,66 @@
-# Black Gold v3.3.4 - Codebase Index
+# Black Gold v3.3.5 - Codebase Index
 
 > Complete file-by-file documentation for the Black Gold Interactive Mining Globe platform
 
 **Last Updated**: January 18, 2026  
-**Version**: 3.3.4 (Privy Solana Wallet Fix)  
-**Total Files**: 85+ TypeScript/TSX/JS files
+**Version**: 3.3.5 (Staking Flow Fix)  
+**Total Files**: 87+ TypeScript/TSX/JS files
 
 ---
 
-## 📋 Recent Changes (v3.3.4)
+## 📋 Recent Changes (v3.3.5)
+
+### Staking Transaction Flow and Balance Display Fix
+
+Fixed issues where staking transactions appeared to work but didn't go on-chain, and users saw mock balance instead of real tokens.
+
+#### Root Cause Analysis
+
+1. **Mock Data Masking Real Balances**: Frontend was showing `DEMO_USER.walletBalance: 10000` instead of fetching real on-chain balance
+2. **Silent Transaction Failures**: Transactions were signed but errors weren't surfaced to users
+3. **No Pre-flight Checks**: Users weren't warned about insufficient SOL for fees or missing tokens
+
+#### New Balance API (`app/api/balance/route.ts`)
+
+**New Endpoint**: `GET /api/balance?wallet=<address>`
+- Fetches real on-chain SPL token balance
+- Uses Helius API (primary) with direct RPC fallback
+- Returns wallet address, balance, symbol, mint address, network
+
+#### Staking Debug API (`app/api/staking/debug/route.ts`)
+
+**New Endpoint**: `GET /api/staking/debug?wallet=<address>`
+- Returns comprehensive diagnostics:
+  - Quarry configuration status
+  - Account existence checks (Quarry, Rewarder, mints)
+  - Wallet SOL and COAL balances
+  - Specific error messages for common issues
+
+#### Frontend Balance Fetching (`app/page.tsx`)
+
+**New Effect**: Fetches real balance when wallet connects
+- Calls `/api/balance` on wallet connection
+- Updates `walletState.tokenBalance` with real on-chain balance
+- Refreshes every 30 seconds while connected
+- No longer shows mock `DEMO_USER.walletBalance`
+
+#### Improved Staking Hook (`app/hooks/useStaking.ts`)
+
+**Pre-flight Checks**:
+- `preflightCheck()` function validates before transaction
+- Checks SOL balance for fees
+- Checks COAL token balance
+- Verifies Quarry configuration
+
+**Better Error Handling**:
+- Catches signing errors with specific messages
+- Handles "User rejected" cancellations
+- Logs Solana Explorer links for sent transactions
+- Returns partial success if tx sent but verification pending
+
+---
+
+## 📋 Previous Changes (v3.3.4)
 
 ### Privy Solana Wallet Signing Fix
 
@@ -1635,7 +1687,9 @@ PrivyProvider        ← Outer: Provides Privy context
 | File | Lines | Method | Purpose |
 |------|-------|--------|---------|
 | `verify-holder/route.ts` | ~185 | `GET` | Verifies wallet holds required token % (v2.7: network-aware Helius API) |
-| `status/route.ts` | ~55 | `GET` | **NEW** System status and service health check |
+| `status/route.ts` | ~55 | `GET` | System status and service health check |
+| `balance/route.ts` | ~140 | `GET` | **NEW v3.3.5** Fetch real on-chain SPL token balance |
+| `staking/debug/route.ts` | ~200 | `GET` | **NEW v3.3.5** Staking diagnostics (config, accounts, balances) |
 | `auth/nonce/route.ts` | ~45 | `POST` | Generate nonce for wallet signature |
 | `auth/verify/route.ts` | ~75 | `POST` | Verify signed wallet actions |
 | `admin/auth/route.ts` | ~40 | `POST` | Admin console authentication |
