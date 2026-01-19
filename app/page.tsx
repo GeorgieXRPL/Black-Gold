@@ -667,46 +667,34 @@ export default function Home() {
     }, 50); // Small delay to let React batch process state updates
   }, [gameSocket, homeMineId, mining, walletState]);
 
-  const handleStake = useCallback((amount: number, signature: string) => {
+  const handleStakeSuccess = useCallback((amount: number, signature: string) => {
     if (!selectedMineId) return;
     
-    // Log signature for server verification (in production, send to server)
-    console.log('[Stake] Amount:', amount, 'Signature:', signature.slice(0, 20) + '...');
+    console.log('[Stake] On-chain stake successful:', amount, 'Signature:', signature);
     
-    // TODO: In production:
-    // 1. Send stake tx to blockchain
-    // 2. Verify signature on server
-    // 3. After tx confirms, holder verification will auto-refresh balance
+    // Update local stake state (will be refreshed from chain)
     setUserStakes(prev => {
       const newStakes = new Map(prev);
       const current = newStakes.get(selectedMineId) || 0;
       newStakes.set(selectedMineId, current + amount);
       return newStakes;
     });
-    // Note: walletBalance is derived from holder verification (blockchain state)
-    // It will update automatically when verification refreshes after the tx
-    setShowStakingPanel(false);
+    // Don't close panel - let user see the success message and explorer link
   }, [selectedMineId]);
 
-  const handleUnstake = useCallback((amount: number, signature: string) => {
+  const handleUnstakeSuccess = useCallback((amount: number, signature: string) => {
     if (!selectedMineId) return;
     
-    // Log signature for server verification (in production, send to server)
-    console.log('[Unstake] Amount:', amount, 'Signature:', signature.slice(0, 20) + '...');
+    console.log('[Unstake] On-chain unstake successful:', amount, 'Signature:', signature);
     
-    // TODO: In production:
-    // 1. Send unstake tx to blockchain (may be queued during raids)
-    // 2. Verify signature on server
-    // 3. After tx confirms, holder verification will auto-refresh balance
+    // Update local stake state (will be refreshed from chain)
     setUserStakes(prev => {
       const newStakes = new Map(prev);
       const current = newStakes.get(selectedMineId) || 0;
       newStakes.set(selectedMineId, Math.max(0, current - amount));
       return newStakes;
     });
-    // Note: walletBalance is derived from holder verification (blockchain state)
-    // It will update automatically when verification refreshes after the tx
-    setShowStakingPanel(false);
+    // Don't close panel - let user see the success message and explorer link
   }, [selectedMineId]);
 
   const handleLaunchRaid = useCallback((betAmount: number) => {
@@ -1033,8 +1021,8 @@ export default function Home() {
           mine={selectedMine}
           currentStake={userStakeAtSelected}
           walletBalance={walletBalance}
-          onStake={handleStake}
-          onUnstake={handleUnstake}
+          onStakeSuccess={handleStakeSuccess}
+          onUnstakeSuccess={handleUnstakeSuccess}
           onClose={() => setShowStakingPanel(false)}
         />
       )}

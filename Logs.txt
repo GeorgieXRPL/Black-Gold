@@ -1,396 +1,68 @@
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 4 cef43247bacdf5bd.js:180:13730
-The connection to wss://black-gold-production.up.railway.app/ was interrupted while the page was loading. 10 cef43247bacdf5bd.js:180:13730
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 13 cef43247bacdf5bd.js:180:13730
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. cef43247bacdf5bd.js:180:13730
-[Game] Connecting to game server... cef43247bacdf5bd.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 11 cef43247bacdf5bd.js:180:13730
-Uncaught Error: Minified React error #418; visit https://react.dev/errors/418?args[]=HTML&args[]= for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
-    NextJS 37
-b056a15eec95302c.js:1:40164
-[Mining] Unmounting, cleaning up workers... 54490f7b412b330f.js:180:6073
-[Mining] Cleaning up workers... 54490f7b412b330f.js:180:2196
-WebGL warning: drawElementsInstanced: Drawing to a destination rect smaller than the viewport rect. (This warning will only be given once)
-`useWallets` was called outside the PrivyProvider component 6606cafefacaf82d.js:1:132027
-[Mining] Unmounting, cleaning up workers... 54490f7b412b330f.js:180:6073
-[Mining] Cleaning up workers... 54490f7b412b330f.js:180:2196
-`useWallets` was called outside the PrivyProvider component 6606cafefacaf82d.js:1:132027
-WebGL warning: drawElementsInstanced: Drawing to a destination rect smaller than the viewport rect. (This warning will only be given once)
-WebGL context was lost. 792e83df36cb2a53.js:386:25012
-THREE.WebGLRenderer: Context Lost. 792e83df36cb2a53.js:1:6476
-[Mining] Unmounting, cleaning up workers... 54490f7b412b330f.js:180:6073
-[Mining] Cleaning up workers... 54490f7b412b330f.js:180:2196
-[Mining] Unmounting, cleaning up workers... 54490f7b412b330f.js:180:6073
-[Mining] Cleaning up workers... 54490f7b412b330f.js:180:2196
-[Mining] Unmounting, cleaning up workers... 54490f7b412b330f.js:180:6073
-[Mining] Cleaning up workers... 54490f7b412b330f.js:180:2196
-WebGL warning: drawElementsInstanced: Drawing to a destination rect smaller than the viewport rect. (This warning will only be given once)
-WebGL context was lost. 792e83df36cb2a53.js:386:25012
-THREE.WebGLRenderer: Context Lost. 792e83df36cb2a53.js:1:6476
-Cookie “__cf_bm” will soon be rejected because it is foreign and does not have the “Partitioned“ attribute. cmk3n4kfh00sll40dll5nzjpk
-Detected injected providers: 
-Array [ {…} ]
-feec3b2929d235ca.js:1:35271
-Wallet did not respond to eth_accounts. Defaulting to prefetched accounts. Error: Must call 'eth_requestAccounts' before other methods
-    NextJS 7
-feec3b2929d235ca.js:1:39719
-Content-Security-Policy: Ignoring “'unsafe-inline'” within script-src: nonce-source or hash-source specified embedded-wallets
-eth_accounts for base_account: 
-Array []
-feec3b2929d235ca.js:1:39623
-Partitioned cookie or storage access was provided to “https://auth.privy.io/apps/cmk3n4kfh00sll40dll5nzjpk/embedded-wallets?caid=29ca2a40-c6d5-44a7-8bde-172d95c00d02” because it is loaded in the third-party context and dynamic state partitioning is enabled. contentScript.js:9:169661
-Warning! embedded-wallets-b690b8c5833b597d.js:1:24499
-You are reading this message because you opened the browser console, a developer tool. Do not enter or paste code you do not understand. Never share your tokens or any other info with anyone. If someone told you to do this, it is very likely a scam. embedded-wallets-b690b8c5833b597d.js:1:24609
-Object { AKGCx8: "b" }
-main.js:1:13562
-[WalletEntry] Privy wallet connected: C95329YPMEqVTDVu7QVW4AyPa9SqhDPWR114Bynp3uhH Balance: 0 54490f7b412b330f.js:43:2561
-[WalletEntry] Privy wallet connected: C95329YPMEqVTDVu7QVW4AyPa9SqhDPWR114Bynp3uhH Balance: 0 54490f7b412b330f.js:43:2561
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-[WalletEntry] Privy wallet connected: C95329YPMEqVTDVu7QVW4AyPa9SqhDPWR114Bynp3uhH Balance: 10000000 54490f7b412b330f.js:43:2561
-[Balance] Fetched on-chain balance: 1000000000 tCOAL 54490f7b412b330f.js:180:17344
-The resource at “https://blackgold-nine.vercel.app/_next/static/media/70bc3e132a0a741e-s.p.15008bfb.woff2” preloaded with link preload was not used within a few seconds. Make sure all attributes of the preload tag are set correctly. blackgold-nine.vercel.app
-The resource at “https://blackgold-nine.vercel.app/_next/static/media/9a800f173b8d9e8f-s.p.ea25be69.woff2” preloaded with link preload was not used within a few seconds. Make sure all attributes of the preload tag are set correctly. blackgold-nine.vercel.app
-The resource at “https://blackgold-nine.vercel.app/_next/static/media/fabcf92ba1ccea36-s.p.19f28380.woff2” preloaded with link preload was not used within a few seconds. Make sure all attributes of the preload tag are set correctly. blackgold-nine.vercel.app
-[Mining] Showing core selector popup... 54490f7b412b330f.js:180:18034
-[Balance] Fetched on-chain balance: 1000000000 tCOAL 54490f7b412b330f.js:180:17344
-[Mining] User confirmed 2 cores 54490f7b412b330f.js:180:18143
-[WalletEntry] Privy wallet connected: C95329YPMEqVTDVu7QVW4AyPa9SqhDPWR114Bynp3uhH Balance: 10000000 54490f7b412b330f.js:43:2561
-[Mining] Cores updated: 4 → 2 54490f7b412b330f.js:180:5854
-[Mining] Not connected to game server, connecting... 54490f7b412b330f.js:180:18254
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 2 54490f7b412b330f.js:180:13730
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 2 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 7 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 2 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 2 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 2 54490f7b412b330f.js:180:13730
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 9 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 12 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-[Mining] Stopping mining... 54490f7b412b330f.js:180:17819
-[Mining] Stopping mining... 54490f7b412b330f.js:180:5550
-[Mining] Stopped 54490f7b412b330f.js:180:5640
-[WalletEntry] Privy wallet connected: C95329YPMEqVTDVu7QVW4AyPa9SqhDPWR114Bynp3uhH Balance: 10000000 54490f7b412b330f.js:43:2561
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 12 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 10 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 5 54490f7b412b330f.js:180:13730
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 2 54490f7b412b330f.js:180:13730
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 4 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 2 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 8 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 4 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 2 54490f7b412b330f.js:180:13730
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 3 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 7 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 3 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 4 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 4 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 2 54490f7b412b330f.js:180:13730
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 2 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 7 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 9 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 3 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 6 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 2 54490f7b412b330f.js:180:13730
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 5 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 12 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 5 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 6 54490f7b412b330f.js:180:13730
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-[Balance] Fetched on-chain balance: 1000000000 tCOAL 54490f7b412b330f.js:180:17344
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 13 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 5 54490f7b412b330f.js:180:13730
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 8 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 5 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-Firefox can’t establish a connection to the server at wss://black-gold-production.up.railway.app/. 5 54490f7b412b330f.js:180:13730
-[Game] Connecting to game server... 54490f7b412b330f.js:180:16852
-
-
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
-[WS] Disconnected: 116.90.74.141
+[Mining] Stopped 8326ca352e7778d4.js:180:5640
+[WalletEntry] Privy wallet connected: C95329YPMEqVTDVu7QVW4AyPa9SqhDPWR114Bynp3uhH Balance: 1000000000 8326ca352e7778d4.js:43:2561
+[Game] 📨 Event received: round_status 
+Object { eventId: "round_status_1768862704424", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
+8326ca352e7778d4.js:180:6660
+[Game] 📨 Event received: round_status 
+Object { eventId: "round_status_1768862709533", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
+8326ca352e7778d4.js:180:6660
+[Game] 📨 Event received: round_status 
+Object { eventId: "round_status_1768862714393", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
+8326ca352e7778d4.js:180:6660
+[Wallet] Signing message with window.solana... caded66506f9d926.js:7:77851
+[Game] 📨 Event received: round_status 
+Object { eventId: "round_status_1768862719585", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
+8326ca352e7778d4.js:180:6660
+[Game] 📨 Event received: round_status 
+Object { eventId: "round_status_1768862724430", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
+8326ca352e7778d4.js:180:6660
+[Game] 📨 Event received: round_status 
+Object { eventId: "round_status_1768862729407", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
+8326ca352e7778d4.js:180:6660
+[Stake] Amount: 450 Signature: j1XTj/QShq02YyjACeC2... 8326ca352e7778d4.js:180:19497
+[Game] 📨 Event received: round_status 
+Object { eventId: "round_status_1768862734452", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
+8326ca352e7778d4.js:180:6660
+[Game] 📨 Event received: round_status 
+Object { eventId: "round_status_1768862739450", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
+8326ca352e7778d4.js:180:6660
+[Game] 📨 Event received: round_status 
+Object { eventId: "round_status_1768862744388", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
+8326ca352e7778d4.js:180:6660
+[Game] 📨 Event received: round_status 
+Object { eventId: "round_status_1768862749602", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
+8326ca352e7778d4.js:180:6660
+[Game] 📨 Event received: round_status 
+Object { eventId: "round_status_1768862754397", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
+8326ca352e7778d4.js:180:6660
+[Game] 📨 Event received: round_status 
+Object { eventId: "round_status_1768862759495", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
+8326ca352e7778d4.js:180:6660
+[Game] 📨 Event received: round_status 
+Object { eventId: "round_status_1768862764386", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
+8326ca352e7778d4.js:180:6660
+[Game] 📨 Event received: round_status 
+Object { eventId: "round_status_1768862769453", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
+8326ca352e7778d4.js:180:6660
+[Game] 📨 Event received: round_status 
+Object { eventId: "round_status_1768862774391", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
+8326ca352e7778d4.js:180:6660
+[Game] 📨 Event received: round_status 
+Object { eventId: "round_status_1768862779435", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
+8326ca352e7778d4.js:180:6660
+[Game] 📨 Event received: round_status 
+Object { eventId: "round_status_1768862784427", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
+8326ca352e7778d4.js:180:6660
+[Game] 📨 Event received: round_status 
+Object { eventId: "round_status_1768862789473", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
+8326ca352e7778d4.js:180:6660
+[Wallet] Signing message with window.solana... caded66506f9d926.js:7:77851
+[Game] 📨 Event received: round_status 
+Object { eventId: "round_status_1768862794384", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
+8326ca352e7778d4.js:180:6660
+[Unstake] Amount: 450 Signature: ZR3wn/Vs/qcY+oNQ2IkW... 8326ca352e7778d4.js:180:19670
+[Game] 📨 Event received: round_status 
+Object { eventId: "round_status_1768862799559", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
+8326ca352e7778d4.js:180:6660
+[Game] 📨 Event received: round_status 
+Object { eventId: "round_status_1768862804378", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }

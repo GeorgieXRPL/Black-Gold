@@ -1,20 +1,21 @@
 'use client';
 
 /**
- * @fileoverview Staking Panel for managing token stakes at mines
- * Requires wallet signature for stake/unstake operations
+ * @fileoverview Staking Panel for managing on-chain token stakes at mines
+ * Uses Quarry staking protocol for actual blockchain transactions
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Mine, STAKE_TIERS, getStakeTier, RESOURCE_COLORS } from '../../lib/mines';
 import { useWallet } from '../../hooks/useWallet';
+import { useStaking } from '../../hooks/useStaking';
 
 interface StakingPanelProps {
   mine: Mine;
   currentStake: number;
   walletBalance: number;
-  onStake: (amount: number, signature: string) => void;
-  onUnstake: (amount: number, signature: string) => void;
+  onStakeSuccess?: (amount: number, signature: string) => void;
+  onUnstakeSuccess?: (amount: number, signature: string) => void;
   onClose: () => void;
 }
 
@@ -22,16 +23,15 @@ export default function StakingPanel({
   mine,
   currentStake,
   walletBalance,
-  onStake,
-  onUnstake,
+  onStakeSuccess,
+  onUnstakeSuccess,
   onClose,
 }: StakingPanelProps) {
   const [amount, setAmount] = useState('');
   const [mode, setMode] = useState<'stake' | 'unstake'>('stake');
-  const [signing, setSigning] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   
-  const { isConnected, signMessage, displayAddress } = useWallet();
+  const { isConnected, displayAddress } = useWallet();
+  const staking = useStaking();
   
   const colors = RESOURCE_COLORS[mine.resource];
   const currentTier = getStakeTier(currentStake);
@@ -40,71 +40,56 @@ export default function StakingPanel({
     : getStakeTier(Math.max(0, currentStake - Number(amount || 0)));
 
   const maxAmount = mode === 'stake' ? walletBalance : currentStake;
+  
+  // Track if we're in a transaction
+  const isProcessing = staking.isStaking || staking.isUnstaking;
 
   /**
-   * Generate signature message for staking action
-   */
-  const createStakeMessage = useCallback((action: 'stake' | 'unstake', stakeAmount: number): string => {
-    const nonce = Date.now().toString(36) + Math.random().toString(36).slice(2);
-    return JSON.stringify({
-      app: 'Black Gold',
-      action,
-      mineId: mine.id,
-      mineName: mine.name,
-      amount: stakeAmount,
-      nonce,
-      timestamp: Date.now(),
-    });
-  }, [mine.id, mine.name]);
-
-  /**
-   * Handle stake/unstake submission with wallet signature
+   * Handle stake/unstake submission - uses actual on-chain staking
    */
   const handleSubmit = useCallback(async () => {
     const numAmount = Number(amount);
     if (numAmount <= 0 || numAmount > maxAmount) return;
     
     if (!isConnected) {
-      setError('Please connect your wallet first');
       return;
     }
 
-    setError(null);
-    setSigning(true);
-
     try {
-      // Create message for signing
-      const message = createStakeMessage(mode, numAmount);
-      
-      // Request wallet signature
-      const signature = await signMessage(message);
-      
-      if (!signature) {
-        setError('Signature rejected or failed');
-        return;
-      }
-
-      // Call the appropriate handler with signature
       if (mode === 'stake') {
-        onStake(numAmount, signature);
+        console.log('[StakingPanel] Initiating stake of', numAmount, 'tokens...');
+        const result = await staking.stake(numAmount);
+        
+        if (result.success && result.signature) {
+          console.log('[StakingPanel] Stake successful:', result.signature);
+          onStakeSuccess?.(numAmount, result.signature);
+          setAmount('');
+        }
       } else {
-        onUnstake(numAmount, signature);
+        console.log('[StakingPanel] Initiating unstake of', numAmount, 'tokens...');
+        const result = await staking.unstake(numAmount);
+        
+        if (result.success && result.signature) {
+          console.log('[StakingPanel] Unstake successful:', result.signature);
+          onUnstakeSuccess?.(numAmount, result.signature);
+          setAmount('');
+        }
       }
-      
-      setAmount('');
     } catch (err) {
-      console.error('[Staking] Error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to sign transaction');
-    } finally {
-      setSigning(false);
+      console.error('[StakingPanel] Error:', err);
     }
-  }, [amount, maxAmount, mode, isConnected, createStakeMessage, signMessage, onStake, onUnstake]);
+  }, [amount, maxAmount, mode, isConnected, staking, onStakeSuccess, onUnstakeSuccess]);
 
   const setQuickAmount = (percent: number) => {
     setAmount(Math.floor(maxAmount * percent).toString());
   };
 
-  const isSubmitDisabled = Number(amount) <= 0 || Number(amount) > maxAmount || signing || !isConnected;
+  const isSubmitDisabled = Number(amount) <= 0 || Number(amount) > maxAmount || isProcessing || !isConnected || !staking.isAvailable;
+
+  // Clear error when switching modes
+  useEffect(() => {
+    staking.clearError();
+  }, [mode]);
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -123,7 +108,8 @@ export default function StakingPanel({
             </div>
             <button 
               onClick={onClose}
-              className="p-2 hover:bg-coal-800 rounded-lg transition-colors"
+              disabled={isProcessing}
+              className="p-2 hover:bg-coal-800 rounded-lg transition-colors disabled:opacity-50"
             >
               <span className="text-coal-400">✕</span>
             </button>
@@ -138,7 +124,11 @@ export default function StakingPanel({
               <span className="text-xs text-coal-400">Connected:</span>
               <span className="text-xs text-coal-300 font-mono">{displayAddress}</span>
             </div>
-            <span className="text-xs text-coal-500">Signature required</span>
+            {staking.isAvailable ? (
+              <span className="text-xs text-green-500">On-chain staking ready</span>
+            ) : (
+              <span className="text-xs text-yellow-500">Staking loading...</span>
+            )}
           </div>
         )}
 
@@ -194,22 +184,24 @@ export default function StakingPanel({
         <div className="p-4 border-b border-coal-700">
           <div className="flex gap-2">
             <button
-              onClick={() => { setMode('stake'); setError(null); }}
+              onClick={() => setMode('stake')}
+              disabled={isProcessing}
               className={`flex-1 py-2 rounded-lg font-semibold transition-colors ${
                 mode === 'stake' 
                   ? 'bg-green-600 text-white' 
                   : 'bg-coal-800 text-coal-400 hover:bg-coal-700'
-              }`}
+              } disabled:opacity-50`}
             >
               Stake
             </button>
             <button
-              onClick={() => { setMode('unstake'); setError(null); }}
+              onClick={() => setMode('unstake')}
+              disabled={isProcessing}
               className={`flex-1 py-2 rounded-lg font-semibold transition-colors ${
                 mode === 'unstake' 
                   ? 'bg-red-600 text-white' 
                   : 'bg-coal-800 text-coal-400 hover:bg-coal-700'
-              }`}
+              } disabled:opacity-50`}
             >
               Unstake
             </button>
@@ -229,13 +221,15 @@ export default function StakingPanel({
               <input
                 type="number"
                 value={amount}
-                onChange={(e) => { setAmount(e.target.value); setError(null); }}
+                onChange={(e) => setAmount(e.target.value)}
                 placeholder="0"
-                className="w-full bg-coal-800 border border-coal-600 rounded-lg px-4 py-3 text-white text-lg focus:outline-none focus:border-ember-500"
+                disabled={isProcessing}
+                className="w-full bg-coal-800 border border-coal-600 rounded-lg px-4 py-3 text-white text-lg focus:outline-none focus:border-ember-500 disabled:opacity-50"
               />
               <button
                 onClick={() => setAmount(maxAmount.toString())}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-ember-400 hover:text-ember-300"
+                disabled={isProcessing}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-ember-400 hover:text-ember-300 disabled:opacity-50"
               >
                 MAX
               </button>
@@ -248,7 +242,8 @@ export default function StakingPanel({
               <button
                 key={pct}
                 onClick={() => setQuickAmount(pct)}
-                className="flex-1 py-2 bg-coal-800 hover:bg-coal-700 text-coal-300 rounded-lg text-sm transition-colors"
+                disabled={isProcessing}
+                className="flex-1 py-2 bg-coal-800 hover:bg-coal-700 text-coal-300 rounded-lg text-sm transition-colors disabled:opacity-50"
               >
                 {pct * 100}%
               </button>
@@ -276,27 +271,42 @@ export default function StakingPanel({
           )}
 
           {/* Error message */}
-          {error && (
+          {staking.error && (
             <div className="bg-red-900/30 border border-red-700 rounded-lg p-3 text-sm">
-              <span className="text-red-400">❌ {error}</span>
+              <span className="text-red-400">❌ {staking.error}</span>
+            </div>
+          )}
+
+          {/* Success message */}
+          {staking.lastSignature && !staking.error && (
+            <div className="bg-green-900/30 border border-green-700 rounded-lg p-3 text-sm">
+              <span className="text-green-400">✅ Transaction sent!</span>
+              <a 
+                href={`https://explorer.solana.com/tx/${staking.lastSignature}?cluster=devnet`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block text-xs text-green-500 hover:text-green-400 mt-1 truncate"
+              >
+                View on Solana Explorer →
+              </a>
             </div>
           )}
 
           {/* Warning for unstaking */}
-          {mode === 'unstake' && Number(amount) > 0 && !error && (
+          {mode === 'unstake' && Number(amount) > 0 && !staking.error && (
             <div className="bg-yellow-900/30 border border-yellow-700 rounded-lg p-3 text-sm">
               <span className="text-yellow-400">⚠️ Unstaking removes all boosts immediately</span>
             </div>
           )}
 
-          {/* Signature info */}
+          {/* Transaction info */}
           <div className="bg-coal-800/30 rounded-lg p-3 text-xs text-coal-500 flex items-start gap-2">
             <svg className="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
                     d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <span>
-              Your wallet will ask you to sign a message to confirm this {mode} action. This is gasless and doesn't cost any SOL.
+              This is an on-chain transaction that requires SOL for fees. Your wallet will prompt you to approve the transaction.
             </span>
           </div>
 
@@ -310,20 +320,22 @@ export default function StakingPanel({
                 : 'bg-red-600 hover:bg-red-500 disabled:bg-red-900 disabled:text-red-700'
             } text-white disabled:cursor-not-allowed`}
           >
-            {signing ? (
+            {isProcessing ? (
               <>
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Awaiting Signature...
+                Processing Transaction...
               </>
             ) : !isConnected ? (
               'Connect Wallet First'
+            ) : !staking.isAvailable ? (
+              'Staking Not Available'
             ) : (
               <>
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
-                        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
-                Sign & {mode === 'stake' ? 'Stake' : 'Unstake'} {Number(amount).toLocaleString()} COAL
+                {mode === 'stake' ? 'Stake' : 'Unstake'} {Number(amount).toLocaleString()} COAL
               </>
             )}
           </button>

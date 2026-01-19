@@ -46,13 +46,26 @@ export interface StakingConfig {
 }
 
 export interface UseStakingReturn {
+  // State
   state: StakingState;
   config: StakingConfig | null;
+  isAvailable: boolean;
+  
+  // Convenience accessors
+  isStaking: boolean;
+  isUnstaking: boolean;
+  isClaiming: boolean;
+  isLoading: boolean;
+  error: string | null;
+  lastSignature: string | null;
+  stakeInfo: StakeInfo | null;
+  
+  // Actions
   stake: (amount: number) => Promise<StakeResult>;
   unstake: (amount: number) => Promise<StakeResult>;
   claimRewards: () => Promise<StakeResult>;
   refreshStakeInfo: () => Promise<void>;
-  isAvailable: boolean;
+  clearError: () => void;
 }
 
 // API base URL
@@ -563,14 +576,32 @@ export function useStaking(): UseStakingReturn {
     }
   }, [isAvailable, wallet, state.stakeInfo, refreshStakeInfo]);
 
+  // Clear error function
+  const clearError = useCallback(() => {
+    setState(prev => ({ ...prev, error: null }));
+  }, []);
+
   return {
+    // State
     state,
     config,
+    isAvailable,
+    
+    // Convenience accessors
+    isStaking: state.isStaking,
+    isUnstaking: state.isUnstaking,
+    isClaiming: state.isClaiming,
+    isLoading: state.isLoading,
+    error: state.error,
+    lastSignature: state.lastSignature,
+    stakeInfo: state.stakeInfo,
+    
+    // Actions
     stake,
     unstake,
     claimRewards,
     refreshStakeInfo,
-    isAvailable,
+    clearError,
   };
 }
 
