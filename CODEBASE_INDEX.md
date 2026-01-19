@@ -1,14 +1,46 @@
-# Black Gold v3.3.7 - Codebase Index
+# Black Gold v3.3.8 - Codebase Index
 
 > Complete file-by-file documentation for the Black Gold Interactive Mining Globe platform
 
-**Last Updated**: January 18, 2026  
-**Version**: 3.3.7 (On-Chain Staking Fix)  
+**Last Updated**: January 20, 2026  
+**Version**: 3.3.8 (Preflight Check Fix)  
 **Total Files**: 88+ TypeScript/TSX/JS files
 
 ---
 
-## 📋 Recent Changes (v3.3.7)
+## 📋 Recent Changes (v3.3.8)
+
+### Preflight Check Endpoint Fix
+
+**Problem**: The `preflightCheck` function in `useStaking.ts` was calling the Vercel frontend's API endpoints, which don't have the Quarry environment variables configured. This caused the "Staking system not configured. Contact support." error even though Railway backend was properly configured.
+
+**Fix**: Updated `preflightCheck` to use `getApiBaseUrl()` which points to the Railway backend.
+
+#### Changes in `app/hooks/useStaking.ts`
+
+```typescript
+// Before (broken): Called Vercel frontend
+const response = await fetch('/api/staking/debug');
+
+// After (fixed): Calls Railway backend
+const baseUrl = getApiBaseUrl(); // Returns Railway URL
+const configResponse = await fetch(`${baseUrl}/api/staking/config`);
+const config = await configResponse.json();
+
+if (!config.available) {
+  return { ok: false, error: 'Staking system not configured. Contact support.' };
+}
+
+if (!config.quarryAddress || !config.rewarderAddress) {
+  return { ok: false, error: 'Staking infrastructure not deployed. Contact support.' };
+}
+```
+
+**Key Insight**: The frontend is hosted on Vercel, but the backend API is on Railway. Environment variables like `QUARRY_ADDRESS`, `QUARRY_REWARDER_ADDRESS`, and `IOU_TOKEN_MINT` are only set on Railway.
+
+---
+
+## 📋 Previous Changes (v3.3.7)
 
 ### Critical Staking Fix - Actual On-Chain Transactions
 
