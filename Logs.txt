@@ -1,68 +1,165 @@
-[Mining] Stopped 8326ca352e7778d4.js:180:5640
-[WalletEntry] Privy wallet connected: C95329YPMEqVTDVu7QVW4AyPa9SqhDPWR114Bynp3uhH Balance: 1000000000 8326ca352e7778d4.js:43:2561
+[WS] 🔄 Reconnecting in 1s (attempt 1/10) b4a978d4b2bd97c0.js:180:15160
+[Game] Connecting to game server... b4a978d4b2bd97c0.js:180:17990
+[WS] 🔌 Connecting... (attempt 2/10) b4a978d4b2bd97c0.js:180:14158
+Uncaught Error: Minified React error #418; visit https://react.dev/errors/418?args[]=HTML&args[]= for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+    NextJS 37
+b056a15eec95302c.js:1:40164
+[Mining] Unmounting, cleaning up workers... b4a978d4b2bd97c0.js:180:6073
+[Mining] Cleaning up workers... b4a978d4b2bd97c0.js:180:2196
+`useWallets` was called outside the PrivyProvider component 6606cafefacaf82d.js:1:132027
+`useWallets` was called outside the PrivyProvider component 6606cafefacaf82d.js:1:132027
+[Mining] Unmounting, cleaning up workers... b4a978d4b2bd97c0.js:180:6073
+[Mining] Cleaning up workers... b4a978d4b2bd97c0.js:180:2196
+[Mining] Unmounting, cleaning up workers... b4a978d4b2bd97c0.js:180:6073
+[Mining] Cleaning up workers... b4a978d4b2bd97c0.js:180:2196
+WebGL context was lost. 792e83df36cb2a53.js:386:25012
+THREE.WebGLRenderer: Context Lost. 792e83df36cb2a53.js:1:6476
+Detected injected providers: 
+Array [ {…} ]
+feec3b2929d235ca.js:1:35271
+Wallet did not respond to eth_accounts. Defaulting to prefetched accounts. Error: Must call 'eth_requestAccounts' before other methods
+    NextJS 7
+feec3b2929d235ca.js:1:39719
+Content-Security-Policy: Ignoring “'unsafe-inline'” within script-src: nonce-source or hash-source specified embedded-wallets
+Partitioned cookie or storage access was provided to “https://auth.privy.io/apps/cmk3n4kfh00sll40dll5nzjpk/embedded-wallets?caid=29ca2a40-c6d5-44a7-8bde-172d95c00d02” because it is loaded in the third-party context and dynamic state partitioning is enabled. contentScript.js:9:169661
+Warning! embedded-wallets-3abf891acd81dc8c.js:1:24500
+You are reading this message because you opened the browser console, a developer tool. Do not enter or paste code you do not understand. Never share your tokens or any other info with anyone. If someone told you to do this, it is very likely a scam. embedded-wallets-3abf891acd81dc8c.js:1:24610
+eth_accounts for base_account: 
+Array []
+feec3b2929d235ca.js:1:39623
+[WalletEntry] Privy wallet connected: C95329YPMEqVTDVu7QVW4AyPa9SqhDPWR114Bynp3uhH Balance: 0 b4a978d4b2bd97c0.js:43:2561
+[WalletEntry] Privy wallet connected: C95329YPMEqVTDVu7QVW4AyPa9SqhDPWR114Bynp3uhH Balance: 0 b4a978d4b2bd97c0.js:43:2561
+[Game] Connecting to game server... b4a978d4b2bd97c0.js:180:17990
+[WS] 🔌 Connecting... (attempt 1/10) b4a978d4b2bd97c0.js:180:14158
+[WS] 🔌 WebSocket OPEN - sending connect message b4a978d4b2bd97c0.js:180:14291
+[WS] 🔌 State at connect: 
+Object { walletAddress: "C95329YP", cores: 8, currentMineIdRef: null, isMiningRef: false }
+b4a978d4b2bd97c0.js:180:14355
+[WS] ⚠️ No currentMineIdRef - waiting for server to restore home mine b4a978d4b2bd97c0.js:180:14839
+[Game] Joining mine: coal-appalachian b4a978d4b2bd97c0.js:180:18164
+[WS] 📍 joinMine called: coal-appalachian 
+Object { previousMineId: null, wsState: 1 }
+b4a978d4b2bd97c0.js:180:15885
+[WalletEntry] Privy wallet connected: C95329YPMEqVTDVu7QVW4AyPa9SqhDPWR114Bynp3uhH Balance: 1000000000 b4a978d4b2bd97c0.js:43:2561
+[WS] 📩 Message received: work default b4a978d4b2bd97c0.js:180:10919
+[WS] 📦 Work assignment received: 
+Object { id: "f6a35ff9afb3e905f5ba86a11bb9b144", mineId: "default", discoveryNumber: 0 }
+b4a978d4b2bd97c0.js:180:11486
+[WS] 📦 Calling onWork callback... b4a978d4b2bd97c0.js:180:11625
+[Game] 📦 Work received: 
+Object { id: "f6a35ff9afb3e905f5ba86a11bb9b144", discoveryNumber: 0, mineId: "default", target: "0000023cafffffff...", nonceRange: "[300000000, 350000000)", isMiningRef: false }
+b4a978d4b2bd97c0.js:180:9587
+[Game] ⏸️ Mining not active (isMiningRef=false), work stored for later b4a978d4b2bd97c0.js:180:9921
+[WS] 📩 Message received: result coal-appalachian b4a978d4b2bd97c0.js:180:10919
+[WS] Result: 
+Object { success: true, message: "Joined Appalachian Basin", mineId: "coal-appalachian", stats: {…} }
+b4a978d4b2bd97c0.js:180:11136
+[WS] 📩 Message received: miner_joined coal-appalachian b4a978d4b2bd97c0.js:180:10919
+[WS] 📩 Message received: work coal-appalachian b4a978d4b2bd97c0.js:180:10919
+[WS] 📦 Work assignment received: 
+Object { id: "54e0bfc2f4e89ebdc88c138c497cda80", mineId: "coal-appalachian", discoveryNumber: 0 }
+b4a978d4b2bd97c0.js:180:11486
+[WS] 📦 Calling onWork callback... b4a978d4b2bd97c0.js:180:11625
+[Game] 📦 Work received: 
+Object { id: "54e0bfc2f4e89ebdc88c138c497cda80", discoveryNumber: 0, mineId: "coal-appalachian", target: "0000023cafffffff...", nonceRange: "[350000000, 400000000)", isMiningRef: false }
+b4a978d4b2bd97c0.js:180:9587
+[Game] ⏸️ Mining not active (isMiningRef=false), work stored for later b4a978d4b2bd97c0.js:180:9921
+[WS] 📩 Message received: result <empty string> b4a978d4b2bd97c0.js:180:10919
+[WS] Result: 
+Object { success: true, message: "Connected to Black Gold v2", mines: (20) […], homeMineId: "coal-appalachian" }
+b4a978d4b2bd97c0.js:180:11136
+[WS] 🏠 Home mine restored from server: coal-appalachian b4a978d4b2bd97c0.js:180:11198
+[WS] 📍 Sending join_mine to ensure registration... b4a978d4b2bd97c0.js:180:11329
+[Game] Home mine restored from server: coal-appalachian b4a978d4b2bd97c0.js:180:10037
+[WS] 📩 Message received: work default b4a978d4b2bd97c0.js:180:10919
+[WS] 📦 Work assignment received: 
+Object { id: "30897fd7c16a5469cff3afccad75ef03", mineId: "default", discoveryNumber: 0 }
+b4a978d4b2bd97c0.js:180:11486
+[WS] 📦 Calling onWork callback... b4a978d4b2bd97c0.js:180:11625
+[Game] 📦 Work received: 
+Object { id: "30897fd7c16a5469cff3afccad75ef03", discoveryNumber: 0, mineId: "default", target: "0000023cafffffff...", nonceRange: "[400000000, 450000000)", isMiningRef: false }
+b4a978d4b2bd97c0.js:180:9587
+[Game] ⏸️ Mining not active (isMiningRef=false), work stored for later b4a978d4b2bd97c0.js:180:9921
+[WS] 📩 Message received: result coal-appalachian b4a978d4b2bd97c0.js:180:10919
+[WS] Result: 
+Object { success: true, message: "Joined Appalachian Basin", mineId: "coal-appalachian", stats: {…} }
+b4a978d4b2bd97c0.js:180:11136
+[WS] 📩 Message received: miner_joined coal-appalachian b4a978d4b2bd97c0.js:180:10919
+[WS] 📩 Message received: work coal-appalachian b4a978d4b2bd97c0.js:180:10919
+[WS] 📦 Work assignment received: 
+Object { id: "cd0608d00d5ab110d62c5dd0afb8e3bf", mineId: "coal-appalachian", discoveryNumber: 0 }
+b4a978d4b2bd97c0.js:180:11486
+[WS] 📦 Calling onWork callback... b4a978d4b2bd97c0.js:180:11625
+[Game] 📦 Work received: 
+Object { id: "cd0608d00d5ab110d62c5dd0afb8e3bf", discoveryNumber: 0, mineId: "coal-appalachian", target: "0000023cafffffff...", nonceRange: "[450000000, 500000000)", isMiningRef: false }
+b4a978d4b2bd97c0.js:180:9587
+[Game] ⏸️ Mining not active (isMiningRef=false), work stored for later b4a978d4b2bd97c0.js:180:9921
+[WS] 📩 Message received: work default b4a978d4b2bd97c0.js:180:10919
+[WS] 📦 Work assignment received: 
+Object { id: "f16482ca200e8cc5accb31bc6281c5c1", mineId: "default", discoveryNumber: 0 }
+b4a978d4b2bd97c0.js:180:11486
+[WS] 📦 Calling onWork callback... b4a978d4b2bd97c0.js:180:11625
+[Game] 📦 Work received: 
+Object { id: "f16482ca200e8cc5accb31bc6281c5c1", discoveryNumber: 0, mineId: "default", target: "0000023cafffffff...", nonceRange: "[500000000, 550000000)", isMiningRef: false }
+b4a978d4b2bd97c0.js:180:9587
+[Game] ⏸️ Mining not active (isMiningRef=false), work stored for later b4a978d4b2bd97c0.js:180:9921
+[WS] 📩 Message received: result coal-appalachian b4a978d4b2bd97c0.js:180:10919
+[WS] Result: 
+Object { success: true, message: "Joined Appalachian Basin", mineId: "coal-appalachian", stats: {…} }
+b4a978d4b2bd97c0.js:180:11136
+[WS] 📩 Message received: miner_joined coal-appalachian b4a978d4b2bd97c0.js:180:10919
+[WS] 📩 Message received: work coal-appalachian b4a978d4b2bd97c0.js:180:10919
+[WS] 📦 Work assignment received: 
+Object { id: "e7ee856c2ca95ae9f9184cbee4572e67", mineId: "coal-appalachian", discoveryNumber: 0 }
+b4a978d4b2bd97c0.js:180:11486
+[WS] 📦 Calling onWork callback... b4a978d4b2bd97c0.js:180:11625
+[Game] 📦 Work received: 
+Object { id: "e7ee856c2ca95ae9f9184cbee4572e67", discoveryNumber: 0, mineId: "coal-appalachian", target: "0000023cafffffff...", nonceRange: "[550000000, 600000000)", isMiningRef: false }
+b4a978d4b2bd97c0.js:180:9587
+[Game] ⏸️ Mining not active (isMiningRef=false), work stored for later b4a978d4b2bd97c0.js:180:9921
 [Game] 📨 Event received: round_status 
-Object { eventId: "round_status_1768862704424", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
-8326ca352e7778d4.js:180:6660
+Object { eventId: "round_status_1768865837173", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
+b4a978d4b2bd97c0.js:180:6660
+The resource at “https://blackgold-nine.vercel.app/_next/static/media/70bc3e132a0a741e-s.p.15008bfb.woff2” preloaded with link preload was not used within a few seconds. Make sure all attributes of the preload tag are set correctly. blackgold-nine.vercel.app
+The resource at “https://blackgold-nine.vercel.app/_next/static/media/9a800f173b8d9e8f-s.p.ea25be69.woff2” preloaded with link preload was not used within a few seconds. Make sure all attributes of the preload tag are set correctly. blackgold-nine.vercel.app
+The resource at “https://blackgold-nine.vercel.app/_next/static/media/fabcf92ba1ccea36-s.p.19f28380.woff2” preloaded with link preload was not used within a few seconds. Make sure all attributes of the preload tag are set correctly. blackgold-nine.vercel.app
 [Game] 📨 Event received: round_status 
-Object { eventId: "round_status_1768862709533", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
-8326ca352e7778d4.js:180:6660
+Object { eventId: "round_status_1768865842160", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
+b4a978d4b2bd97c0.js:180:6660
+[StakingPanel] Initiating stake of 450 tokens... b4a978d4b2bd97c0.js:1:34052
+[Staking] Running pre-flight check... b4a978d4b2bd97c0.js:1:27965
 [Game] 📨 Event received: round_status 
-Object { eventId: "round_status_1768862714393", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
-8326ca352e7778d4.js:180:6660
-[Wallet] Signing message with window.solana... caded66506f9d926.js:7:77851
+Object { eventId: "round_status_1768865847159", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
+b4a978d4b2bd97c0.js:180:6660
+[Staking] User stake info: 
+Object { walletAddress: "C95329YPMEqVTDVu7QVW4AyPa9SqhDPWR114Bynp3uhH", stakedAmount: 0, pendingRewards: 0, lastStakeTime: null, minerPDA: null }
+b4a978d4b2bd97c0.js:1:26837
+[Staking] Requesting stake transaction for 450 tokens b4a978d4b2bd97c0.js:1:28164
+[Staking] Signing and sending transaction... b4a978d4b2bd97c0.js:1:28357
+[Staking] Transaction blockhash: CHZC8ToXp7NY6Gh2Px7qnygFP5JazjodvZsD4x7VSMmz b4a978d4b2bd97c0.js:1:28417
+[Wallet] Starting sign and send transaction... 375cd538e21cb0f2.js:7:79114
+[Wallet] Wallet address: C95329YPMEqVTDVu7QVW4AyPa9SqhDPWR114Bynp3uhH 375cd538e21cb0f2.js:7:79176
+[Wallet] Solana wallet found: false 375cd538e21cb0f2.js:7:79218
+[Wallet] Transaction length: 644 375cd538e21cb0f2.js:7:79267
+[Wallet] Deserialized buffer length: 481 375cd538e21cb0f2.js:7:79353
+[Wallet] Parsed as VersionedTransaction 375cd538e21cb0f2.js:7:79542
+[Wallet] Using RPC: https://api.devnet.solana.com 375cd538e21cb0f2.js:7:79930
+[Wallet] Trying window.solana fallback... 375cd538e21cb0f2.js:7:81550
 [Game] 📨 Event received: round_status 
-Object { eventId: "round_status_1768862719585", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
-8326ca352e7778d4.js:180:6660
+Object { eventId: "round_status_1768865852145", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
+b4a978d4b2bd97c0.js:180:6660
 [Game] 📨 Event received: round_status 
-Object { eventId: "round_status_1768862724430", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
-8326ca352e7778d4.js:180:6660
+Object { eventId: "round_status_1768865857152", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
+b4a978d4b2bd97c0.js:180:6660
+[Wallet] window.solana signAndSendTransaction failed: Error: Unexpected error
+    Ve <anonymous code>:3
+    #o <anonymous code>:3
+    signAndSendTransaction <anonymous code>:3
+    NextJS 27
+375cd538e21cb0f2.js:7:81796
+[Staking] Sign error: Error: Unexpected error
+    NextJS 27
+b4a978d4b2bd97c0.js:1:28611
 [Game] 📨 Event received: round_status 
-Object { eventId: "round_status_1768862729407", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
-8326ca352e7778d4.js:180:6660
-[Stake] Amount: 450 Signature: j1XTj/QShq02YyjACeC2... 8326ca352e7778d4.js:180:19497
-[Game] 📨 Event received: round_status 
-Object { eventId: "round_status_1768862734452", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
-8326ca352e7778d4.js:180:6660
-[Game] 📨 Event received: round_status 
-Object { eventId: "round_status_1768862739450", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
-8326ca352e7778d4.js:180:6660
-[Game] 📨 Event received: round_status 
-Object { eventId: "round_status_1768862744388", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
-8326ca352e7778d4.js:180:6660
-[Game] 📨 Event received: round_status 
-Object { eventId: "round_status_1768862749602", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
-8326ca352e7778d4.js:180:6660
-[Game] 📨 Event received: round_status 
-Object { eventId: "round_status_1768862754397", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
-8326ca352e7778d4.js:180:6660
-[Game] 📨 Event received: round_status 
-Object { eventId: "round_status_1768862759495", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
-8326ca352e7778d4.js:180:6660
-[Game] 📨 Event received: round_status 
-Object { eventId: "round_status_1768862764386", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
-8326ca352e7778d4.js:180:6660
-[Game] 📨 Event received: round_status 
-Object { eventId: "round_status_1768862769453", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
-8326ca352e7778d4.js:180:6660
-[Game] 📨 Event received: round_status 
-Object { eventId: "round_status_1768862774391", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
-8326ca352e7778d4.js:180:6660
-[Game] 📨 Event received: round_status 
-Object { eventId: "round_status_1768862779435", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
-8326ca352e7778d4.js:180:6660
-[Game] 📨 Event received: round_status 
-Object { eventId: "round_status_1768862784427", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
-8326ca352e7778d4.js:180:6660
-[Game] 📨 Event received: round_status 
-Object { eventId: "round_status_1768862789473", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
-8326ca352e7778d4.js:180:6660
-[Wallet] Signing message with window.solana... caded66506f9d926.js:7:77851
-[Game] 📨 Event received: round_status 
-Object { eventId: "round_status_1768862794384", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
-8326ca352e7778d4.js:180:6660
-[Unstake] Amount: 450 Signature: ZR3wn/Vs/qcY+oNQ2IkW... 8326ca352e7778d4.js:180:19670
-[Game] 📨 Event received: round_status 
-Object { eventId: "round_status_1768862799559", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
-8326ca352e7778d4.js:180:6660
-[Game] 📨 Event received: round_status 
-Object { eventId: "round_status_1768862804378", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
+Object { eventId: "round_status_1768865862135", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
+b4a978d4b2bd97c0.js:180:6660

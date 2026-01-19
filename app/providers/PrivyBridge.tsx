@@ -37,8 +37,22 @@ export default function PrivyBridge({ children, setContextValue }: PrivyBridgePr
 
   // Find the Solana wallet from Privy's wallet list
   // This handles both embedded wallets and external wallets (Phantom, etc.)
+  // Log all wallets for debugging
+  console.log('[Wallet] Available wallets from Privy:', wallets.map(w => ({
+    address: w.address?.slice(0, 8),
+    walletClientType: w.walletClientType,
+    chainType: (w as any).chainType,
+    connectorType: (w as any).connectorType,
+  })));
+  
   const solanaWallet = wallets.find(
-    (w) => w.walletClientType === 'solana' || (w as any).chainType === 'solana'
+    (w) => {
+      const isSolana = w.walletClientType === 'solana' || 
+                       (w as any).chainType === 'solana' ||
+                       w.walletClientType === 'phantom' ||
+                       (w as any).connectorType === 'solana_adapter';
+      return isSolana;
+    }
   );
 
   // Also check linked accounts for wallet address (backup)
@@ -158,17 +172,21 @@ export default function PrivyBridge({ children, setContextValue }: PrivyBridgePr
     let transaction: Transaction | VersionedTransaction;
     let isVersioned = false;
     
+    // Try legacy Transaction FIRST since our server builds legacy transactions
     try {
-      transaction = VersionedTransaction.deserialize(txBuffer);
-      isVersioned = true;
-      console.log('[Wallet] Parsed as VersionedTransaction');
-    } catch {
+      transaction = Transaction.from(txBuffer);
+      console.log('[Wallet] Parsed as legacy Transaction');
+      console.log('[Wallet] Instructions count:', transaction.instructions?.length);
+      console.log('[Wallet] Fee payer:', transaction.feePayer?.toBase58()?.slice(0, 8));
+      console.log('[Wallet] Recent blockhash:', transaction.recentBlockhash?.slice(0, 8));
+    } catch (legacyError) {
+      console.log('[Wallet] Legacy parse failed, trying VersionedTransaction...');
       try {
-        transaction = Transaction.from(txBuffer);
-        console.log('[Wallet] Parsed as legacy Transaction');
-        console.log('[Wallet] Instructions count:', (transaction as Transaction).instructions?.length);
+        transaction = VersionedTransaction.deserialize(txBuffer);
+        isVersioned = true;
+        console.log('[Wallet] Parsed as VersionedTransaction');
       } catch (e) {
-        console.error('[Wallet] Failed to parse transaction:', e);
+        console.error('[Wallet] Failed to parse transaction as either type:', e);
         throw new Error('Failed to parse transaction');
       }
     }
@@ -241,40 +259,71 @@ export default function PrivyBridge({ children, setContextValue }: PrivyBridgePr
     // Fallback: Try window.solana (Phantom/other wallets)
     if (typeof window !== 'undefined' && (window as any).solana) {
       console.log('[Wallet] Trying window.solana fallback...');
+      console.log('[Wallet] window.solana.isPhantom:', (window as any).solana?.isPhantom);
+      console.log('[Wallet] window.solana.isConnected:', (window as any).solana?.isConnected);
+      console.log('[Wallet] Transaction type:', isVersioned ? 'VersionedTransaction' : 'LegacyTransaction');
+      
       const windowSolana = (window as any).solana;
       
-      if (windowSolana.signAndSendTransaction) {
+      // Ensure Phantom is connected
+      if (!windowSolana.isConnected) {
+        console.log('[Wallet] Phantom not connected, attempting to connect...');
         try {
-          const { signature } = await windowSolana.signAndSendTransaction(transaction);
-          console.log('[Wallet] Transaction sent via window.solana:', signature);
-          return signature;
-        } catch (e: any) {
-          console.error('[Wallet] window.solana signAndSendTransaction failed:', e);
-          throw new Error(e?.message || 'Transaction failed');
+          await windowSolana.connect();
+          console.log('[Wallet] Phantom connected');
+        } catch (connectError) {
+          console.error('[Wallet] Failed to connect Phantom:', connectError);
         }
       }
       
-      if (windowSolana.signTransaction) {
+      // For legacy transactions, try signTransaction then send manually
+      // This is more reliable than signAndSendTransaction for some wallet setups
+      if (!isVersioned && windowSolana.signTransaction) {
         try {
+          console.log('[Wallet] Using signTransaction for legacy tx...');
           const signedTx = await windowSolana.signTransaction(transaction);
+          console.log('[Wallet] Transaction signed by Phantom');
+          
           const signature = await connection.sendRawTransaction(signedTx.serialize(), {
             skipPreflight: false,
             preflightCommitment: 'confirmed',
           });
+          console.log('[Wallet] Sent to network, signature:', signature);
           
+          // Wait for confirmation
           const confirmation = await connection.confirmTransaction(signature, 'confirmed');
           if (confirmation.value.err) {
             console.error('[Wallet] Transaction failed on-chain:', confirmation.value.err);
-            throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
+            throw new Error(`Transaction failed on-chain: ${JSON.stringify(confirmation.value.err)}`);
           }
           
-          console.log('[Wallet] Transaction confirmed via window.solana:', signature);
+          console.log('[Wallet] Transaction confirmed:', signature);
           return signature;
         } catch (e: any) {
-          console.error('[Wallet] window.solana manual sign+send failed:', e);
-          throw new Error(e?.message || 'Failed to sign and send transaction');
+          console.error('[Wallet] signTransaction failed:', e);
+          console.error('[Wallet] Error name:', e?.name);
+          console.error('[Wallet] Error message:', e?.message);
+          console.error('[Wallet] Error code:', e?.code);
+          // Don't throw yet, try signAndSendTransaction as fallback
         }
       }
+      
+      // Last resort: try signAndSendTransaction
+      if (windowSolana.signAndSendTransaction) {
+        try {
+          console.log('[Wallet] Last resort: signAndSendTransaction...');
+          const result = await windowSolana.signAndSendTransaction(transaction);
+          const signature = result?.signature || result;
+          console.log('[Wallet] Transaction sent via window.solana:', signature);
+          return signature;
+        } catch (e: any) {
+          console.error('[Wallet] All signing methods failed');
+          console.error('[Wallet] Final error:', e?.message);
+          throw new Error(e?.message || 'Transaction signing failed');
+        }
+      }
+      
+      throw new Error('No compatible signing method found in wallet');
     }
 
     console.error('[Wallet] No wallet signing method available');
