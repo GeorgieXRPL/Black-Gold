@@ -137,67 +137,125 @@ export default function PrivyBridge({ children, setContextValue }: PrivyBridgePr
   const handleSignAndSendTransaction = useCallback(async (serializedTx: string): Promise<string | null> => {
     if (!authenticated || !walletAddress) {
       console.warn('[Wallet] Cannot sign: not authenticated');
-      return null;
+      throw new Error('Wallet not connected');
     }
 
+    console.log('[Wallet] Starting sign and send transaction...');
+    console.log('[Wallet] Wallet address:', walletAddress);
+    console.log('[Wallet] Solana wallet found:', !!solanaWallet);
+    console.log('[Wallet] Transaction length:', serializedTx?.length);
+
+    // Deserialize the transaction
+    let txBuffer: Buffer;
     try {
-      // Deserialize the transaction
-      const txBuffer = Buffer.from(serializedTx, 'base64');
-      let transaction: Transaction | VersionedTransaction;
-      
+      txBuffer = Buffer.from(serializedTx, 'base64');
+      console.log('[Wallet] Deserialized buffer length:', txBuffer.length);
+    } catch (e) {
+      console.error('[Wallet] Failed to decode base64:', e);
+      throw new Error('Invalid transaction format');
+    }
+
+    let transaction: Transaction | VersionedTransaction;
+    let isVersioned = false;
+    
+    try {
+      transaction = VersionedTransaction.deserialize(txBuffer);
+      isVersioned = true;
+      console.log('[Wallet] Parsed as VersionedTransaction');
+    } catch {
       try {
-        transaction = VersionedTransaction.deserialize(txBuffer);
-      } catch {
         transaction = Transaction.from(txBuffer);
+        console.log('[Wallet] Parsed as legacy Transaction');
+        console.log('[Wallet] Instructions count:', (transaction as Transaction).instructions?.length);
+      } catch (e) {
+        console.error('[Wallet] Failed to parse transaction:', e);
+        throw new Error('Failed to parse transaction');
       }
+    }
 
-      // Create connection
-      const connection = new Connection(getRpcEndpoint(), 'confirmed');
+    // Create connection
+    const rpcUrl = getRpcEndpoint();
+    console.log('[Wallet] Using RPC:', rpcUrl);
+    const connection = new Connection(rpcUrl, 'confirmed');
 
-      // Use Privy's Solana wallet for signing and sending
-      if (solanaWallet) {
-        console.log('[Wallet] Signing and sending with Privy Solana wallet...');
-        const provider = await (solanaWallet as any).getProvider();
-        
-        // Try signAndSendTransaction if available
-        if (provider?.signAndSendTransaction) {
-          const { signature } = await provider.signAndSendTransaction(transaction);
+    // Use Privy's Solana wallet for signing and sending
+    if (solanaWallet) {
+      console.log('[Wallet] Getting Privy wallet provider...');
+      let provider;
+      try {
+        provider = await (solanaWallet as any).getProvider();
+        console.log('[Wallet] Provider methods:', Object.keys(provider || {}));
+      } catch (e) {
+        console.error('[Wallet] Failed to get provider:', e);
+        throw new Error('Failed to access wallet provider');
+      }
+      
+      // Try signAndSendTransaction if available
+      if (provider?.signAndSendTransaction) {
+        console.log('[Wallet] Using signAndSendTransaction...');
+        try {
+          const result = await provider.signAndSendTransaction(transaction);
+          const signature = result?.signature || result;
           console.log('[Wallet] Transaction sent via Privy Solana wallet:', signature);
           return signature;
+        } catch (e: any) {
+          console.error('[Wallet] signAndSendTransaction failed:', e);
+          console.error('[Wallet] Error details:', JSON.stringify(e, null, 2));
+          // Re-throw with better message
+          throw new Error(e?.message || e?.error?.message || 'Transaction failed');
         }
-        
-        // Otherwise sign and send manually
-        if (provider?.signTransaction) {
+      }
+      
+      // Otherwise sign and send manually
+      if (provider?.signTransaction) {
+        console.log('[Wallet] Using manual sign then send...');
+        try {
           const signedTx = await provider.signTransaction(transaction);
+          console.log('[Wallet] Transaction signed, sending to network...');
+          
           const signature = await connection.sendRawTransaction(signedTx.serialize(), {
             skipPreflight: false,
             preflightCommitment: 'confirmed',
           });
+          console.log('[Wallet] Sent, waiting for confirmation:', signature);
           
           // Wait for confirmation
           const confirmation = await connection.confirmTransaction(signature, 'confirmed');
           if (confirmation.value.err) {
-            console.error('[Wallet] Transaction failed:', confirmation.value.err);
-            return null;
+            console.error('[Wallet] Transaction failed on-chain:', confirmation.value.err);
+            throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
           }
           
           console.log('[Wallet] Transaction confirmed via Privy:', signature);
           return signature;
+        } catch (e: any) {
+          console.error('[Wallet] Manual sign+send failed:', e);
+          throw new Error(e?.message || 'Failed to sign and send transaction');
         }
       }
+      
+      console.error('[Wallet] Provider has no signing methods');
+      throw new Error('Wallet does not support transaction signing');
+    }
 
-      // Fallback: Try window.solana (Phantom/other wallets)
-      if (typeof window !== 'undefined' && (window as any).solana) {
-        console.log('[Wallet] Trying window.solana fallback...');
-        const windowSolana = (window as any).solana;
-        
-        if (windowSolana.signAndSendTransaction) {
+    // Fallback: Try window.solana (Phantom/other wallets)
+    if (typeof window !== 'undefined' && (window as any).solana) {
+      console.log('[Wallet] Trying window.solana fallback...');
+      const windowSolana = (window as any).solana;
+      
+      if (windowSolana.signAndSendTransaction) {
+        try {
           const { signature } = await windowSolana.signAndSendTransaction(transaction);
           console.log('[Wallet] Transaction sent via window.solana:', signature);
           return signature;
+        } catch (e: any) {
+          console.error('[Wallet] window.solana signAndSendTransaction failed:', e);
+          throw new Error(e?.message || 'Transaction failed');
         }
-        
-        if (windowSolana.signTransaction) {
+      }
+      
+      if (windowSolana.signTransaction) {
+        try {
           const signedTx = await windowSolana.signTransaction(transaction);
           const signature = await connection.sendRawTransaction(signedTx.serialize(), {
             skipPreflight: false,
@@ -206,21 +264,21 @@ export default function PrivyBridge({ children, setContextValue }: PrivyBridgePr
           
           const confirmation = await connection.confirmTransaction(signature, 'confirmed');
           if (confirmation.value.err) {
-            console.error('[Wallet] Transaction failed:', confirmation.value.err);
-            return null;
+            console.error('[Wallet] Transaction failed on-chain:', confirmation.value.err);
+            throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
           }
           
           console.log('[Wallet] Transaction confirmed via window.solana:', signature);
           return signature;
+        } catch (e: any) {
+          console.error('[Wallet] window.solana manual sign+send failed:', e);
+          throw new Error(e?.message || 'Failed to sign and send transaction');
         }
       }
-
-      console.error('[Wallet] No wallet signing method available');
-      return null;
-    } catch (error) {
-      console.error('[Wallet] Sign and send transaction error:', error);
-      return null;
     }
+
+    console.error('[Wallet] No wallet signing method available');
+    throw new Error('No wallet available for signing');
   }, [authenticated, walletAddress, solanaWallet]);
 
   // Update context when state changes
