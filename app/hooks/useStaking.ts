@@ -234,46 +234,43 @@ async function verifyTransaction(
 }
 
 /**
- * Pre-flight check before staking - verify user has tokens and SOL
+ * Pre-flight check before staking - verify staking is configured
+ * Uses Railway backend's /api/staking/config endpoint
  */
 async function preflightCheck(walletAddress: string): Promise<{ ok: boolean; error?: string }> {
   try {
-    const response = await fetch(`/api/staking/debug?wallet=${walletAddress}`);
-    if (!response.ok) {
-      return { ok: false, error: 'Failed to verify wallet status' };
+    const baseUrl = getApiBaseUrl();
+    
+    // Check if staking system is configured on the backend
+    const configResponse = await fetch(`${baseUrl}/api/staking/config`);
+    if (!configResponse.ok) {
+      return { ok: false, error: 'Failed to connect to staking service' };
     }
     
-    const debug = await response.json();
+    const config = await configResponse.json();
     
-    // Check for configuration errors
-    if (!debug.configuration.isQuarryConfigured) {
+    // Check if Quarry is available
+    if (!config.available) {
       return { ok: false, error: 'Staking system not configured. Contact support.' };
     }
     
-    if (debug.accountStatus.errors.length > 0) {
-      // Find the most relevant error for the user
-      const userErrors = debug.accountStatus.errors.filter((e: string) => 
-        e.includes(walletAddress.slice(0, 8)) || e.includes('needs SOL') || e.includes('no COAL')
-      );
-      if (userErrors.length > 0) {
-        return { ok: false, error: userErrors[0] };
-      }
+    // Check if required addresses are set
+    if (!config.quarryAddress || !config.rewarderAddress) {
+      return { ok: false, error: 'Staking infrastructure not deployed. Contact support.' };
     }
     
-    // Check wallet balances
-    if (debug.walletCheck) {
-      if (!debug.walletCheck.hasSol) {
-        return { ok: false, error: `You need SOL for transaction fees (current: ${debug.walletCheck.solBalance.toFixed(4)} SOL)` };
-      }
-      if (!debug.walletCheck.hasCoal) {
-        return { ok: false, error: 'You have no COAL tokens to stake' };
-      }
+    // Optionally check user's stake info (this creates miner account if needed)
+    const infoResponse = await fetch(`${baseUrl}/api/staking/info/${walletAddress}`);
+    if (infoResponse.ok) {
+      const info = await infoResponse.json();
+      console.log('[Staking] User stake info:', info);
     }
     
     return { ok: true };
   } catch (error) {
     console.error('[Staking] Preflight check failed:', error);
-    return { ok: true }; // Don't block if check fails, let the actual transaction determine
+    // Don't block if check fails - let the actual transaction determine success
+    return { ok: true };
   }
 }
 
