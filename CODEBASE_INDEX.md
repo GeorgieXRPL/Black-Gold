@@ -1,14 +1,42 @@
-# Black Gold v3.3.6 - Codebase Index
+# Black Gold v3.3.7 - Codebase Index
 
 > Complete file-by-file documentation for the Black Gold Interactive Mining Globe platform
 
 **Last Updated**: January 18, 2026  
-**Version**: 3.3.6 (Connection & Balance Fix)  
+**Version**: 3.3.7 (On-Chain Staking Fix)  
 **Total Files**: 88+ TypeScript/TSX/JS files
 
 ---
 
-## 📋 Recent Changes (v3.3.6)
+## 📋 Recent Changes (v3.3.7)
+
+### Critical Staking Fix - Actual On-Chain Transactions
+
+**Problem**: The StakingPanel was using `signMessage` (message signing) instead of actual blockchain transactions. Users would sign a message, see fake "success", but nothing happened on-chain.
+
+**Fix**: Rewired StakingPanel to use the `useStaking` hook for real Quarry staking transactions.
+
+#### StakingPanel Changes (`app/components/game/StakingPanel.tsx`)
+
+- Now imports and uses `useStaking` hook instead of just `signMessage`
+- Calls `staking.stake(amount)` and `staking.unstake(amount)` for real on-chain transactions
+- Shows proper loading state during transaction
+- Shows Solana Explorer link on success
+- Shows specific error messages on failure
+- Changed callback props to `onStakeSuccess` / `onUnstakeSuccess`
+
+#### useStaking Hook Updates (`app/hooks/useStaking.ts`)
+
+Added convenience accessors:
+- `isStaking`, `isUnstaking`, `isClaiming` - loading states
+- `error` - current error message
+- `lastSignature` - last successful transaction signature
+- `stakeInfo` - current on-chain stake info
+- `clearError()` - function to clear error state
+
+---
+
+## 📋 Previous Changes (v3.3.6)
 
 ### WebSocket Connection, Balance Display, and Privy Hook Fixes
 
