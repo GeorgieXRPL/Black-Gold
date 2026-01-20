@@ -1,14 +1,93 @@
-# Black Gold v3.3.8 - Codebase Index
+# Black Gold v3.3.9 - Codebase Index
 
 > Complete file-by-file documentation for the Black Gold Interactive Mining Globe platform
 
 **Last Updated**: January 20, 2026  
-**Version**: 3.3.8 (Preflight Check Fix)  
+**Version**: 3.3.9 (Staking UX Improvements)  
 **Total Files**: 88+ TypeScript/TSX/JS files
 
 ---
 
-## 📋 Recent Changes (v3.3.8)
+## 📋 Recent Changes (v3.3.9)
+
+### Staking UX Improvements & Bug Fixes
+
+Multiple fixes to improve the staking experience and resolve on-chain transaction issues.
+
+#### 1. Create Miner Account Automatically
+
+**Problem**: First-time stakers got error `AccountNotInitialized (0xbc4)` because Quarry requires a miner PDA to be created before staking.
+
+**Fix**: Server now automatically creates miner account if it doesn't exist:
+
+```typescript
+// server/solana/staking.ts - buildStakeTransaction
+const minerKey = await quarry.getMinerAddress(userPubkey);
+const minerAccountInfo = await connection.getAccountInfo(minerKey);
+const minerExists = minerAccountInfo !== null;
+
+if (!minerExists) {
+  const pendingMiner = await quarry.createMiner({ authority: userPubkey });
+  transaction.add(...pendingMiner.tx.instructions);
+}
+```
+
+#### 2. Fix Stake Info BN/BigInt Handling
+
+**Problem**: Staked balance showed 0 because Quarry SDK returns BN (BigNumber) objects, not raw numbers.
+
+**Fix**: Properly convert BN/BigInt to numbers with detailed logging:
+
+```typescript
+// server/solana/staking.ts - getUserStakeInfo
+let stakedBalance = miner.balance;
+if (stakedBalance && typeof stakedBalance.toNumber === 'function') {
+  stakedBalance = stakedBalance.toNumber();
+} else if (typeof stakedBalance === 'bigint') {
+  stakedBalance = Number(stakedBalance);
+}
+```
+
+#### 3. Non-Blocking Backend Verification
+
+**Problem**: Users saw "verification pending" error even when on-chain tx succeeded.
+
+**Fix**: Made backend verification non-blocking - wallet confirmation is authoritative:
+
+```typescript
+// app/hooks/useStaking.ts
+// Transaction confirmed on-chain by wallet - this IS success!
+verifyTransaction(signature, wallet.walletAddress, 'stake', amount)
+  .then(v => { if (!v.verified) console.warn('Backend verification pending'); })
+  .catch(e => console.warn('Backend verification error (non-blocking):', e));
+```
+
+#### 4. Staked Balance Display in Header
+
+**New Feature**: Shows staked balance alongside wallet balance:
+
+```
+Wallet: 1,000,000 COAL | Staked: 450 COAL (green)
+```
+
+**File**: `app/page.tsx`
+- Added `useStaking` hook import
+- Added `stakedBalance` derived from `staking.stakeInfo?.stakedAmount`
+- New UI section with staked amount in green
+
+#### 5. Phantom Transaction Signing Improvements
+
+**Problem**: Transactions failed with "Unexpected error" due to wrong transaction type detection.
+
+**Fixes in** `app/providers/PrivyBridge.tsx`:
+- Try legacy Transaction parsing FIRST (server builds legacy txs)
+- Use `skipPreflight: true` to avoid simulation issues
+- Better error logging with Phantom connection state
+- Handle "already processed" transactions gracefully
+
+---
+
+## 📋 Previous Changes (v3.3.8)
 
 ### Preflight Check Endpoint Fix
 
