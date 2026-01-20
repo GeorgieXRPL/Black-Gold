@@ -284,9 +284,11 @@ export default function PrivyBridge({ children, setContextValue }: PrivyBridgePr
           const signedTx = await windowSolana.signTransaction(transaction);
           console.log('[Wallet] Transaction signed by Phantom');
           
+          // Try sending with skipPreflight to avoid simulation issues
           const signature = await connection.sendRawTransaction(signedTx.serialize(), {
-            skipPreflight: false,
+            skipPreflight: true,  // Skip simulation - let the network validate
             preflightCommitment: 'confirmed',
+            maxRetries: 3,
           });
           console.log('[Wallet] Sent to network, signature:', signature);
           
@@ -300,10 +302,18 @@ export default function PrivyBridge({ children, setContextValue }: PrivyBridgePr
           console.log('[Wallet] Transaction confirmed:', signature);
           return signature;
         } catch (e: any) {
-          console.error('[Wallet] signTransaction failed:', e);
+          console.error('[Wallet] signTransaction flow error:', e);
           console.error('[Wallet] Error name:', e?.name);
           console.error('[Wallet] Error message:', e?.message);
           console.error('[Wallet] Error code:', e?.code);
+          
+          // Check if this is an "already processed" error - might mean success!
+          if (e?.message?.includes('already been processed') || e?.message?.includes('AlreadyProcessed')) {
+            console.log('[Wallet] Transaction may have already succeeded! Check explorer.');
+            // Try to extract signature from the error or transaction
+            throw new Error('Transaction may have already been processed. Please check your wallet on Solana Explorer.');
+          }
+          
           // Don't throw yet, try signAndSendTransaction as fallback
         }
       }
