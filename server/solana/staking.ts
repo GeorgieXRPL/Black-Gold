@@ -203,9 +203,12 @@ export async function buildStakeTransaction(
     // Get miner actions for the user
     const minerActions = await quarry.getMinerActions(userPubkey);
 
-    // Build stake instruction
-    const stakeAmount = new TokenAmount(coalToken, rawAmount.toString());
-    const stakeTx = await minerActions.stake(stakeAmount);
+    // Check if miner account exists
+    const minerKey = await quarry.getMinerAddress(userPubkey);
+    const minerAccountInfo = await connection.getAccountInfo(minerKey);
+    const minerExists = minerAccountInfo !== null;
+    
+    console.log(`[Staking] Miner account ${minerKey.toBase58().slice(0, 8)}... exists: ${minerExists}`);
 
     // Get recent blockhash
     const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
@@ -219,6 +222,17 @@ export async function buildStakeTransaction(
       userPubkey
     );
     transaction.add(memoInstruction);
+    
+    // If miner doesn't exist, create it first
+    if (!minerExists) {
+      console.log(`[Staking] Creating miner account for ${walletAddress}...`);
+      const pendingMiner = await quarry.createMiner({ authority: userPubkey });
+      transaction.add(...pendingMiner.tx.instructions);
+    }
+
+    // Build stake instruction
+    const stakeAmount = new TokenAmount(coalToken, rawAmount.toString());
+    const stakeTx = await minerActions.stake(stakeAmount);
     
     // Add stake instructions from Quarry SDK
     transaction.add(...stakeTx.instructions);
