@@ -684,8 +684,14 @@ export default function Home() {
       newStakes.set(selectedMineId, current + amount);
       return newStakes;
     });
+    
+    // Refresh on-chain stake info after a short delay to let the chain update
+    setTimeout(() => {
+      staking.refreshStakeInfo();
+    }, 2000);
+    
     // Don't close panel - let user see the success message and explorer link
-  }, [selectedMineId]);
+  }, [selectedMineId, staking]);
 
   const handleUnstakeSuccess = useCallback((amount: number, signature: string) => {
     if (!selectedMineId) return;
@@ -699,8 +705,14 @@ export default function Home() {
       newStakes.set(selectedMineId, Math.max(0, current - amount));
       return newStakes;
     });
+    
+    // Refresh on-chain stake info after a short delay to let the chain update
+    setTimeout(() => {
+      staking.refreshStakeInfo();
+    }, 2000);
+    
     // Don't close panel - let user see the success message and explorer link
-  }, [selectedMineId]);
+  }, [selectedMineId, staking]);
 
   const handleLaunchRaid = useCallback((betAmount: number) => {
     console.log('Launching raid with bet:', betAmount);
@@ -725,8 +737,15 @@ export default function Home() {
     }
   }, [selectedMineId, homeMineId]);
 
-  const userStakeAtSelected = selectedMineId ? (userStakes.get(selectedMineId) || 0) : 0;
-  const userStakeAtHome = homeMineId ? (userStakes.get(homeMineId) || 0) : 0;
+  // Use on-chain staked balance from useStaking hook as primary source
+  // Fall back to local userStakes map for per-mine tracking (legacy)
+  const onChainStakedAmount = staking.stakeInfo?.stakedAmount ?? 0;
+  const userStakeAtSelected = selectedMineId 
+    ? (onChainStakedAmount > 0 ? onChainStakedAmount : (userStakes.get(selectedMineId) || 0)) 
+    : 0;
+  const userStakeAtHome = homeMineId 
+    ? (onChainStakedAmount > 0 ? onChainStakedAmount : (userStakes.get(homeMineId) || 0)) 
+    : 0;
 
   return (
     <main className="min-h-screen bg-coal-950 relative overflow-hidden">

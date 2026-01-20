@@ -33,13 +33,22 @@ export default function StakingPanel({
   const { isConnected, displayAddress } = useWallet();
   const staking = useStaking();
   
+  // Use on-chain staked amount as primary source, fall back to prop
+  const onChainStake = staking.stakeInfo?.stakedAmount ?? 0;
+  const effectiveStake = onChainStake > 0 ? onChainStake : currentStake;
+  
+  // Refresh stake info when panel opens
+  useEffect(() => {
+    staking.refreshStakeInfo();
+  }, []);
+  
   const colors = RESOURCE_COLORS[mine.resource];
-  const currentTier = getStakeTier(currentStake);
+  const currentTier = getStakeTier(effectiveStake);
   const previewTier = mode === 'stake' 
-    ? getStakeTier(currentStake + Number(amount || 0))
-    : getStakeTier(Math.max(0, currentStake - Number(amount || 0)));
+    ? getStakeTier(effectiveStake + Number(amount || 0))
+    : getStakeTier(Math.max(0, effectiveStake - Number(amount || 0)));
 
-  const maxAmount = mode === 'stake' ? walletBalance : currentStake;
+  const maxAmount = mode === 'stake' ? walletBalance : effectiveStake;
   
   // Track if we're in a transaction
   const isProcessing = staking.isStaking || staking.isUnstaking;
@@ -137,7 +146,13 @@ export default function StakingPanel({
           <div className="flex items-center justify-between mb-4">
             <div>
               <div className="text-xs text-coal-400 uppercase">Current Stake</div>
-              <div className="text-xl font-bold text-ember-400">{currentStake.toLocaleString()} COAL</div>
+              <div className="text-xl font-bold text-ember-400">
+                {staking.isLoading ? (
+                  <span className="animate-pulse">Loading...</span>
+                ) : (
+                  `${effectiveStake.toLocaleString()} COAL`
+                )}
+              </div>
             </div>
             <div className="text-right">
               <div className="text-xs text-coal-400 uppercase">Current Tier</div>
@@ -148,8 +163,8 @@ export default function StakingPanel({
           {/* Tier progress */}
           <div className="space-y-2">
             {STAKE_TIERS.map((tier, i) => {
-              const isActive = currentStake >= tier.minStake;
-              const isNext = !isActive && (i === 0 || currentStake >= STAKE_TIERS[i - 1].minStake);
+              const isActive = effectiveStake >= tier.minStake;
+              const isNext = !isActive && (i === 0 || effectiveStake >= STAKE_TIERS[i - 1].minStake);
               
               return (
                 <div key={tier.name} className="flex items-center gap-3">
@@ -171,7 +186,7 @@ export default function StakingPanel({
                   </div>
                   {isNext && (
                     <span className="text-xs text-ember-400">
-                      +{(tier.minStake - currentStake).toLocaleString()} to unlock
+                      +{(tier.minStake - effectiveStake).toLocaleString()} to unlock
                     </span>
                   )}
                 </div>
@@ -257,8 +272,8 @@ export default function StakingPanel({
               <div className="flex items-center justify-between">
                 <span className="text-white">
                   {mode === 'stake' 
-                    ? (currentStake + Number(amount)).toLocaleString()
-                    : Math.max(0, currentStake - Number(amount)).toLocaleString()
+                    ? (effectiveStake + Number(amount)).toLocaleString()
+                    : Math.max(0, effectiveStake - Number(amount)).toLocaleString()
                   } COAL
                 </span>
                 {previewTier.name !== currentTier.name && (
