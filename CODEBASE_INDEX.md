@@ -1,14 +1,61 @@
-# Black Gold v3.3.9 - Codebase Index
+# Black Gold v3.3.10 - Codebase Index
 
 > Complete file-by-file documentation for the Black Gold Interactive Mining Globe platform
 
 **Last Updated**: January 20, 2026  
-**Version**: 3.3.9 (Staking UX Improvements)  
-**Total Files**: 88+ TypeScript/TSX/JS files
+**Version**: 3.3.10 (Staking Test Suite)  
+**Total Files**: 90+ TypeScript/TSX/JS files
 
 ---
 
-## 📋 Recent Changes (v3.3.9)
+## 📋 Recent Changes (v3.3.10)
+
+### Comprehensive Staking Test Suite
+
+Added automated test suite and manual test checklist for thorough staking system verification before mainnet deployment.
+
+#### New Files
+
+| File | Purpose |
+|------|---------|
+| `scripts/test-staking.ts` | Automated test suite with 51 tests covering tier calculations, hashrate multipliers, defense power, attack power, API integration, edge cases, stress tests, and error handling |
+| `scripts/test-utils.ts` | Test utilities including logger, result tracker, assertions, timing helpers, and report generator |
+| `docs/STAKING_TEST_CHECKLIST.md` | Manual test checklist for Phase 1-6 testing including core operations, tier benefits, multi-device, edge cases, automated tests, and raid integration |
+
+#### Test Suite Coverage (51 Tests)
+
+| Suite | Tests | Coverage |
+|-------|-------|----------|
+| Tier Calculation | 11 | All tier boundaries and edge cases |
+| Hashrate Multiplier | 9 | All tiers + coal loyalty bonus |
+| Defense Power | 8 | All tiers + home base bonus |
+| Attack Power | 4 | Formula verification |
+| API Integration | 5 | Config, stake info, transactions |
+| Edge Cases | 6 | Large amounts, boundaries, precision |
+| Stress Tests | 4 | 10K iterations, concurrent ops |
+| Error Handling | 4 | Network errors, invalid inputs |
+
+#### Running Tests
+
+```bash
+# Run automated test suite
+npx tsx scripts/test-staking.ts
+
+# Expected output: 51/51 tests passed
+```
+
+#### Manual Test Phases
+
+1. **Phase 1**: Core operations (stake/unstake/re-stake)
+2. **Phase 2**: Tier benefits (hashrate/defense multipliers)
+3. **Phase 3**: Multi-device sync testing
+4. **Phase 4**: Edge cases (zero amounts, insufficient balance, etc.)
+5. **Phase 5**: Automated test suite execution
+6. **Phase 6**: Raid integration (attack/defense power)
+
+---
+
+## 📋 Previous Changes (v3.3.9)
 
 ### Staking UX Improvements & Bug Fixes
 
@@ -1996,7 +2043,9 @@ PrivyProvider        ← Outer: Provides Privy context
 |------|-------|---------|-------|
 | `buyback.ts` | ~215 | Standalone buyback service | `npm run buyback` |
 | `create-test-token.ts` | ~127 | Create SPL test tokens on devnet | `npx tsx scripts/create-test-token.ts` |
-| `deploy-quarry.ts` | ~290 | **NEW v2.9** Deploy Quarry infrastructure (IOU + MintWrapper + Rewarder + Quarry) | `DEPLOYER_PRIVATE_KEY="..." npx tsx scripts/deploy-quarry.ts` |
+| `deploy-quarry.ts` | ~290 | Deploy Quarry infrastructure (IOU + MintWrapper + Rewarder + Quarry) | `DEPLOYER_PRIVATE_KEY="..." npx tsx scripts/deploy-quarry.ts` |
+| `test-staking.ts` | ~580 | **NEW v3.3.10** Comprehensive staking test suite (51 tests) | `npx tsx scripts/test-staking.ts` |
+| `test-utils.ts` | ~280 | **NEW v3.3.10** Test utilities (logger, assertions, reporting) | Imported by test-staking.ts |
 
 ---
 
