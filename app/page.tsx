@@ -580,16 +580,17 @@ export default function Home() {
   // NOTE: Token balance now comes from useHolderVerification via WalletEntry
   // No need for duplicate /api/balance fetch - verify-holder returns real balance
   
-  // Refresh wallet balance after transactions
+  // Refresh wallet balance after transactions (bypasses cache to get fresh on-chain data)
   const refreshWalletBalance = useCallback(async () => {
     if (!walletState.walletAddress) return;
     
     try {
-      console.log('[Wallet] Refreshing wallet balance...');
-      const response = await fetch(`/api/verify-holder?wallet=${encodeURIComponent(walletState.walletAddress)}`);
+      console.log('[Wallet] Refreshing wallet balance (force=true to bypass cache)...');
+      // Use force=true to bypass the 5-minute API cache after stake/unstake
+      const response = await fetch(`/api/verify-holder?wallet=${encodeURIComponent(walletState.walletAddress)}&force=true`);
       if (response.ok) {
         const data = await response.json();
-        console.log('[Wallet] New balance:', data.balance);
+        console.log('[Wallet] New balance from chain:', data.balance);
         setWalletState(prev => ({
           ...prev,
           tokenBalance: data.balance ?? prev.tokenBalance,

@@ -218,10 +218,15 @@ async function getMarketCap(): Promise<number> {
 }
 
 /**
- * GET /api/verify-holder?wallet=<address>
+ * GET /api/verify-holder?wallet=<address>&force=true
+ * 
+ * Query params:
+ * - wallet: Solana wallet address (required)
+ * - force: If 'true', bypasses cache and fetches fresh data (optional)
  */
 export async function GET(request: NextRequest) {
   const wallet = request.nextUrl.searchParams.get('wallet');
+  const forceRefresh = request.nextUrl.searchParams.get('force') === 'true';
   
   if (!wallet || wallet.length < 32) {
     return NextResponse.json(
@@ -230,10 +235,16 @@ export async function GET(request: NextRequest) {
     );
   }
   
-  // Check cache first
+  // Get cached data (needed for error fallback even if force refresh)
   const cached = verificationCache.get(wallet);
-  if (cached && Date.now() - cached.timestamp < HOLDER_CONFIG.CACHE_DURATION_MS) {
+  
+  // Check cache first (unless force refresh is requested)
+  if (!forceRefresh && cached && Date.now() - cached.timestamp < HOLDER_CONFIG.CACHE_DURATION_MS) {
     return NextResponse.json(cached.data);
+  }
+  
+  if (forceRefresh) {
+    console.log(`[API] Force refresh requested for ${wallet.slice(0,8)}...`);
   }
   
   try {

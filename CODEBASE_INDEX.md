@@ -1,34 +1,58 @@
-# Black Gold v3.3.12 - Codebase Index
+# Black Gold v3.3.13 - Codebase Index
 
 > Complete file-by-file documentation for the Black Gold Interactive Mining Globe platform
 
 **Last Updated**: January 21, 2026  
-**Version**: 3.3.12 (Balance Refresh After Transactions)  
+**Version**: 3.3.13 (Cache Bypass for Balance Refresh)  
 **Total Files**: 90+ TypeScript/TSX/JS files
 
 ---
 
-## 📋 Recent Changes (v3.3.12)
+## 📋 Recent Changes (v3.3.13)
 
-### Balance Refresh After Stake/Unstake Transactions
+### Cache Bypass for Balance Refresh After Transactions
 
-Fixed issues where wallet balance and staked balance weren't updating after transactions.
+Fixed issue where balance wasn't updating after stake/unstake due to API cache.
 
 #### Problem
 
 After staking/unstaking:
-- Wallet balance (available tokens) didn't update
-- Staked balance sometimes showed old values
-- Users had to manually refresh to see new balances
+- The `/api/verify-holder` endpoint has a 5-minute in-memory cache
+- When `refreshWalletBalance()` was called, it returned cached (stale) data
+- Users saw old balances even after successful on-chain transactions
+
+#### Fixes in `app/api/verify-holder/route.ts`
+
+Added `force=true` query parameter to bypass cache:
+```typescript
+export async function GET(request: NextRequest) {
+  const wallet = request.nextUrl.searchParams.get('wallet');
+  const forceRefresh = request.nextUrl.searchParams.get('force') === 'true';
+  
+  // Get cached data (needed for error fallback even if force refresh)
+  const cached = verificationCache.get(wallet);
+  
+  // Check cache first (unless force refresh is requested)
+  if (!forceRefresh && cached && Date.now() - cached.timestamp < HOLDER_CONFIG.CACHE_DURATION_MS) {
+    return NextResponse.json(cached.data);
+  }
+  
+  if (forceRefresh) {
+    console.log(`[API] Force refresh requested for ${wallet.slice(0,8)}...`);
+  }
+  // ... fetch fresh data from chain
+}
+```
 
 #### Fixes in `app/page.tsx`
 
-1. **Added `refreshWalletBalance()` function**:
+Updated `refreshWalletBalance()` to use `force=true`:
 ```typescript
 const refreshWalletBalance = useCallback(async () => {
   if (!walletState.walletAddress) return;
   
-  const response = await fetch(`/api/verify-holder?wallet=${encodeURIComponent(walletState.walletAddress)}`);
+  // Use force=true to bypass the 5-minute API cache after stake/unstake
+  const response = await fetch(`/api/verify-holder?wallet=${encodeURIComponent(walletState.walletAddress)}&force=true`);
   if (response.ok) {
     const data = await response.json();
     setWalletState(prev => ({
@@ -38,6 +62,14 @@ const refreshWalletBalance = useCallback(async () => {
   }
 }, [walletState.walletAddress]);
 ```
+
+---
+
+## 📋 Previous Changes (v3.3.12)
+
+### Balance Refresh After Stake/Unstake Transactions
+
+Fixed issues where wallet balance and staked balance weren't updating after transactions.
 
 2. **Updated success handlers to refresh BOTH balances**:
 ```typescript
