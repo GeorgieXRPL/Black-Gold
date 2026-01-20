@@ -1,14 +1,72 @@
-# Black Gold v3.3.10 - Codebase Index
+# Black Gold v3.3.11 - Codebase Index
 
 > Complete file-by-file documentation for the Black Gold Interactive Mining Globe platform
 
-**Last Updated**: January 20, 2026  
-**Version**: 3.3.10 (Staking Test Suite)  
+**Last Updated**: January 21, 2026  
+**Version**: 3.3.11 (Staking UI Data Source Fix)  
 **Total Files**: 90+ TypeScript/TSX/JS files
 
 ---
 
-## 📋 Recent Changes (v3.3.10)
+## 📋 Recent Changes (v3.3.11)
+
+### Staking UI Now Uses On-Chain Data Correctly
+
+Fixed issues where staking popup showed 0 balance for some users and unstaking appeared broken.
+
+#### Root Cause
+
+Two separate stake tracking systems were out of sync:
+1. **Local `userStakes` Map** - Started at 0 for new sessions
+2. **On-chain `staking.stakeInfo`** - Correct values from Quarry
+
+The StakingPanel was using local state which showed 0 for users who hadn't staked in the current browser session.
+
+#### Fixes in `app/components/game/StakingPanel.tsx`
+
+1. **Use on-chain data as primary source**:
+```typescript
+const onChainStake = staking.stakeInfo?.stakedAmount ?? 0;
+const effectiveStake = onChainStake > 0 ? onChainStake : currentStake;
+```
+
+2. **Refresh stake info when panel opens**:
+```typescript
+useEffect(() => {
+  staking.refreshStakeInfo();
+}, []);
+```
+
+3. **Show loading state**:
+```typescript
+{staking.isLoading ? (
+  <span className="animate-pulse">Loading...</span>
+) : (
+  `${effectiveStake.toLocaleString()} COAL`
+)}
+```
+
+#### Fixes in `app/page.tsx`
+
+1. **userStakeAtSelected/userStakeAtHome prefer on-chain value**:
+```typescript
+const onChainStakedAmount = staking.stakeInfo?.stakedAmount ?? 0;
+const userStakeAtSelected = selectedMineId 
+  ? (onChainStakedAmount > 0 ? onChainStakedAmount : (userStakes.get(selectedMineId) || 0)) 
+  : 0;
+```
+
+2. **Auto-refresh after transactions**:
+```typescript
+// In handleStakeSuccess and handleUnstakeSuccess
+setTimeout(() => {
+  staking.refreshStakeInfo();
+}, 2000);
+```
+
+---
+
+## 📋 Previous Changes (v3.3.10)
 
 ### Comprehensive Staking Test Suite
 
