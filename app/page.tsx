@@ -11,6 +11,7 @@ import { HomeBase, MineDetails, StakingPanel, ExpeditionPanel, RaidFeed, Discove
 import { EmberParticles, WalletEntry, WalletEntryState, CoreSelector } from './components';
 import { useGameSocket, GameEvent, WorkUnit } from './hooks/useGameSocket';
 import { useMining } from './hooks/useMining';
+import { useStaking } from './hooks/useStaking';
 import { 
   MOCK_EVENTS, 
   DEMO_USER, 
@@ -175,6 +176,10 @@ export default function Home() {
   useEffect(() => {
     startMiningRef.current = mining.startMining;
   }, [mining.startMining]);
+
+  // Staking hook - for displaying staked balance
+  const staking = useStaking();
+  const stakedBalance = staking.stakeInfo?.stakedAmount ?? 0;
 
   // Game event handler for raid feed and discovery notifications
   const handleGameEvent = useCallback((event: GameEvent) => {
@@ -752,14 +757,26 @@ export default function Home() {
             <div className="flex items-center gap-4 md:gap-6">
               {/* Wallet balance - only show when connected */}
               {walletState.isConnected && (
-                <div className="hidden sm:flex items-center gap-2">
-                  <span className="text-coal-400 text-sm">Balance:</span>
-                  {walletState.verificationLoading ? (
-                    <span className="text-coal-500 text-sm animate-pulse">Loading...</span>
-                  ) : (
-                    <span className="text-ember-400 font-bold">
-                      {walletBalance.toLocaleString()} {process.env.NEXT_PUBLIC_SOLANA_NETWORK === 'devnet' ? 'ALPHA' : 'COAL'}
-                    </span>
+                <div className="hidden sm:flex items-center gap-4">
+                  {/* Available balance */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-coal-400 text-sm">Wallet:</span>
+                    {walletState.verificationLoading ? (
+                      <span className="text-coal-500 text-sm animate-pulse">Loading...</span>
+                    ) : (
+                      <span className="text-ember-400 font-bold">
+                        {walletBalance.toLocaleString()} {process.env.NEXT_PUBLIC_SOLANA_NETWORK === 'devnet' ? 'ALPHA' : 'COAL'}
+                      </span>
+                    )}
+                  </div>
+                  {/* Staked balance */}
+                  {stakedBalance > 0 && (
+                    <div className="flex items-center gap-2 border-l border-coal-700 pl-4">
+                      <span className="text-coal-400 text-sm">Staked:</span>
+                      <span className="text-green-400 font-bold">
+                        {stakedBalance.toLocaleString()} {process.env.NEXT_PUBLIC_SOLANA_NETWORK === 'devnet' ? 'ALPHA' : 'COAL'}
+                      </span>
+                    </div>
                   )}
                 </div>
               )}
