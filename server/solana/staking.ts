@@ -587,23 +587,54 @@ export async function getUserStakeInfo(walletAddress: string): Promise<UserStake
     // Fetch miner data through Quarry SDK
     const miner = await quarry.getMiner(userPubkey);
     
+    console.log(`[Staking] Raw miner data for ${walletAddress}:`, JSON.stringify(miner, (key, value) => 
+      typeof value === 'bigint' ? value.toString() : value
+    , 2));
+    
     if (!miner) {
+      console.log(`[Staking] getMiner returned null for ${walletAddress}`);
       return defaultInfo;
     }
 
-    // Calculate pending rewards
-    // Note: Quarry SDK handles the complex reward calculation
-    // @ts-expect-error - Miner data shape varies by SDK version
-    const stakedBalance = miner.balance || miner.tokensDeposited || 0;
-    // @ts-expect-error - Miner data shape varies by SDK version
-    const rewardsEarned = miner.rewardsEarned || miner.rewardsTally || 0;
+    // Log available keys to debug
+    console.log(`[Staking] Miner object keys:`, Object.keys(miner));
 
-    console.log(`[Staking] Stake info for ${walletAddress}: ${stakedBalance} staked, ${rewardsEarned} pending`);
+    // Calculate staked balance - handle BN/BigInt properly
+    let stakedBalance = miner.balance;
+    if (stakedBalance === undefined || stakedBalance === null) {
+      // @ts-expect-error - Try alternate property names
+      stakedBalance = miner.tokensDeposited || miner.tokenBalance || 0;
+    }
+    
+    // Convert BN/BigInt to number
+    if (stakedBalance && typeof stakedBalance.toNumber === 'function') {
+      stakedBalance = stakedBalance.toNumber();
+    } else if (typeof stakedBalance === 'bigint') {
+      stakedBalance = Number(stakedBalance);
+    } else if (stakedBalance && stakedBalance.toString) {
+      stakedBalance = Number(stakedBalance.toString());
+    }
+
+    // Calculate pending rewards
+    // @ts-expect-error - Miner data shape varies by SDK version
+    let rewardsEarned = miner.rewardsEarned || miner.rewardsTally || 0;
+    if (rewardsEarned && typeof rewardsEarned.toNumber === 'function') {
+      rewardsEarned = rewardsEarned.toNumber();
+    } else if (typeof rewardsEarned === 'bigint') {
+      rewardsEarned = Number(rewardsEarned);
+    } else if (rewardsEarned && rewardsEarned.toString) {
+      rewardsEarned = Number(rewardsEarned.toString());
+    }
+
+    const stakedAmountDecimal = Number(stakedBalance) / Math.pow(10, TOKEN_CONFIG.DECIMALS);
+    const pendingRewardsDecimal = Number(rewardsEarned) / Math.pow(10, TOKEN_CONFIG.DECIMALS);
+
+    console.log(`[Staking] Stake info for ${walletAddress}: ${stakedAmountDecimal} staked (raw: ${stakedBalance}), ${pendingRewardsDecimal} pending (raw: ${rewardsEarned})`);
 
     return {
       walletAddress,
-      stakedAmount: Number(stakedBalance) / Math.pow(10, TOKEN_CONFIG.DECIMALS),
-      pendingRewards: Number(rewardsEarned) / Math.pow(10, TOKEN_CONFIG.DECIMALS),
+      stakedAmount: stakedAmountDecimal,
+      pendingRewards: pendingRewardsDecimal,
       lastStakeTime: null, // SDK doesn't expose this directly
       minerPDA: minerKey.toBase58(),
     };
