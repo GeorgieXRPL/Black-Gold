@@ -1,14 +1,94 @@
-# Black Gold v3.3.11 - Codebase Index
+# Black Gold v3.3.12 - Codebase Index
 
 > Complete file-by-file documentation for the Black Gold Interactive Mining Globe platform
 
 **Last Updated**: January 21, 2026  
-**Version**: 3.3.11 (Staking UI Data Source Fix)  
+**Version**: 3.3.12 (Balance Refresh After Transactions)  
 **Total Files**: 90+ TypeScript/TSX/JS files
 
 ---
 
-## 📋 Recent Changes (v3.3.11)
+## 📋 Recent Changes (v3.3.12)
+
+### Balance Refresh After Stake/Unstake Transactions
+
+Fixed issues where wallet balance and staked balance weren't updating after transactions.
+
+#### Problem
+
+After staking/unstaking:
+- Wallet balance (available tokens) didn't update
+- Staked balance sometimes showed old values
+- Users had to manually refresh to see new balances
+
+#### Fixes in `app/page.tsx`
+
+1. **Added `refreshWalletBalance()` function**:
+```typescript
+const refreshWalletBalance = useCallback(async () => {
+  if (!walletState.walletAddress) return;
+  
+  const response = await fetch(`/api/verify-holder?wallet=${encodeURIComponent(walletState.walletAddress)}`);
+  if (response.ok) {
+    const data = await response.json();
+    setWalletState(prev => ({
+      ...prev,
+      tokenBalance: data.balance ?? prev.tokenBalance,
+    }));
+  }
+}, [walletState.walletAddress]);
+```
+
+2. **Updated success handlers to refresh BOTH balances**:
+```typescript
+// In handleStakeSuccess and handleUnstakeSuccess
+setTimeout(() => {
+  console.log('[Stake] Refreshing balances from chain...');
+  staking.refreshStakeInfo();    // Refresh staked balance
+  refreshWalletBalance();         // Refresh wallet balance
+}, 3000);  // 3 seconds for chain confirmation
+```
+
+#### Fixes in `app/components/game/StakingPanel.tsx`
+
+1. **Added visual feedback during refresh**:
+```typescript
+const [isRefreshing, setIsRefreshing] = useState(false);
+
+// After successful transaction
+setIsRefreshing(true);
+setTimeout(() => {
+  staking.refreshStakeInfo();
+  setIsRefreshing(false);
+}, 3000);
+```
+
+2. **Shows "Updating..." while refreshing**:
+```typescript
+{staking.isLoading || isRefreshing ? (
+  <span className="animate-pulse">Updating...</span>
+) : (
+  `${effectiveStake.toLocaleString()} COAL`
+)}
+```
+
+3. **Success message shows refresh status**:
+```typescript
+{isRefreshing && (
+  <span className="text-green-300 ml-2 animate-pulse">Updating balances...</span>
+)}
+```
+
+#### User Experience After Fix
+
+1. ✅ Transaction succeeds → Success message appears
+2. ⏳ "Updating balances..." shows for ~3 seconds
+3. ✅ Staked balance updates to new amount
+4. ✅ Wallet balance in header updates to new amount
+
+---
+
+## 📋 Previous Changes (v3.3.11)
 
 ### Staking UI Now Uses On-Chain Data Correctly
 
@@ -54,14 +134,6 @@ const onChainStakedAmount = staking.stakeInfo?.stakedAmount ?? 0;
 const userStakeAtSelected = selectedMineId 
   ? (onChainStakedAmount > 0 ? onChainStakedAmount : (userStakes.get(selectedMineId) || 0)) 
   : 0;
-```
-
-2. **Auto-refresh after transactions**:
-```typescript
-// In handleStakeSuccess and handleUnstakeSuccess
-setTimeout(() => {
-  staking.refreshStakeInfo();
-}, 2000);
 ```
 
 ---
