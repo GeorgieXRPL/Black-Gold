@@ -53,6 +53,9 @@ export default function StakingPanel({
   // Track if we're in a transaction
   const isProcessing = staking.isStaking || staking.isUnstaking;
 
+  // Track when we're refreshing after a transaction
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
   /**
    * Handle stake/unstake submission - uses actual on-chain staking
    */
@@ -73,6 +76,13 @@ export default function StakingPanel({
           console.log('[StakingPanel] Stake successful:', result.signature);
           onStakeSuccess?.(numAmount, result.signature);
           setAmount('');
+          
+          // Show refreshing state and auto-refresh after delay
+          setIsRefreshing(true);
+          setTimeout(() => {
+            staking.refreshStakeInfo();
+            setIsRefreshing(false);
+          }, 3000);
         }
       } else {
         console.log('[StakingPanel] Initiating unstake of', numAmount, 'tokens...');
@@ -82,6 +92,13 @@ export default function StakingPanel({
           console.log('[StakingPanel] Unstake successful:', result.signature);
           onUnstakeSuccess?.(numAmount, result.signature);
           setAmount('');
+          
+          // Show refreshing state and auto-refresh after delay
+          setIsRefreshing(true);
+          setTimeout(() => {
+            staking.refreshStakeInfo();
+            setIsRefreshing(false);
+          }, 3000);
         }
       }
     } catch (err) {
@@ -147,8 +164,8 @@ export default function StakingPanel({
             <div>
               <div className="text-xs text-coal-400 uppercase">Current Stake</div>
               <div className="text-xl font-bold text-ember-400">
-                {staking.isLoading ? (
-                  <span className="animate-pulse">Loading...</span>
+                {staking.isLoading || isRefreshing ? (
+                  <span className="animate-pulse">Updating...</span>
                 ) : (
                   `${effectiveStake.toLocaleString()} COAL`
                 )}
@@ -295,7 +312,10 @@ export default function StakingPanel({
           {/* Success message */}
           {staking.lastSignature && !staking.error && (
             <div className="bg-green-900/30 border border-green-700 rounded-lg p-3 text-sm">
-              <span className="text-green-400">✅ Transaction sent!</span>
+              <span className="text-green-400">✅ Transaction confirmed!</span>
+              {isRefreshing && (
+                <span className="text-green-300 ml-2 animate-pulse">Updating balances...</span>
+              )}
               <a 
                 href={`https://explorer.solana.com/tx/${staking.lastSignature}?cluster=devnet`}
                 target="_blank"

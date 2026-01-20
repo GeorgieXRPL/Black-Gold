@@ -579,6 +579,26 @@ export default function Home() {
 
   // NOTE: Token balance now comes from useHolderVerification via WalletEntry
   // No need for duplicate /api/balance fetch - verify-holder returns real balance
+  
+  // Refresh wallet balance after transactions
+  const refreshWalletBalance = useCallback(async () => {
+    if (!walletState.walletAddress) return;
+    
+    try {
+      console.log('[Wallet] Refreshing wallet balance...');
+      const response = await fetch(`/api/verify-holder?wallet=${encodeURIComponent(walletState.walletAddress)}`);
+      if (response.ok) {
+        const data = await response.json();
+        console.log('[Wallet] New balance:', data.balance);
+        setWalletState(prev => ({
+          ...prev,
+          tokenBalance: data.balance ?? prev.tokenBalance,
+        }));
+      }
+    } catch (err) {
+      console.error('[Wallet] Failed to refresh balance:', err);
+    }
+  }, [walletState.walletAddress]);
 
   // Handlers
   const handleMineSelect = useCallback((mineId: string) => {
@@ -685,13 +705,16 @@ export default function Home() {
       return newStakes;
     });
     
-    // Refresh on-chain stake info after a short delay to let the chain update
+    // Refresh both staked balance and wallet balance after chain confirms
+    // Wait 3 seconds for the chain to fully confirm the transaction
     setTimeout(() => {
+      console.log('[Stake] Refreshing balances from chain...');
       staking.refreshStakeInfo();
-    }, 2000);
+      refreshWalletBalance();
+    }, 3000);
     
     // Don't close panel - let user see the success message and explorer link
-  }, [selectedMineId, staking]);
+  }, [selectedMineId, staking, refreshWalletBalance]);
 
   const handleUnstakeSuccess = useCallback((amount: number, signature: string) => {
     if (!selectedMineId) return;
@@ -706,13 +729,16 @@ export default function Home() {
       return newStakes;
     });
     
-    // Refresh on-chain stake info after a short delay to let the chain update
+    // Refresh both staked balance and wallet balance after chain confirms
+    // Wait 3 seconds for the chain to fully confirm the transaction
     setTimeout(() => {
+      console.log('[Unstake] Refreshing balances from chain...');
       staking.refreshStakeInfo();
-    }, 2000);
+      refreshWalletBalance();
+    }, 3000);
     
     // Don't close panel - let user see the success message and explorer link
-  }, [selectedMineId, staking]);
+  }, [selectedMineId, staking, refreshWalletBalance]);
 
   const handleLaunchRaid = useCallback((betAmount: number) => {
     console.log('Launching raid with bet:', betAmount);
