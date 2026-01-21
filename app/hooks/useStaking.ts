@@ -395,8 +395,13 @@ export function useStaking(): UseStakingReturn {
         })
         .catch(e => console.warn('[Staking] Backend verification error (non-blocking):', e));
 
-      // 4. Refresh stake info to show updated balance
+      // 4. Refresh stake info to show updated staked balance
       await refreshStakeInfo();
+      
+      // 5. Refresh wallet balance (tokens moved from wallet to quarry vault)
+      // Use force=true to bypass all caching
+      console.log('[Staking] Refreshing wallet balance after stake...');
+      await wallet.holderVerification.refresh(true);
 
       setState(prev => ({ 
         ...prev, 
@@ -477,8 +482,13 @@ export function useStaking(): UseStakingReturn {
         })
         .catch(e => console.warn('[Staking] Backend verification error (non-blocking):', e));
 
-      // Refresh stake info to show updated balance
+      // Refresh stake info to show updated staked balance
       await refreshStakeInfo();
+      
+      // Refresh wallet balance (tokens moved from quarry vault back to wallet)
+      // Use force=true to bypass all caching
+      console.log('[Staking] Refreshing wallet balance after unstake...');
+      await wallet.holderVerification.refresh(true);
       
       setState(prev => ({ 
         ...prev, 
@@ -543,8 +553,13 @@ export function useStaking(): UseStakingReturn {
         })
         .catch(e => console.warn('[Staking] Backend verification error (non-blocking):', e));
 
-      // Refresh stake info to show updated balance
+      // Refresh stake info to show updated staked balance
       await refreshStakeInfo();
+      
+      // Refresh wallet balance (claimed rewards go to wallet)
+      // Use force=true to bypass all caching
+      console.log('[Staking] Refreshing wallet balance after claim...');
+      await wallet.holderVerification.refresh(true);
 
       setState(prev => ({ 
         ...prev, 

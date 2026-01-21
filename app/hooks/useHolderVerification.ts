@@ -15,8 +15,11 @@ interface UseHolderVerificationReturn {
   loading: boolean;
   /** Error message if verification failed */
   error: string | null;
-  /** Refresh the verification */
-  refresh: () => Promise<void>;
+  /** 
+   * Refresh the verification
+   * @param force - If true, bypasses all caching to get fresh on-chain data
+   */
+  refresh: (force?: boolean) => Promise<void>;
 }
 
 /**
@@ -28,7 +31,7 @@ export function useHolderVerification(walletAddress: string | null): UseHolderVe
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchVerification = useCallback(async () => {
+  const fetchVerification = useCallback(async (force: boolean = false) => {
     if (!walletAddress) {
       setVerification(null);
       setError(null);
@@ -39,7 +42,10 @@ export function useHolderVerification(walletAddress: string | null): UseHolderVe
     setError(null);
 
     try {
-      const response = await fetch(`/api/verify-holder?wallet=${encodeURIComponent(walletAddress)}`);
+      // Use force=true to bypass API cache when needed (e.g., after staking/unstaking)
+      const forceParam = force ? '&force=true' : '';
+      console.log(`[HolderVerification] Fetching balance for ${walletAddress.slice(0,8)}...${force ? ' (force refresh)' : ''}`);
+      const response = await fetch(`/api/verify-holder?wallet=${encodeURIComponent(walletAddress)}${forceParam}`);
       
       if (!response.ok) {
         throw new Error(`Verification failed: ${response.status}`);
