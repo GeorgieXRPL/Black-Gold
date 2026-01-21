@@ -398,7 +398,12 @@ export function useStaking(): UseStakingReturn {
       // 4. Refresh stake info to show updated staked balance
       await refreshStakeInfo();
       
-      // 5. Refresh wallet balance (tokens moved from wallet to quarry vault)
+      // 5. Wait for RPC to sync before refreshing wallet balance
+      // Solana RPC nodes can take a few seconds to reflect new token balances
+      console.log('[Staking] Waiting 3s for RPC to sync before refreshing wallet balance...');
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      // 6. Refresh wallet balance (tokens moved from wallet to quarry vault)
       // Use force=true to bypass all caching
       console.log('[Staking] Refreshing wallet balance after stake...');
       await wallet.holderVerification.refresh(true);
@@ -485,6 +490,11 @@ export function useStaking(): UseStakingReturn {
       // Refresh stake info to show updated staked balance
       await refreshStakeInfo();
       
+      // Wait for RPC to sync before refreshing wallet balance
+      // Solana RPC nodes can take a few seconds to reflect new token balances
+      console.log('[Staking] Waiting 3s for RPC to sync before refreshing wallet balance...');
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
       // Refresh wallet balance (tokens moved from quarry vault back to wallet)
       // Use force=true to bypass all caching
       console.log('[Staking] Refreshing wallet balance after unstake...');
@@ -555,6 +565,11 @@ export function useStaking(): UseStakingReturn {
 
       // Refresh stake info to show updated staked balance
       await refreshStakeInfo();
+      
+      // Wait for RPC to sync before refreshing wallet balance
+      // Solana RPC nodes can take a few seconds to reflect new token balances
+      console.log('[Staking] Waiting 3s for RPC to sync before refreshing wallet balance...');
+      await new Promise(resolve => setTimeout(resolve, 3000));
       
       // Refresh wallet balance (claimed rewards go to wallet)
       // Use force=true to bypass all caching
