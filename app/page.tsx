@@ -578,28 +578,8 @@ export default function Home() {
   }, [mining.hashrate]);
 
   // NOTE: Token balance now comes from useHolderVerification via WalletEntry
-  // No need for duplicate /api/balance fetch - verify-holder returns real balance
-  
-  // Refresh wallet balance after transactions (bypasses cache to get fresh on-chain data)
-  const refreshWalletBalance = useCallback(async () => {
-    if (!walletState.walletAddress) return;
-    
-    try {
-      console.log('[Wallet] Refreshing wallet balance (force=true to bypass cache)...');
-      // Use force=true to bypass the 5-minute API cache after stake/unstake
-      const response = await fetch(`/api/verify-holder?wallet=${encodeURIComponent(walletState.walletAddress)}&force=true`);
-      if (response.ok) {
-        const data = await response.json();
-        console.log('[Wallet] New balance from chain:', data.balance);
-        setWalletState(prev => ({
-          ...prev,
-          tokenBalance: data.balance ?? prev.tokenBalance,
-        }));
-      }
-    } catch (err) {
-      console.error('[Wallet] Failed to refresh balance:', err);
-    }
-  }, [walletState.walletAddress]);
+  // Wallet balance refresh is handled by useStaking hook which calls
+  // wallet.holderVerification.refresh(true) directly after transactions
 
   // Handlers
   const handleMineSelect = useCallback((mineId: string) => {
@@ -706,16 +686,12 @@ export default function Home() {
       return newStakes;
     });
     
-    // Refresh both staked balance and wallet balance after chain confirms
-    // Wait 3 seconds for the chain to fully confirm the transaction
-    setTimeout(() => {
-      console.log('[Stake] Refreshing balances from chain...');
-      staking.refreshStakeInfo();
-      refreshWalletBalance();
-    }, 3000);
+    // NOTE: Wallet balance refresh is now handled by useStaking hook
+    // which calls wallet.holderVerification.refresh(true) directly after transaction
+    // No need for additional refresh here - it would cause race conditions
     
     // Don't close panel - let user see the success message and explorer link
-  }, [selectedMineId, staking, refreshWalletBalance]);
+  }, [selectedMineId]);
 
   const handleUnstakeSuccess = useCallback((amount: number, signature: string) => {
     if (!selectedMineId) return;
@@ -730,16 +706,12 @@ export default function Home() {
       return newStakes;
     });
     
-    // Refresh both staked balance and wallet balance after chain confirms
-    // Wait 3 seconds for the chain to fully confirm the transaction
-    setTimeout(() => {
-      console.log('[Unstake] Refreshing balances from chain...');
-      staking.refreshStakeInfo();
-      refreshWalletBalance();
-    }, 3000);
+    // NOTE: Wallet balance refresh is now handled by useStaking hook
+    // which calls wallet.holderVerification.refresh(true) directly after transaction
+    // No need for additional refresh here - it would cause race conditions
     
     // Don't close panel - let user see the success message and explorer link
-  }, [selectedMineId, staking, refreshWalletBalance]);
+  }, [selectedMineId]);
 
   const handleLaunchRaid = useCallback((betAmount: number) => {
     console.log('Launching raid with bet:', betAmount);
