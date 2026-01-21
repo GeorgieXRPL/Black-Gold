@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { HolderVerification } from '../../server/types';
 
 interface UseHolderVerificationReturn {
@@ -30,6 +30,11 @@ export function useHolderVerification(walletAddress: string | null): UseHolderVe
   const [verification, setVerification] = useState<HolderVerification | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Track when a force refresh was done to prevent non-force from overwriting
+  const lastForceRefreshRef = useRef<number>(0);
+  // Track if initial fetch has been done
+  const initialFetchDoneRef = useRef<boolean>(false);
 
   const fetchVerification = useCallback(async (force: boolean = false) => {
     if (!walletAddress) {
@@ -38,20 +43,38 @@ export function useHolderVerification(walletAddress: string | null): UseHolderVe
       return;
     }
 
+    // If this is a non-force refresh and a force refresh was done in the last 10 seconds, skip it
+    // This prevents stale cached data from overwriting fresh data
+    if (!force && lastForceRefreshRef.current > 0) {
+      const timeSinceForce = Date.now() - lastForceRefreshRef.current;
+      if (timeSinceForce < 10000) {
+        console.log(`[HolderVerification] Skipping non-force refresh (force refresh was ${timeSinceForce}ms ago)`);
+        return;
+      }
+    }
+
     setLoading(true);
     setError(null);
 
     try {
       // Use force=true to bypass API cache when needed (e.g., after staking/unstaking)
       const forceParam = force ? '&force=true' : '';
+      // Add timestamp to prevent any browser caching
+      const timestamp = force ? `&_t=${Date.now()}` : '';
       console.log(`[HolderVerification] Fetching balance for ${walletAddress.slice(0,8)}...${force ? ' (force refresh)' : ''}`);
-      const response = await fetch(`/api/verify-holder?wallet=${encodeURIComponent(walletAddress)}${forceParam}`);
+      
+      const response = await fetch(
+        `/api/verify-holder?wallet=${encodeURIComponent(walletAddress)}${forceParam}${timestamp}`,
+        force ? { cache: 'no-store' } : undefined
+      );
       
       if (!response.ok) {
         throw new Error(`Verification failed: ${response.status}`);
       }
 
       const data = await response.json();
+      
+      console.log(`[HolderVerification] Got balance: ${data.balance?.toLocaleString() ?? 'null'}${force ? ' (from force refresh)' : ''}`);
       
       // Map API response to HolderVerification type
       const verificationResult: HolderVerification = {
@@ -64,6 +87,11 @@ export function useHolderVerification(walletAddress: string | null): UseHolderVe
         marketCap: data.marketCap,
       };
 
+      // Update the force refresh timestamp
+      if (force) {
+        lastForceRefreshRef.current = Date.now();
+      }
+
       setVerification(verificationResult);
     } catch (err) {
       console.error('[HolderVerification] Error:', err);
@@ -74,12 +102,17 @@ export function useHolderVerification(walletAddress: string | null): UseHolderVe
     }
   }, [walletAddress]);
 
-  // Fetch verification when wallet changes
+  // Initial fetch when wallet connects (only once)
   useEffect(() => {
-    fetchVerification();
-  }, [fetchVerification]);
+    if (walletAddress && !initialFetchDoneRef.current) {
+      initialFetchDoneRef.current = true;
+      fetchVerification();
+    } else if (!walletAddress) {
+      initialFetchDoneRef.current = false;
+    }
+  }, [walletAddress, fetchVerification]);
 
-  // Auto-refresh every 5 minutes
+  // Auto-refresh every 5 minutes (only if no recent force refresh)
   useEffect(() => {
     if (!walletAddress) return;
 

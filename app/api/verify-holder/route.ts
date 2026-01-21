@@ -336,6 +336,17 @@ export async function GET(request: NextRequest) {
       timestamp: Date.now(),
     });
     
+    // When force refresh, add cache-control headers to prevent Vercel edge caching
+    if (forceRefresh) {
+      return NextResponse.json(response, {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        },
+      });
+    }
+    
     return NextResponse.json(response);
   } catch (error) {
     console.error('[API] Verification error:', error);
