@@ -67,68 +67,18 @@ function getHeliusApiBase(): string {
 }
 
 /**
- * Fetch REAL token balance from Helius API or RPC fallback
- * Always returns the actual on-chain balance - never fake values
- * @param walletAddress - The wallet address to check
- * @param forceRefresh - If true, bypasses all caching to get fresh on-chain data
+ * Fetch token balance directly from Solana RPC
+ * This is always up-to-date (no indexing delay like Helius)
  */
-async function getTokenBalance(walletAddress: string, forceRefresh: boolean = false): Promise<number> {
+async function getTokenBalanceFromRPC(walletAddress: string): Promise<number | null> {
   const mintAddress = TOKEN_CONFIG.MINT_ADDRESS;
   
-  // Token not configured
-  if (mintAddress === 'TBD' || mintAddress === 'DEVNET_TEST_TOKEN') {
-    console.log('[API] Token not configured, allowing all holders');
-    return Infinity;
-  }
-
-  // Try Helius API first (works for both devnet and mainnet)
-  if (RPC_CONFIG.HELIUS_API_KEY) {
-    try {
-      const heliusBase = getHeliusApiBase();
-      console.log(`[API] Fetching REAL balance from ${heliusBase} for mint ${mintAddress}${forceRefresh ? ' (force refresh)' : ''}`);
-      
-      // When force refresh, bypass Next.js fetch cache; otherwise cache for 60s
-      const fetchOptions = forceRefresh 
-        ? { cache: 'no-store' as const }
-        : { next: { revalidate: 60 } };
-      
-      const response = await fetch(
-        `${heliusBase}/v0/addresses/${walletAddress}/balances?api-key=${RPC_CONFIG.HELIUS_API_KEY}`,
-        fetchOptions
-      );
-      
-      if (!response.ok) {
-        throw new Error(`Helius API error: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      
-      const tokenBalance = data.tokens?.find(
-        (t: { mint: string; amount: number }) =>
-          t.mint.toLowerCase() === mintAddress.toLowerCase()
-      );
-      
-      if (tokenBalance) {
-        const balance = tokenBalance.amount / Math.pow(10, TOKEN_CONFIG.DECIMALS);
-        console.log(`[API] Found REAL balance: ${balance.toLocaleString()} tokens`);
-        return balance;
-      }
-      
-      console.log('[API] No token balance found for wallet');
-      return 0;
-    } catch (error) {
-      console.error('[API] Helius balance fetch failed:', error);
-      // Fall through to RPC fallback
-    }
-  }
-  
-  // RPC Fallback: Use direct Solana RPC to get token balance
   try {
     const rpcEndpoint = IS_DEVNET 
       ? 'https://api.devnet.solana.com'
       : 'https://api.mainnet-beta.solana.com';
     
-    console.log(`[API] Falling back to RPC for balance: ${rpcEndpoint}`);
+    console.log(`[API] Fetching balance via direct RPC: ${rpcEndpoint}`);
     
     // Use getTokenAccountsByOwner RPC method
     const response = await fetch(rpcEndpoint, {
@@ -166,16 +116,104 @@ async function getTokenBalance(walletAddress: string, forceRefresh: boolean = fa
     return 0;
   } catch (error) {
     console.error('[API] RPC balance fetch failed:', error);
+    return null; // Return null to indicate failure, not 0
+  }
+}
+
+/**
+ * Fetch token balance from Helius API (may have indexing delay)
+ */
+async function getTokenBalanceFromHelius(walletAddress: string, noCache: boolean = false): Promise<number | null> {
+  const mintAddress = TOKEN_CONFIG.MINT_ADDRESS;
+  
+  if (!RPC_CONFIG.HELIUS_API_KEY) {
+    return null;
+  }
+  
+  try {
+    const heliusBase = getHeliusApiBase();
+    console.log(`[API] Fetching balance from Helius: ${heliusBase}${noCache ? ' (no-cache)' : ''}`);
     
-    // If we're on devnet and everything fails, return 0 (not fake balance)
-    // The eligibility bypass will handle allowing access
-    if (IS_DEVNET) {
-      console.log('[API] DEVNET: All balance fetch methods failed, returning 0');
-      return 0;
+    // When noCache, bypass Next.js fetch cache; otherwise cache for 60s
+    const fetchOptions = noCache 
+      ? { cache: 'no-store' as const }
+      : { next: { revalidate: 60 } };
+    
+    const response = await fetch(
+      `${heliusBase}/v0/addresses/${walletAddress}/balances?api-key=${RPC_CONFIG.HELIUS_API_KEY}`,
+      fetchOptions
+    );
+    
+    if (!response.ok) {
+      throw new Error(`Helius API error: ${response.status}`);
     }
     
-    throw error;
+    const data = await response.json();
+    
+    const tokenBalance = data.tokens?.find(
+      (t: { mint: string; amount: number }) =>
+        t.mint.toLowerCase() === mintAddress.toLowerCase()
+    );
+    
+    if (tokenBalance) {
+      const balance = tokenBalance.amount / Math.pow(10, TOKEN_CONFIG.DECIMALS);
+      console.log(`[API] Found REAL balance via Helius: ${balance.toLocaleString()} tokens`);
+      return balance;
+    }
+    
+    console.log('[API] No token balance found in Helius');
+    return 0;
+  } catch (error) {
+    console.error('[API] Helius balance fetch failed:', error);
+    return null;
   }
+}
+
+/**
+ * Fetch REAL token balance from on-chain
+ * @param walletAddress - The wallet address to check
+ * @param forceRefresh - If true, uses direct RPC (always up-to-date) instead of Helius (has indexing delay)
+ */
+async function getTokenBalance(walletAddress: string, forceRefresh: boolean = false): Promise<number> {
+  const mintAddress = TOKEN_CONFIG.MINT_ADDRESS;
+  
+  // Token not configured
+  if (mintAddress === 'TBD' || mintAddress === 'DEVNET_TEST_TOKEN') {
+    console.log('[API] Token not configured, allowing all holders');
+    return Infinity;
+  }
+
+  // When force refresh (e.g., after staking), use direct RPC FIRST
+  // RPC is always up-to-date, while Helius has indexing delay
+  if (forceRefresh) {
+    console.log('[API] Force refresh: Using direct RPC for immediate balance');
+    const rpcBalance = await getTokenBalanceFromRPC(walletAddress);
+    if (rpcBalance !== null) {
+      return rpcBalance;
+    }
+    // If RPC fails, fall through to Helius with no-cache
+    console.log('[API] RPC failed, falling back to Helius with no-cache');
+  }
+
+  // Normal path: Try Helius first (faster, but may have delay)
+  const heliusBalance = await getTokenBalanceFromHelius(walletAddress, forceRefresh);
+  if (heliusBalance !== null) {
+    return heliusBalance;
+  }
+  
+  // Fallback to RPC if Helius fails
+  const rpcBalance = await getTokenBalanceFromRPC(walletAddress);
+  if (rpcBalance !== null) {
+    return rpcBalance;
+  }
+  
+  // If we're on devnet and everything fails, return 0 (not fake balance)
+  if (IS_DEVNET) {
+    console.log('[API] DEVNET: All balance fetch methods failed, returning 0');
+    return 0;
+  }
+  
+  throw new Error('Failed to fetch token balance');
 }
 
 /**
