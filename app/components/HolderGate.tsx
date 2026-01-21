@@ -149,7 +149,7 @@ export function HolderGate({ verification: overrideVerification, loading: overri
           Could not verify your token holdings. Please try again.
         </p>
         <button
-          onClick={refresh}
+          onClick={() => refresh()}
           className="w-full py-3 bg-coal-800 hover:bg-coal-700 text-coal-300 rounded-lg transition-colors"
         >
           Retry Verification
@@ -186,7 +186,7 @@ export function HolderGate({ verification: overrideVerification, loading: overri
         <div className="flex items-center gap-2">
           {refresh && (
             <button
-              onClick={refresh}
+              onClick={() => refresh()}
               className="text-coal-500 hover:text-white transition-colors p-2"
               title="Refresh"
             >
