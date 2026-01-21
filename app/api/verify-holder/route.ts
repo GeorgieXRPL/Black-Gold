@@ -69,8 +69,10 @@ function getHeliusApiBase(): string {
 /**
  * Fetch REAL token balance from Helius API or RPC fallback
  * Always returns the actual on-chain balance - never fake values
+ * @param walletAddress - The wallet address to check
+ * @param forceRefresh - If true, bypasses all caching to get fresh on-chain data
  */
-async function getTokenBalance(walletAddress: string): Promise<number> {
+async function getTokenBalance(walletAddress: string, forceRefresh: boolean = false): Promise<number> {
   const mintAddress = TOKEN_CONFIG.MINT_ADDRESS;
   
   // Token not configured
@@ -83,11 +85,16 @@ async function getTokenBalance(walletAddress: string): Promise<number> {
   if (RPC_CONFIG.HELIUS_API_KEY) {
     try {
       const heliusBase = getHeliusApiBase();
-      console.log(`[API] Fetching REAL balance from ${heliusBase} for mint ${mintAddress}`);
+      console.log(`[API] Fetching REAL balance from ${heliusBase} for mint ${mintAddress}${forceRefresh ? ' (force refresh)' : ''}`);
+      
+      // When force refresh, bypass Next.js fetch cache; otherwise cache for 60s
+      const fetchOptions = forceRefresh 
+        ? { cache: 'no-store' as const }
+        : { next: { revalidate: 60 } };
       
       const response = await fetch(
         `${heliusBase}/v0/addresses/${walletAddress}/balances?api-key=${RPC_CONFIG.HELIUS_API_KEY}`,
-        { next: { revalidate: 60 } }
+        fetchOptions
       );
       
       if (!response.ok) {
@@ -249,8 +256,9 @@ export async function GET(request: NextRequest) {
   
   try {
     // Fetch balance and market cap in parallel
+    // Pass forceRefresh to bypass all caching when needed (e.g., after staking)
     const [balance, marketCap] = await Promise.all([
-      getTokenBalance(wallet),
+      getTokenBalance(wallet, forceRefresh),
       getMarketCap(),
     ]);
     
