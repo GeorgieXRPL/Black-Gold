@@ -68,30 +68,43 @@ function getHeliusApiBase(): string {
 
 /**
  * Fetch token balance directly from Solana RPC
- * This is always up-to-date (no indexing delay like Helius)
+ * Uses Helius RPC for reliability (public devnet RPC is notoriously unreliable)
  */
 async function getTokenBalanceFromRPC(walletAddress: string): Promise<number | null> {
   const mintAddress = TOKEN_CONFIG.MINT_ADDRESS;
   
   try {
-    const rpcEndpoint = IS_DEVNET 
-      ? 'https://api.devnet.solana.com'
-      : 'https://api.mainnet-beta.solana.com';
+    // Use Helius RPC if available (much more reliable than public devnet)
+    // Public devnet RPC has load balancer issues causing stale reads
+    let rpcEndpoint: string;
+    if (RPC_CONFIG.HELIUS_API_KEY) {
+      rpcEndpoint = IS_DEVNET 
+        ? `https://devnet.helius-rpc.com/?api-key=${RPC_CONFIG.HELIUS_API_KEY}`
+        : `https://mainnet.helius-rpc.com/?api-key=${RPC_CONFIG.HELIUS_API_KEY}`;
+      console.log(`[API] Fetching balance via Helius RPC (reliable)`);
+    } else {
+      // Fallback to public RPC (less reliable)
+      rpcEndpoint = IS_DEVNET 
+        ? 'https://api.devnet.solana.com'
+        : 'https://api.mainnet-beta.solana.com';
+      console.log(`[API] Fetching balance via public RPC (may be stale): ${rpcEndpoint}`);
+    }
     
-    console.log(`[API] Fetching balance via direct RPC: ${rpcEndpoint}`);
-    
-    // Use getTokenAccountsByOwner RPC method
+    // Use getTokenAccountsByOwner RPC method with 'confirmed' commitment for latest state
     const response = await fetch(rpcEndpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         jsonrpc: '2.0',
-        id: 1,
+        id: Date.now(), // Unique ID to prevent any caching
         method: 'getTokenAccountsByOwner',
         params: [
           walletAddress,
           { mint: mintAddress },
-          { encoding: 'jsonParsed' }
+          { 
+            encoding: 'jsonParsed',
+            commitment: 'confirmed' // Use 'confirmed' for most up-to-date balance
+          }
         ]
       })
     });
@@ -101,6 +114,11 @@ async function getTokenBalanceFromRPC(walletAddress: string): Promise<number | n
     }
     
     const data = await response.json();
+    
+    if (data.error) {
+      console.error('[API] RPC returned error:', data.error);
+      return null;
+    }
     
     if (data.result?.value?.length > 0) {
       let totalBalance = 0;

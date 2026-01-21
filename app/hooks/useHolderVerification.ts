@@ -35,6 +35,8 @@ export function useHolderVerification(walletAddress: string | null): UseHolderVe
   const lastForceRefreshRef = useRef<number>(0);
   // Track if initial fetch has been done
   const initialFetchDoneRef = useRef<boolean>(false);
+  // Lock to prevent concurrent fetches
+  const fetchingRef = useRef<boolean>(false);
 
   const fetchVerification = useCallback(async (force: boolean = false) => {
     if (!walletAddress) {
@@ -43,16 +45,30 @@ export function useHolderVerification(walletAddress: string | null): UseHolderVe
       return;
     }
 
-    // If this is a non-force refresh and a force refresh was done in the last 10 seconds, skip it
-    // This prevents stale cached data from overwriting fresh data
+    // IMMEDIATELY mark force refresh timestamp to prevent race conditions
+    // This MUST happen before any async operations
+    if (force) {
+      lastForceRefreshRef.current = Date.now();
+      console.log(`[HolderVerification] Force refresh initiated at ${lastForceRefreshRef.current}`);
+    }
+
+    // If this is a non-force refresh and a force refresh was done in the last 30 seconds, skip it
+    // Extended to 30 seconds to be extra safe
     if (!force && lastForceRefreshRef.current > 0) {
       const timeSinceForce = Date.now() - lastForceRefreshRef.current;
-      if (timeSinceForce < 10000) {
+      if (timeSinceForce < 30000) {
         console.log(`[HolderVerification] Skipping non-force refresh (force refresh was ${timeSinceForce}ms ago)`);
         return;
       }
     }
 
+    // Prevent concurrent fetches - force refresh always wins
+    if (fetchingRef.current && !force) {
+      console.log('[HolderVerification] Skipping - another fetch is in progress');
+      return;
+    }
+
+    fetchingRef.current = true;
     setLoading(true);
     setError(null);
 
@@ -60,12 +76,12 @@ export function useHolderVerification(walletAddress: string | null): UseHolderVe
       // Use force=true to bypass API cache when needed (e.g., after staking/unstaking)
       const forceParam = force ? '&force=true' : '';
       // Add timestamp to prevent any browser caching
-      const timestamp = force ? `&_t=${Date.now()}` : '';
+      const timestamp = `&_t=${Date.now()}`;
       console.log(`[HolderVerification] Fetching balance for ${walletAddress.slice(0,8)}...${force ? ' (force refresh)' : ''}`);
       
       const response = await fetch(
         `/api/verify-holder?wallet=${encodeURIComponent(walletAddress)}${forceParam}${timestamp}`,
-        force ? { cache: 'no-store' } : undefined
+        { cache: 'no-store' } // Always prevent browser caching
       );
       
       if (!response.ok) {
@@ -87,11 +103,6 @@ export function useHolderVerification(walletAddress: string | null): UseHolderVe
         marketCap: data.marketCap,
       };
 
-      // Update the force refresh timestamp
-      if (force) {
-        lastForceRefreshRef.current = Date.now();
-      }
-
       setVerification(verificationResult);
     } catch (err) {
       console.error('[HolderVerification] Error:', err);
@@ -99,16 +110,22 @@ export function useHolderVerification(walletAddress: string | null): UseHolderVe
       setVerification(null);
     } finally {
       setLoading(false);
+      fetchingRef.current = false;
     }
   }, [walletAddress]);
 
-  // Initial fetch when wallet connects (only once)
+  // Initial fetch when wallet connects (only once per wallet)
   useEffect(() => {
     if (walletAddress && !initialFetchDoneRef.current) {
       initialFetchDoneRef.current = true;
-      fetchVerification();
+      // Delay initial fetch slightly to not interfere with any force refreshes
+      const timer = setTimeout(() => {
+        fetchVerification();
+      }, 100);
+      return () => clearTimeout(timer);
     } else if (!walletAddress) {
       initialFetchDoneRef.current = false;
+      lastForceRefreshRef.current = 0; // Reset force refresh tracking
     }
   }, [walletAddress, fetchVerification]);
 
