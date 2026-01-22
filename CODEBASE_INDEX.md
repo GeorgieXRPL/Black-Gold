@@ -1,14 +1,102 @@
-# Black Gold v3.3.14 - Codebase Index
+# Black Gold v3.3.15 - Codebase Index
 
 > Complete file-by-file documentation for the Black Gold Interactive Mining Globe platform
 
 **Last Updated**: January 22, 2026  
-**Version**: 3.3.14 (Helius RPC + Real-time Balance Updates + Admin Staking Benefits)  
+**Version**: 3.3.15 (Single Instance Holder Verification)  
 **Total Files**: 90+ TypeScript/TSX/JS files
 
 ---
 
-## 📋 Recent Changes (v3.3.14)
+## 📋 Recent Changes (v3.3.15)
+
+### Single Instance Holder Verification (Critical Fix)
+
+Fixed issue where balance updates weren't persisting in UI despite console logs showing correct values.
+
+#### Root Cause
+
+Each `useWallet()` call was creating its own `useHolderVerification` hook instance:
+- Component A calls `useWallet()` → creates HolderVerification instance 1
+- Component B calls `useWallet()` → creates HolderVerification instance 2
+- Each instance has its own `lastForceRefreshRef` ref
+
+When instance 1 did a force refresh:
+1. Force refresh returns correct value (e.g., `999,699,500`)
+2. Instance 2 doesn't know about the force refresh
+3. Instance 2 does a non-force fetch (not blocked by its own ref)
+4. Instance 2 returns stale cached value (`999,700,000`)
+5. **Stale value overwrites correct value in UI!**
+
+#### Solution
+
+Moved holder verification into `WalletProvider` context as a **SINGLE shared instance**:
+
+```typescript
+// WalletProvider.tsx
+export function WalletProvider({ children }: WalletProviderProps) {
+  // SINGLE instance of verification state for entire app
+  const [verification, setVerification] = useState<HolderVerification | null>(null);
+  const lastForceRefreshRef = useRef<number>(0);
+  const fetchingRef = useRef<boolean>(false);
+  
+  // Fetch function with force refresh protection
+  const fetchVerification = useCallback(async (force: boolean = false) => {
+    if (force) {
+      lastForceRefreshRef.current = Date.now();
+    }
+    
+    // Skip non-force if recent force refresh
+    if (!force && lastForceRefreshRef.current > 0) {
+      const timeSinceForce = Date.now() - lastForceRefreshRef.current;
+      if (timeSinceForce < 30000) {
+        console.log('[HolderVerification] Skipping non-force refresh');
+        return;
+      }
+    }
+    // ... fetch logic
+  }, [baseContext.walletAddress]);
+
+  // Include in context value
+  const contextValue: WalletContextValue = {
+    ...baseContext,
+    holderVerification: {
+      verification,
+      loading: verificationLoading,
+      error: verificationError,
+      refresh: fetchVerification,
+    },
+  };
+}
+```
+
+#### Updated Files
+
+1. **`app/providers/WalletProvider.tsx`**:
+   - Added `HolderVerificationState` interface
+   - All verification logic now in provider
+   - Single `lastForceRefreshRef` for entire app
+
+2. **`app/hooks/useWallet.ts`**:
+   - Removed separate `useHolderVerification` call
+   - Returns `holderVerification` from context directly
+
+3. **`app/providers/PrivyBridge.tsx`**:
+   - Updated to set base context only
+   - `holderVerification` managed by provider
+
+#### Expected Behavior After Fix
+
+```
+[HolderVerification] Force refresh initiated at 1769048796417
+[HolderVerification] Fetching balance for C95329YP... (force refresh)
+[HolderVerification] Got balance: 999,699,500 (from force refresh)
+[HolderVerification] Skipping non-force refresh (force refresh was 500ms ago)  <-- BLOCKED!
+```
+
+---
+
+## 📋 Previous Changes (v3.3.14)
 
 ### Real-time Balance Updates & Admin Console Staking Benefits
 
