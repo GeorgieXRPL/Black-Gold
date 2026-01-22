@@ -4,13 +4,15 @@
  * Supports both message signing and transaction signing
  * 
  * SSR-safe: Returns default values during server-side rendering
+ * 
+ * v3.3.14: Holder verification is now managed in WalletProvider context
+ * to ensure a SINGLE instance across all components (prevents stale data overwrites)
  */
 
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useHolderVerification } from './useHolderVerification';
-import { useWalletContext, WalletContextValue } from '../providers/WalletProvider';
+import { useWalletContext, WalletContextValue, HolderVerificationState } from '../providers/WalletProvider';
 
 export interface WalletState {
   /** Whether a wallet is connected */
@@ -23,8 +25,8 @@ export interface WalletState {
   walletAddress: string | null;
   /** Shortened wallet address for display */
   displayAddress: string | null;
-  /** Holder verification status */
-  holderVerification: ReturnType<typeof useHolderVerification>;
+  /** Holder verification status (shared instance from context) */
+  holderVerification: HolderVerificationState;
 }
 
 export interface WalletActions {
@@ -45,17 +47,16 @@ export interface UseWalletReturn extends WalletState, WalletActions {}
 /**
  * Custom hook for wallet state and actions
  * Uses WalletContext for SSR-safe wallet management
+ * 
+ * IMPORTANT: holderVerification is now a SHARED instance from context
+ * This prevents multiple components from creating separate instances
+ * that could overwrite each other's data
  */
 export function useWallet(): UseWalletReturn {
   const context = useWalletContext();
   
-  // Holder verification for the connected wallet
-  const holderVerification = useHolderVerification(context.walletAddress);
-
-  return {
-    ...context,
-    holderVerification,
-  };
+  // holderVerification is now part of context - single instance for entire app
+  return context;
 }
 
 /**

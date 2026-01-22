@@ -2,6 +2,9 @@
  * @fileoverview Bridge component that properly uses Privy hooks
  * This file is loaded dynamically to ensure it's only imported client-side
  * and hooks are called within the PrivyProvider context
+ * 
+ * v3.3.14: setContextValue now accepts base context without holderVerification
+ * (holderVerification is managed separately in WalletProvider)
  */
 
 'use client';
@@ -11,9 +14,12 @@ import { usePrivy, useLogin, useLogout, useWallets } from '@privy-io/react-auth'
 import { Transaction, VersionedTransaction, Connection } from '@solana/web3.js';
 import type { WalletContextValue } from './WalletProvider';
 
+// Type for setting base context (holderVerification is managed by WalletProvider)
+type BaseWalletContext = Omit<WalletContextValue, 'holderVerification'>;
+
 interface PrivyBridgeProps {
   children: ReactNode;
-  setContextValue: (value: WalletContextValue) => void;
+  setContextValue: (value: BaseWalletContext) => void;
 }
 
 // RPC endpoint for sending transactions
