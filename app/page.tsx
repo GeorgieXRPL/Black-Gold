@@ -12,6 +12,7 @@ import { EmberParticles, WalletEntry, WalletEntryState, CoreSelector } from './c
 import { useGameSocket, GameEvent, WorkUnit } from './hooks/useGameSocket';
 import { useMining } from './hooks/useMining';
 import { useStaking } from './hooks/useStaking';
+import { useWallet } from './hooks/useWallet';
 import { 
   MOCK_EVENTS, 
   DEMO_USER, 
@@ -35,6 +36,9 @@ const Globe = dynamic(() => import('./components/globe/Globe'), {
 });
 
 export default function Home() {
+  // Use wallet hook directly for real-time balance updates
+  const wallet = useWallet();
+  
   // Log mock data usage in development
   useEffect(() => {
     logMockDataWarning('Home Page');
@@ -137,8 +141,11 @@ export default function Home() {
     } | null;
   }>({ isOpen: false, isWinner: false, data: null });
 
-  // walletBalance is derived from walletState.tokenBalance (must be after walletState declaration)
-  const walletBalance = USE_MOCK_DATA ? DEMO_USER.walletBalance : walletState.tokenBalance;
+  // walletBalance - use direct hook value for real-time updates, fall back to walletState
+  // The wallet hook provides live updates when balance changes, avoiding stale state issues
+  const walletBalance = USE_MOCK_DATA 
+    ? DEMO_USER.walletBalance 
+    : (wallet.holderVerification.verification?.balance ?? walletState.tokenBalance);
 
   // Track current work unit for mining
   const currentWorkRef = useRef<WorkUnit | null>(null);
@@ -779,7 +786,7 @@ export default function Home() {
                   {/* Available balance */}
                   <div className="flex items-center gap-2">
                     <span className="text-coal-400 text-sm">Wallet:</span>
-                    {walletState.verificationLoading ? (
+                    {wallet.holderVerification.loading || walletState.verificationLoading ? (
                       <span className="text-coal-500 text-sm animate-pulse">Loading...</span>
                     ) : (
                       <span className="text-ember-400 font-bold">

@@ -1,204 +1,99 @@
-2026-01-20T19:30:15.717575922Z [inf]  [Staking] No miner account found for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE
-2026-01-20T19:31:27.211250790Z [inf]  [Staking] No miner account found for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE
-2026-01-20T19:31:37.519639390Z [inf]  [Staking] No miner account found for 9Y4Cje3zzWGjT6AjNDQaFKfsaWa2bT4LB8fT93PJwG9R
-2026-01-20T19:32:58.348005212Z [inf]  [Staking] No miner account found for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE
-2026-01-20T19:33:04.464733805Z [inf]  [Staking] No miner account found for 9Y4Cje3zzWGjT6AjNDQaFKfsaWa2bT4LB8fT93PJwG9R
-2026-01-20T19:33:37.025231271Z [inf]  [Staking] Miner account GLcBpgbx... exists: false
-2026-01-20T19:33:37.025241507Z [inf]  [Staking] Creating miner account for 9Y4Cje3zzWGjT6AjNDQaFKfsaWa2bT4LB8fT93PJwG9R...
-2026-01-20T19:33:37.025251814Z [inf]  [Staking] Built stake tx for 9Y4Cje3zzWGjT6AjNDQaFKfsaWa2bT4LB8fT93PJwG9R: 100 COAL
-2026-01-20T19:33:37.025758794Z [inf]  [Staking] No miner account found for 9Y4Cje3zzWGjT6AjNDQaFKfsaWa2bT4LB8fT93PJwG9R
-2026-01-20T19:33:43.135989419Z [inf]  [Staking] No miner account found for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE
-2026-01-20T19:33:48.186330653Z [inf]  [Staking] Raw miner data for 9Y4Cje3zzWGjT6AjNDQaFKfsaWa2bT4LB8fT93PJwG9R: {
-2026-01-20T19:33:48.192399008Z [inf]  [Staking] Miner object keys: [
-2026-01-20T19:33:48.192459530Z [inf]  [Staking] Stake info for 9Y4Cje3zzWGjT6AjNDQaFKfsaWa2bT4LB8fT93PJwG9R: 100 staked (raw: 100000000000), 0 pending (raw: 0)
-2026-01-20T19:33:48.192465854Z [inf]  [Staking] Verified stake: 5zEzrFY2bvcKmFuibfMjvzVTkZ3yeZLroubEZb5NEEaLx2soLPGJBSGuiDoiW7RHx7TEiyB8xP3iePT7CFXrKNG7 for 9Y4Cje3zzWGjT6AjNDQaFKfsaWa2bT4LB8fT93PJwG9R
-2026-01-20T19:33:49.159853223Z [inf]  [Staking] No miner account found for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE
-2026-01-20T19:33:51.163701117Z [inf]  [Staking] Miner account 5Y7PiRuV... exists: false
-2026-01-20T19:33:51.169044474Z [inf]  [Staking] Creating miner account for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE...
-2026-01-20T19:33:51.169051923Z [inf]  [Staking] Built stake tx for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: 25000 COAL
-2026-01-20T19:34:02.157562020Z [inf]  [Staking] Stake info for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: 25000 staked (raw: 25000000000000), 0 pending (raw: 0)
-2026-01-20T19:34:02.157578735Z [inf]  [Staking] Miner object keys: [
-2026-01-20T19:34:02.158122217Z [inf]  [Staking] Raw miner data for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: {
-2026-01-20T19:34:02.161957173Z [inf]  [Staking] Verified stake: XLeRejberpommWubN2zGRM3KjtT4bBWgjnJqFmrFUKkrx4JygzJETkKrtkh7RmkMXgCZHKfU1kBqh9UZQhS9mFN for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE
-2026-01-20T19:35:26.154968046Z [inf]  [Staking] Raw miner data for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: {
-2026-01-20T19:35:26.163390914Z [inf]  [Staking] Miner object keys: [
-2026-01-20T19:35:26.163489105Z [inf]  [Staking] Stake info for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: 25000 staked (raw: 25000000000000), 0 pending (raw: 0)
-2026-01-20T19:35:56.621391869Z [inf]  [Staking] Raw miner data for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: {
-2026-01-20T19:35:56.630243774Z [inf]  [Staking] Miner object keys: [
-2026-01-20T19:35:56.630330338Z [inf]  [Staking] Stake info for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: 25000 staked (raw: 25000000000000), 0 pending (raw: 0)
-2026-01-20T19:37:09.236258151Z [inf]  [Staking] Raw miner data for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: {
-2026-01-20T19:37:09.236318771Z [inf]  [Staking] Miner object keys: [
-2026-01-20T19:37:09.236460909Z [inf]  [Staking] Stake info for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: 25000 staked (raw: 25000000000000), 0 pending (raw: 0)
-2026-01-20T19:37:10.167034204Z [inf]  [Staking] Raw miner data for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: {
-2026-01-20T19:37:10.167146857Z [inf]  [Staking] Miner object keys: [
-2026-01-20T19:37:10.169903465Z [inf]  [Staking] Stake info for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: 25000 staked (raw: 25000000000000), 0 pending (raw: 0)
-2026-01-20T19:37:11.130762124Z [inf]  [Staking] Miner account 5Y7PiRuV... exists: true
-2026-01-20T19:37:11.130771164Z [inf]  [Staking] Built stake tx for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: 25000 COAL
-2026-01-20T19:37:15.517306011Z [inf]  [Staking] Raw miner data for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: {
-2026-01-20T19:37:15.517373398Z [inf]  [Staking] Stake info for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: 50000 staked (raw: 50000000000000), 0 pending (raw: 0)
-2026-01-20T19:37:15.517408484Z [inf]  [Staking] Miner object keys: [
-2026-01-20T19:37:15.539805187Z [inf]  [Staking] Verified stake: 2La8CC5Z8ndWrAthEEXt5jK6T3oTGsGgDXpqDBUgqWtoR1MsxNpaMMJoAj6m2rinMK4vMTEC8jxgwSi8XmYQLCMq for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE
-2026-01-20T19:38:31.802288771Z [inf]  [Staking] Raw miner data for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: {
-2026-01-20T19:38:31.802357158Z [inf]  [Staking] Miner object keys: [
-2026-01-20T19:38:31.802429580Z [inf]  [Staking] Stake info for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: 50000 staked (raw: 50000000000000), 0 pending (raw: 0)
-2026-01-20T19:39:50.148001465Z [inf]  [Staking] Raw miner data for 9Y4Cje3zzWGjT6AjNDQaFKfsaWa2bT4LB8fT93PJwG9R: {
-2026-01-20T19:39:50.151258284Z [inf]  [Staking] Miner object keys: [
-2026-01-20T19:39:50.151325086Z [inf]  [Staking] Stake info for 9Y4Cje3zzWGjT6AjNDQaFKfsaWa2bT4LB8fT93PJwG9R: 100 staked (raw: 100000000000), 0 pending (raw: 0)
-2026-01-20T19:39:55.304229921Z [inf]  [Staking] Raw miner data for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: {
-2026-01-20T19:39:55.304310465Z [inf]  [Staking] Miner object keys: [
-2026-01-20T19:39:55.304463934Z [inf]  [Staking] Stake info for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: 50000 staked (raw: 50000000000000), 0 pending (raw: 0)
-2026-01-20T19:40:07.511237844Z [inf]  [Staking] Raw miner data for 9Y4Cje3zzWGjT6AjNDQaFKfsaWa2bT4LB8fT93PJwG9R: {
-2026-01-20T19:40:07.531683946Z [inf]  [Staking] Miner object keys: [
-2026-01-20T19:40:07.531778631Z [inf]  [Staking] Stake info for 9Y4Cje3zzWGjT6AjNDQaFKfsaWa2bT4LB8fT93PJwG9R: 100 staked (raw: 100000000000), 0 pending (raw: 0)
-2026-01-20T19:40:07.534354774Z [inf]  [Staking] Miner account GLcBpgbx... exists: true
-2026-01-20T19:40:07.616073201Z [inf]  [Staking] Built stake tx for 9Y4Cje3zzWGjT6AjNDQaFKfsaWa2bT4LB8fT93PJwG9R: 400 COAL
-2026-01-20T19:40:14.478274713Z [inf]  [Staking] Raw miner data for 9Y4Cje3zzWGjT6AjNDQaFKfsaWa2bT4LB8fT93PJwG9R: {
-2026-01-20T19:40:14.478312017Z [inf]  [Staking] Stake info for 9Y4Cje3zzWGjT6AjNDQaFKfsaWa2bT4LB8fT93PJwG9R: 500 staked (raw: 500000000000), 0 pending (raw: 0)
-2026-01-20T19:40:14.478361702Z [inf]  [Staking] Miner object keys: [
-2026-01-20T19:40:14.504572753Z [inf]  [Staking] Verified stake: 2CmFma8mWE5x3i2FmLvUBCvyMZJRDAPMskM9yQo7H9rKygp4v6vkGnQBZVT7gjJBL27Q8fbcAZNyqgExCz2r7bg4 for 9Y4Cje3zzWGjT6AjNDQaFKfsaWa2bT4LB8fT93PJwG9R
-2026-01-20T19:41:50.685504730Z [inf]  [Staking] Miner object keys: [
-2026-01-20T19:41:50.685513136Z [inf]  [Staking] Stake info for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: 50000 staked (raw: 50000000000000), 0 pending (raw: 0)
-2026-01-20T19:41:50.686380417Z [inf]  [Staking] Raw miner data for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: {
-2026-01-20T19:42:04.469896907Z [inf]  [Staking] Raw miner data for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: {
-2026-01-20T19:42:04.472095780Z [inf]  [Staking] Miner object keys: [
-2026-01-20T19:42:04.472179600Z [inf]  [Staking] Stake info for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: 50000 staked (raw: 50000000000000), 0 pending (raw: 0)
-2026-01-20T19:42:19.947897880Z [inf]  [Staking] Raw miner data for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: {
-2026-01-20T19:42:19.947993696Z [inf]  [Staking] Miner object keys: [
-2026-01-20T19:42:19.948069378Z [inf]  [Staking] Stake info for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: 50000 staked (raw: 50000000000000), 0 pending (raw: 0)
-2026-01-20T19:42:26.847848334Z [inf]  [Staking] Miner object keys: [
-2026-01-20T19:42:26.847951990Z [inf]  [Staking] Raw miner data for 9Y4Cje3zzWGjT6AjNDQaFKfsaWa2bT4LB8fT93PJwG9R: {
-2026-01-20T19:42:26.880978014Z [inf]  [Staking] Stake info for 9Y4Cje3zzWGjT6AjNDQaFKfsaWa2bT4LB8fT93PJwG9R: 500 staked (raw: 500000000000), 0 pending (raw: 0)
-2026-01-20T19:42:38.168459312Z [inf]  [Staking] Built unstake tx for 9Y4Cje3zzWGjT6AjNDQaFKfsaWa2bT4LB8fT93PJwG9R: 300 COAL
-2026-01-20T19:42:43.133252649Z [inf]  [Staking] Miner object keys: [
-2026-01-20T19:42:43.133253406Z [inf]  [Staking] Raw miner data for 9Y4Cje3zzWGjT6AjNDQaFKfsaWa2bT4LB8fT93PJwG9R: {
-2026-01-20T19:42:43.133536386Z [inf]  [Staking] Stake info for 9Y4Cje3zzWGjT6AjNDQaFKfsaWa2bT4LB8fT93PJwG9R: 200 staked (raw: 200000000000), 0 pending (raw: 0)
-2026-01-20T19:42:53.125086213Z [inf]  [Staking] Raw miner data for 9Y4Cje3zzWGjT6AjNDQaFKfsaWa2bT4LB8fT93PJwG9R: {
-2026-01-20T19:42:53.125102105Z [inf]  [Staking] Stake info for 9Y4Cje3zzWGjT6AjNDQaFKfsaWa2bT4LB8fT93PJwG9R: 200 staked (raw: 200000000000), 0 pending (raw: 0)
-2026-01-20T19:42:53.125159272Z [inf]  [Staking] Miner object keys: [
-2026-01-20T19:43:05.371974951Z [inf]  [Staking] Raw miner data for 9Y4Cje3zzWGjT6AjNDQaFKfsaWa2bT4LB8fT93PJwG9R: {
-2026-01-20T19:43:05.372030416Z [inf]  [Staking] Miner object keys: [
-2026-01-20T19:43:05.374868398Z [inf]  [Staking] Stake info for 9Y4Cje3zzWGjT6AjNDQaFKfsaWa2bT4LB8fT93PJwG9R: 200 staked (raw: 200000000000), 0 pending (raw: 0)
-2026-01-20T19:43:17.703344830Z [inf]  [Staking] Miner object keys: [
-2026-01-20T19:43:17.703361874Z [inf]  [Staking] Stake info for 9Y4Cje3zzWGjT6AjNDQaFKfsaWa2bT4LB8fT93PJwG9R: 200 staked (raw: 200000000000), 0 pending (raw: 0)
-2026-01-20T19:43:17.703471294Z [inf]  [Staking] Raw miner data for 9Y4Cje3zzWGjT6AjNDQaFKfsaWa2bT4LB8fT93PJwG9R: {
-2026-01-20T19:43:25.269611388Z [inf]  [Staking] Stake info for 9Y4Cje3zzWGjT6AjNDQaFKfsaWa2bT4LB8fT93PJwG9R: 200 staked (raw: 200000000000), 0 pending (raw: 0)
-2026-01-20T19:43:25.269642561Z [inf]  [Staking] Raw miner data for 9Y4Cje3zzWGjT6AjNDQaFKfsaWa2bT4LB8fT93PJwG9R: {
-2026-01-20T19:43:25.269721912Z [inf]  [Staking] Miner object keys: [
-2026-01-20T19:43:25.323624581Z [inf]  [Staking] Miner account GLcBpgbx... exists: true
-2026-01-20T19:43:25.323629654Z [inf]  [Staking] Built stake tx for 9Y4Cje3zzWGjT6AjNDQaFKfsaWa2bT4LB8fT93PJwG9R: 900 COAL
-2026-01-20T19:43:29.382298884Z [inf]  [Staking] Raw miner data for 9Y4Cje3zzWGjT6AjNDQaFKfsaWa2bT4LB8fT93PJwG9R: {
-2026-01-20T19:43:29.383533479Z [inf]  [Staking] Miner object keys: [
-2026-01-20T19:43:29.383575370Z [inf]  [Staking] Stake info for 9Y4Cje3zzWGjT6AjNDQaFKfsaWa2bT4LB8fT93PJwG9R: 1100 staked (raw: 1100000000000), 0 pending (raw: 0)
-2026-01-20T19:43:29.393964024Z [inf]  [Staking] Verified stake: FeiZszWZeVnvSiJyrLmwRETwGEFLrSmQxifdTRDe84VsCLseGjkxMFrKwv9Hi4J8uNFjvjCJiSqFgLaHryB1nDT for 9Y4Cje3zzWGjT6AjNDQaFKfsaWa2bT4LB8fT93PJwG9R
-2026-01-20T19:43:54.105071320Z [inf]  [Staking] Stake info for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: 50000 staked (raw: 50000000000000), 0 pending (raw: 0)
-2026-01-20T19:43:54.105074415Z [inf]  [Staking] Miner object keys: [
-2026-01-20T19:43:54.105747499Z [inf]  [Staking] Raw miner data for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: {
-2026-01-20T19:44:32.656822241Z [inf]  [Staking] Raw miner data for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: {
-2026-01-20T19:44:32.659064406Z [inf]  [Staking] Miner object keys: [
-2026-01-20T19:44:32.659131269Z [inf]  [Staking] Stake info for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: 50000 staked (raw: 50000000000000), 0 pending (raw: 0)
-2026-01-20T19:44:49.028072254Z [inf]  [Staking] Raw miner data for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: {
-2026-01-20T19:44:49.028158337Z [inf]  [Staking] Miner object keys: [
-2026-01-20T19:44:49.028169814Z [inf]  [Staking] Stake info for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: 50000 staked (raw: 50000000000000), 0 pending (raw: 0)
-2026-01-20T19:45:43.210695486Z [inf]  [Staking] Raw miner data for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: {
-2026-01-20T19:45:43.210782637Z [inf]  [Staking] Miner object keys: [
-2026-01-20T19:45:43.220293564Z [inf]  [Staking] Stake info for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: 50000 staked (raw: 50000000000000), 0 pending (raw: 0)
-2026-01-20T19:45:56.441669156Z [inf]  [Staking] Raw miner data for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: {
-2026-01-20T19:45:56.445185481Z [inf]  [Staking] Miner object keys: [
-2026-01-20T19:45:56.445225735Z [inf]  [Staking] Stake info for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: 50000 staked (raw: 50000000000000), 0 pending (raw: 0)
-2026-01-20T19:46:53.985676283Z [inf]  [Staking] Raw miner data for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: {
-2026-01-20T19:46:53.988555814Z [inf]  [Staking] Stake info for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: 50000 staked (raw: 50000000000000), 0 pending (raw: 0)
-2026-01-20T19:46:53.988560006Z [inf]  [Staking] Miner object keys: [
-2026-01-20T19:49:07.518683029Z [inf]  [Staking] Raw miner data for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: {
-2026-01-20T19:49:07.518790673Z [inf]  [Staking] Miner object keys: [
-2026-01-20T19:49:07.518805209Z [inf]  [Staking] Stake info for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: 50000 staked (raw: 50000000000000), 0 pending (raw: 0)
-2026-01-20T19:52:50.814647291Z [inf]  [Staking] Raw miner data for 9Y4Cje3zzWGjT6AjNDQaFKfsaWa2bT4LB8fT93PJwG9R: {
-2026-01-20T19:52:50.814712682Z [inf]  [Staking] Miner object keys: [
-2026-01-20T19:53:04.961639543Z [inf]  [Staking] Raw miner data for 9Y4Cje3zzWGjT6AjNDQaFKfsaWa2bT4LB8fT93PJwG9R: {
-2026-01-20T19:53:04.961792578Z [inf]  [Staking] Miner object keys: [
-2026-01-20T19:53:04.961896799Z [inf]  [Staking] Stake info for 9Y4Cje3zzWGjT6AjNDQaFKfsaWa2bT4LB8fT93PJwG9R: 1100 staked (raw: 1100000000000), 0 pending (raw: 0)
-2026-01-20T19:53:13.005488704Z [inf]  [Staking] Raw miner data for 9Y4Cje3zzWGjT6AjNDQaFKfsaWa2bT4LB8fT93PJwG9R: {
-2026-01-20T19:53:13.005561861Z [inf]  [Staking] Miner object keys: [
-2026-01-20T19:53:13.009857538Z [inf]  [Staking] Stake info for 9Y4Cje3zzWGjT6AjNDQaFKfsaWa2bT4LB8fT93PJwG9R: 1100 staked (raw: 1100000000000), 0 pending (raw: 0)
-2026-01-20T19:53:32.011133060Z [inf]  [Staking] Stake info for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: 50000 staked (raw: 50000000000000), 0 pending (raw: 0)
-2026-01-20T19:53:32.011139416Z [inf]  [Staking] Miner object keys: [
-2026-01-20T19:53:32.011188679Z [inf]  [Staking] Raw miner data for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: {
-2026-01-20T19:53:50.285950027Z [inf]  [Staking] Raw miner data for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: {
-2026-01-20T19:53:50.286010067Z [inf]  [Staking] Miner object keys: [
-2026-01-20T19:53:50.286066870Z [inf]  [Staking] Stake info for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: 50000 staked (raw: 50000000000000), 0 pending (raw: 0)
-2026-01-20T19:54:05.132827866Z [inf]  [Staking] Raw miner data for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: {
-2026-01-20T22:52:00.110323955Z [inf]  [Staking] No miner account found for CnVGXJhxmBpLXJ5zBfy9pi8Q5gxMiKcZj5VVG1sspYWG
-2026-01-20T22:53:28.565478698Z [inf]  [Staking] No miner account found for C6LgtQmBEjDAmiJNYPJUhRGA3a2f2YKzENSyiiiAVBr4
-2026-01-20T23:01:42.222279793Z [inf]  [Staking] No miner account found for C6LgtQmBEjDAmiJNYPJUhRGA3a2f2YKzENSyiiiAVBr4
-2026-01-20T23:08:03.755889886Z [inf]  [Staking] No miner account found for C6LgtQmBEjDAmiJNYPJUhRGA3a2f2YKzENSyiiiAVBr4
-2026-01-20T23:08:08.011575991Z [inf]  [Staking] No miner account found for C6LgtQmBEjDAmiJNYPJUhRGA3a2f2YKzENSyiiiAVBr4
-2026-01-20T23:10:13.265744875Z [inf]  [Staking] No miner account found for C6LgtQmBEjDAmiJNYPJUhRGA3a2f2YKzENSyiiiAVBr4
-2026-01-20T23:10:40.418785607Z [inf]  [Staking] No miner account found for C6LgtQmBEjDAmiJNYPJUhRGA3a2f2YKzENSyiiiAVBr4
-2026-01-20T23:10:40.561922921Z [inf]  [Staking] Miner account GZZ85AXV... exists: false
-2026-01-20T23:10:40.565972154Z [inf]  [Staking] Creating miner account for C6LgtQmBEjDAmiJNYPJUhRGA3a2f2YKzENSyiiiAVBr4...
-2026-01-20T23:10:41.405595226Z [inf]  [Staking] Built stake tx for C6LgtQmBEjDAmiJNYPJUhRGA3a2f2YKzENSyiiiAVBr4: 100 COAL
-2026-01-20T23:11:07.640985217Z [inf]  [Staking] Miner object keys: [
-2026-01-20T23:11:07.641032937Z [inf]  [Staking] Raw miner data for C6LgtQmBEjDAmiJNYPJUhRGA3a2f2YKzENSyiiiAVBr4: {
-2026-01-20T23:11:07.641038558Z [inf]  [Staking] Stake info for C6LgtQmBEjDAmiJNYPJUhRGA3a2f2YKzENSyiiiAVBr4: 100 staked (raw: 100000000000), 0 pending (raw: 0)
-2026-01-20T23:11:08.649665942Z [inf]  [Staking] Verified stake: 2gtTVjUkzHFB3WXx1ANRrPjnzvqHqH6ktRsvRpqUjdGtmBH5aTqq8mej5oZfAtL95Bw9E8NPhk2vyjruH3Zxh3xT for C6LgtQmBEjDAmiJNYPJUhRGA3a2f2YKzENSyiiiAVBr4
-2026-01-20T23:12:37.076803350Z [inf]  [Staking] Raw miner data for C6LgtQmBEjDAmiJNYPJUhRGA3a2f2YKzENSyiiiAVBr4: {
-2026-01-20T23:12:37.076888551Z [inf]  [Staking] Miner object keys: [
-2026-01-20T23:12:37.076958965Z [inf]  [Staking] Stake info for C6LgtQmBEjDAmiJNYPJUhRGA3a2f2YKzENSyiiiAVBr4: 100 staked (raw: 100000000000), 0 pending (raw: 0)
-2026-01-20T23:13:00.253787131Z [inf]  [Staking] Raw miner data for C6LgtQmBEjDAmiJNYPJUhRGA3a2f2YKzENSyiiiAVBr4: {
-2026-01-20T23:13:00.253831015Z [inf]  [Staking] Miner object keys: [
-2026-01-20T23:13:00.253874878Z [inf]  [Staking] Stake info for C6LgtQmBEjDAmiJNYPJUhRGA3a2f2YKzENSyiiiAVBr4: 100 staked (raw: 100000000000), 0 pending (raw: 0)
-2026-01-20T23:14:45.499354513Z [inf]  [Staking] Raw miner data for C6LgtQmBEjDAmiJNYPJUhRGA3a2f2YKzENSyiiiAVBr4: {
-2026-01-20T23:14:45.499422174Z [inf]  [Staking] Miner object keys: [
-2026-01-20T23:14:45.499492186Z [inf]  [Staking] Stake info for C6LgtQmBEjDAmiJNYPJUhRGA3a2f2YKzENSyiiiAVBr4: 100 staked (raw: 100000000000), 0 pending (raw: 0)
-2026-01-20T23:14:54.501266384Z [inf]  [Staking] Raw miner data for C6LgtQmBEjDAmiJNYPJUhRGA3a2f2YKzENSyiiiAVBr4: {
-2026-01-20T23:14:54.501369200Z [inf]  [Staking] Miner object keys: [
-2026-01-20T23:14:54.501424406Z [inf]  [Staking] Stake info for C6LgtQmBEjDAmiJNYPJUhRGA3a2f2YKzENSyiiiAVBr4: 100 staked (raw: 100000000000), 0 pending (raw: 0)
-2026-01-20T23:14:55.470052256Z [inf]  [Staking] Miner account GZZ85AXV... exists: true
-2026-01-20T23:14:55.470057624Z [inf]  [Staking] Built stake tx for C6LgtQmBEjDAmiJNYPJUhRGA3a2f2YKzENSyiiiAVBr4: 400 COAL
-2026-01-20T23:15:11.682348689Z [inf]  [Staking] Raw miner data for C6LgtQmBEjDAmiJNYPJUhRGA3a2f2YKzENSyiiiAVBr4: {
-2026-01-20T23:15:11.682424936Z [inf]  [Staking] Miner object keys: [
-2026-01-20T23:15:11.682513470Z [inf]  [Staking] Stake info for C6LgtQmBEjDAmiJNYPJUhRGA3a2f2YKzENSyiiiAVBr4: 500 staked (raw: 500000000000), 0 pending (raw: 0)
-2026-01-20T23:15:11.739734196Z [inf]  [Staking] Verified stake: 28yBex9aZfjSmcaVRfeLEWKBsGAAnacUf1hPzomDcSUBGzi1nC8dMGhoQc8cb9VXp3qXK6txzFCcLsQgwGW2LWqd for C6LgtQmBEjDAmiJNYPJUhRGA3a2f2YKzENSyiiiAVBr4
-2026-01-20T23:16:05.894887782Z [inf]  [Staking] Raw miner data for C6LgtQmBEjDAmiJNYPJUhRGA3a2f2YKzENSyiiiAVBr4: {
-2026-01-20T23:16:05.894939213Z [inf]  [Staking] Miner object keys: [
-2026-01-20T23:16:05.894985523Z [inf]  [Staking] Stake info for C6LgtQmBEjDAmiJNYPJUhRGA3a2f2YKzENSyiiiAVBr4: 500 staked (raw: 500000000000), 0 pending (raw: 0)
-
-2026-01-20T19:33:48.192459530Z [inf]  [Staking] Stake info for 9Y4Cje3zzWGjT6AjNDQaFKfsaWa2bT4LB8fT93PJwG9R: 100 staked (raw: 100000000000), 0 pending (raw: 0)
-2026-01-20T19:34:02.157562020Z [inf]  [Staking] Stake info for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: 25000 staked (raw: 25000000000000), 0 pending (raw: 0)
-2026-01-20T19:35:26.163489105Z [inf]  [Staking] Stake info for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: 25000 staked (raw: 25000000000000), 0 pending (raw: 0)
-2026-01-20T19:35:56.630330338Z [inf]  [Staking] Stake info for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: 25000 staked (raw: 25000000000000), 0 pending (raw: 0)
-2026-01-20T19:37:09.236460909Z [inf]  [Staking] Stake info for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: 25000 staked (raw: 25000000000000), 0 pending (raw: 0)
-2026-01-20T19:37:10.169903465Z [inf]  [Staking] Stake info for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: 25000 staked (raw: 25000000000000), 0 pending (raw: 0)
-2026-01-20T19:37:15.517373398Z [inf]  [Staking] Stake info for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: 50000 staked (raw: 50000000000000), 0 pending (raw: 0)
-2026-01-20T19:38:31.802429580Z [inf]  [Staking] Stake info for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: 50000 staked (raw: 50000000000000), 0 pending (raw: 0)
-2026-01-20T19:39:50.151325086Z [inf]  [Staking] Stake info for 9Y4Cje3zzWGjT6AjNDQaFKfsaWa2bT4LB8fT93PJwG9R: 100 staked (raw: 100000000000), 0 pending (raw: 0)
-2026-01-20T19:39:55.304463934Z [inf]  [Staking] Stake info for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: 50000 staked (raw: 50000000000000), 0 pending (raw: 0)
-2026-01-20T19:40:07.531778631Z [inf]  [Staking] Stake info for 9Y4Cje3zzWGjT6AjNDQaFKfsaWa2bT4LB8fT93PJwG9R: 100 staked (raw: 100000000000), 0 pending (raw: 0)
-2026-01-20T19:40:14.478312017Z [inf]  [Staking] Stake info for 9Y4Cje3zzWGjT6AjNDQaFKfsaWa2bT4LB8fT93PJwG9R: 500 staked (raw: 500000000000), 0 pending (raw: 0)
-2026-01-20T19:41:50.685513136Z [inf]  [Staking] Stake info for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: 50000 staked (raw: 50000000000000), 0 pending (raw: 0)
-2026-01-20T19:42:04.472179600Z [inf]  [Staking] Stake info for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: 50000 staked (raw: 50000000000000), 0 pending (raw: 0)
-2026-01-20T19:42:19.948069378Z [inf]  [Staking] Stake info for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: 50000 staked (raw: 50000000000000), 0 pending (raw: 0)
-2026-01-20T19:42:26.880978014Z [inf]  [Staking] Stake info for 9Y4Cje3zzWGjT6AjNDQaFKfsaWa2bT4LB8fT93PJwG9R: 500 staked (raw: 500000000000), 0 pending (raw: 0)
-2026-01-20T19:42:43.133536386Z [inf]  [Staking] Stake info for 9Y4Cje3zzWGjT6AjNDQaFKfsaWa2bT4LB8fT93PJwG9R: 200 staked (raw: 200000000000), 0 pending (raw: 0)
-2026-01-20T19:42:53.125102105Z [inf]  [Staking] Stake info for 9Y4Cje3zzWGjT6AjNDQaFKfsaWa2bT4LB8fT93PJwG9R: 200 staked (raw: 200000000000), 0 pending (raw: 0)
-2026-01-20T19:43:05.374868398Z [inf]  [Staking] Stake info for 9Y4Cje3zzWGjT6AjNDQaFKfsaWa2bT4LB8fT93PJwG9R: 200 staked (raw: 200000000000), 0 pending (raw: 0)
-2026-01-20T19:43:17.703361874Z [inf]  [Staking] Stake info for 9Y4Cje3zzWGjT6AjNDQaFKfsaWa2bT4LB8fT93PJwG9R: 200 staked (raw: 200000000000), 0 pending (raw: 0)
-2026-01-20T19:43:25.269611388Z [inf]  [Staking] Stake info for 9Y4Cje3zzWGjT6AjNDQaFKfsaWa2bT4LB8fT93PJwG9R: 200 staked (raw: 200000000000), 0 pending (raw: 0)
-2026-01-20T19:43:29.383575370Z [inf]  [Staking] Stake info for 9Y4Cje3zzWGjT6AjNDQaFKfsaWa2bT4LB8fT93PJwG9R: 1100 staked (raw: 1100000000000), 0 pending (raw: 0)
-2026-01-20T19:43:54.105071320Z [inf]  [Staking] Stake info for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: 50000 staked (raw: 50000000000000), 0 pending (raw: 0)
-2026-01-20T19:44:32.659131269Z [inf]  [Staking] Stake info for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: 50000 staked (raw: 50000000000000), 0 pending (raw: 0)
-2026-01-20T19:44:49.028169814Z [inf]  [Staking] Stake info for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: 50000 staked (raw: 50000000000000), 0 pending (raw: 0)
-2026-01-20T19:45:43.220293564Z [inf]  [Staking] Stake info for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: 50000 staked (raw: 50000000000000), 0 pending (raw: 0)
-2026-01-20T19:45:56.445225735Z [inf]  [Staking] Stake info for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: 50000 staked (raw: 50000000000000), 0 pending (raw: 0)
-2026-01-20T19:46:53.988555814Z [inf]  [Staking] Stake info for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: 50000 staked (raw: 50000000000000), 0 pending (raw: 0)
-2026-01-20T19:49:07.518805209Z [inf]  [Staking] Stake info for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: 50000 staked (raw: 50000000000000), 0 pending (raw: 0)
-2026-01-20T19:53:04.961896799Z [inf]  [Staking] Stake info for 9Y4Cje3zzWGjT6AjNDQaFKfsaWa2bT4LB8fT93PJwG9R: 1100 staked (raw: 1100000000000), 0 pending (raw: 0)
-2026-01-20T19:53:13.009857538Z [inf]  [Staking] Stake info for 9Y4Cje3zzWGjT6AjNDQaFKfsaWa2bT4LB8fT93PJwG9R: 1100 staked (raw: 1100000000000), 0 pending (raw: 0)
-2026-01-20T19:53:32.011133060Z [inf]  [Staking] Stake info for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: 50000 staked (raw: 50000000000000), 0 pending (raw: 0)
-2026-01-20T19:53:50.286066870Z [inf]  [Staking] Stake info for ALK6Zw3PYjNFhruJSa2guUBxmhKsezbNDprDRW98mJdE: 50000 staked (raw: 50000000000000), 0 pending (raw: 0)
-2026-01-20T23:11:07.641038558Z [inf]  [Staking] Stake info for C6LgtQmBEjDAmiJNYPJUhRGA3a2f2YKzENSyiiiAVBr4: 100 staked (raw: 100000000000), 0 pending (raw: 0)
-2026-01-20T23:12:37.076958965Z [inf]  [Staking] Stake info for C6LgtQmBEjDAmiJNYPJUhRGA3a2f2YKzENSyiiiAVBr4: 100 staked (raw: 100000000000), 0 pending (raw: 0)
-2026-01-20T23:13:00.253874878Z [inf]  [Staking] Stake info for C6LgtQmBEjDAmiJNYPJUhRGA3a2f2YKzENSyiiiAVBr4: 100 staked (raw: 100000000000), 0 pending (raw: 0)
-2026-01-20T23:14:45.499492186Z [inf]  [Staking] Stake info for C6LgtQmBEjDAmiJNYPJUhRGA3a2f2YKzENSyiiiAVBr4: 100 staked (raw: 100000000000), 0 pending (raw: 0)
-2026-01-20T23:14:54.501424406Z [inf]  [Staking] Stake info for C6LgtQmBEjDAmiJNYPJUhRGA3a2f2YKzENSyiiiAVBr4: 100 staked (raw: 100000000000), 0 pending (raw: 0)
-2026-01-20T23:15:11.682513470Z [inf]  [Staking] Stake info for C6LgtQmBEjDAmiJNYPJUhRGA3a2f2YKzENSyiiiAVBr4: 500 staked (raw: 500000000000), 0 pending (raw: 0)
-2026-01-20T23:16:05.894985523Z [inf]  [Staking] Stake info for C6LgtQmBEjDAmiJNYPJUhRGA3a2f2YKzENSyiiiAVBr4: 500 staked (raw: 500000000000), 0 pending (raw: 0)
+[HolderVerification] Fetching balance for C95329YP... 2 b7f5661ce3e407df.js:1:23443
+[HolderVerification] Got balance: 999,695,000 b7f5661ce3e407df.js:1:23748
+[HolderVerification] Got balance: 999,695,000 b7f5661ce3e407df.js:1:23748
+[Game] 📨 Event received: round_status 
+Object { eventId: "round_status_1768959109723", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
+b7f5661ce3e407df.js:180:6702
+[StakingPanel] Initiating stake of 5000 tokens... b7f5661ce3e407df.js:1:35231
+[Staking] Running pre-flight check... b7f5661ce3e407df.js:1:28359
+[Staking] User stake info: 
+Object { walletAddress: "C95329YPMEqVTDVu7QVW4AyPa9SqhDPWR114Bynp3uhH", stakedAmount: 0, pendingRewards: 0, lastStakeTime: null, minerPDA: "H8i3jEXge8Ju8UK8qFTGVWftaTWiWnYKu1KT1dG4f5LE" }
+b7f5661ce3e407df.js:1:27424
+[Staking] Requesting stake transaction for 5000 tokens b7f5661ce3e407df.js:1:28558
+[Staking] Signing and sending transaction... b7f5661ce3e407df.js:1:28751
+[Staking] Transaction blockhash: nWH22UQM4HS2C9ySm5e8YXquUB7wURpzMXEtMZb4J2p b7f5661ce3e407df.js:1:28811
+[Wallet] Starting sign and send transaction... d46034cc4c5ace28.js:7:79372
+[Wallet] Wallet address: C95329YPMEqVTDVu7QVW4AyPa9SqhDPWR114Bynp3uhH d46034cc4c5ace28.js:7:79434
+[Wallet] Solana wallet found: false d46034cc4c5ace28.js:7:79476
+[Wallet] Transaction length: 644 d46034cc4c5ace28.js:7:79525
+[Wallet] Deserialized buffer length: 482 d46034cc4c5ace28.js:7:79611
+[Wallet] Parsed as legacy Transaction d46034cc4c5ace28.js:7:79802
+[Wallet] Instructions count: 2 d46034cc4c5ace28.js:7:79855
+[Wallet] Fee payer: C95329YP d46034cc4c5ace28.js:7:79922
+[Wallet] Recent blockhash: nWH22UQM d46034cc4c5ace28.js:7:79992
+[Wallet] Using RPC: https://api.devnet.solana.com d46034cc4c5ace28.js:7:80438
+[Wallet] Trying window.solana fallback... d46034cc4c5ace28.js:7:82058
+[Wallet] window.solana.isPhantom: true d46034cc4c5ace28.js:7:82115
+[Wallet] window.solana.isConnected: false d46034cc4c5ace28.js:7:82189
+[Wallet] Transaction type: LegacyTransaction d46034cc4c5ace28.js:7:82267
+[Wallet] Phantom not connected, attempting to connect... d46034cc4c5ace28.js:7:82393
+[Wallet] Phantom connected d46034cc4c5ace28.js:7:82487
+[Wallet] Using signTransaction for legacy tx... d46034cc4c5ace28.js:7:82623
+[Game] 📨 Event received: round_status 
+Object { eventId: "round_status_1768959114456", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
+b7f5661ce3e407df.js:180:6702
+[Game] 📨 Event received: round_status 
+Object { eventId: "round_status_1768959119541", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
+b7f5661ce3e407df.js:180:6702
+[Wallet] Transaction signed by Phantom d46034cc4c5ace28.js:7:82719
+[Wallet] Sent to network, signature: N9yWpgfwsFTmntThCaz56e8mYeCiwkXrpsYVgMgetSdeKErPUDZMjikA5YBRyACiwLULkdi6Rus5EDMSP7EhFvz d46034cc4c5ace28.js:7:82885
+[Wallet] Transaction confirmed: N9yWpgfwsFTmntThCaz56e8mYeCiwkXrpsYVgMgetSdeKErPUDZMjikA5YBRyACiwLULkdi6Rus5EDMSP7EhFvz d46034cc4c5ace28.js:7:83151
+[Staking] ✅ Stake successful! Signature: N9yWpgfwsFTmntThCaz56e8mYeCiwkXrpsYVgMgetSdeKErPUDZMjikA5YBRyACiwLULkdi6Rus5EDMSP7EhFvz b7f5661ce3e407df.js:1:29675
+[Staking] View on Solana Explorer: https://explorer.solana.com/tx/N9yWpgfwsFTmntThCaz56e8mYeCiwkXrpsYVgMgetSdeKErPUDZMjikA5YBRyACiwLULkdi6Rus5EDMSP7EhFvz?cluster=devnet b7f5661ce3e407df.js:1:29733
+[Staking] Waiting 3s for RPC to sync before refreshing wallet balance... b7f5661ce3e407df.js:1:30062
+[Game] 📨 Event received: round_status 
+Object { eventId: "round_status_1768959124474", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
+b7f5661ce3e407df.js:180:6702
+[Staking] Refreshing wallet balance after stake... b7f5661ce3e407df.js:1:30190
+[HolderVerification] Fetching balance for C95329YP... (force refresh) b7f5661ce3e407df.js:1:23443
+[HolderVerification] Got balance: 999,700,000 (from force refresh) b7f5661ce3e407df.js:1:23748
+[StakingPanel] Stake successful: N9yWpgfwsFTmntThCaz56e8mYeCiwkXrpsYVgMgetSdeKErPUDZMjikA5YBRyACiwLULkdi6Rus5EDMSP7EhFvz b7f5661ce3e407df.js:1:35343
+[Stake] On-chain stake successful: 5000 Signature: N9yWpgfwsFTmntThCaz56e8mYeCiwkXrpsYVgMgetSdeKErPUDZMjikA5YBRyACiwLULkdi6Rus5EDMSP7EhFvz
+[HolderVerification] Fetching balance for C95329YP... 2 b7f5661ce3e407df.js:1:23443
+[HolderVerification] Got balance: 999,700,000 b7f5661ce3e407df.js:1:23748
+[Game] 📨 Event received: round_status 
+Object { eventId: "round_status_1768959174473", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
+b7f5661ce3e407df.js:180:6702
+[HolderVerification] Got balance: 999,700,000 b7f5661ce3e407df.js:1:23748
+[StakingPanel] Initiating unstake of 5000 tokens... b7f5661ce3e407df.js:1:35489
+[Staking] Requesting unstake transaction for 5000 tokens b7f5661ce3e407df.js:1:30824
+[Game] 📨 Event received: round_status 
+Object { eventId: "round_status_1768959179590", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
+b7f5661ce3e407df.js:180:6702
+[Staking] Signing and sending unstake transaction... b7f5661ce3e407df.js:1:31021
+[Staking] Transaction blockhash: J5zgtxkJ8WcaZvo9Vo3mmfCkFAJCCFMK5b6iHYv3aKE4 b7f5661ce3e407df.js:1:31089
+[Wallet] Starting sign and send transaction... d46034cc4c5ace28.js:7:79372
+[Wallet] Wallet address: C95329YPMEqVTDVu7QVW4AyPa9SqhDPWR114Bynp3uhH d46034cc4c5ace28.js:7:79434
+[Wallet] Solana wallet found: false d46034cc4c5ace28.js:7:79476
+[Wallet] Transaction length: 648 d46034cc4c5ace28.js:7:79525
+[Wallet] Deserialized buffer length: 484 d46034cc4c5ace28.js:7:79611
+[Wallet] Parsed as legacy Transaction d46034cc4c5ace28.js:7:79802
+[Wallet] Instructions count: 2 d46034cc4c5ace28.js:7:79855
+[Wallet] Fee payer: C95329YP d46034cc4c5ace28.js:7:79922
+[Wallet] Recent blockhash: J5zgtxkJ d46034cc4c5ace28.js:7:79992
+[Wallet] Using RPC: https://api.devnet.solana.com d46034cc4c5ace28.js:7:80438
+[Wallet] Trying window.solana fallback... d46034cc4c5ace28.js:7:82058
+[Wallet] window.solana.isPhantom: true d46034cc4c5ace28.js:7:82115
+[Wallet] window.solana.isConnected: false d46034cc4c5ace28.js:7:82189
+[Wallet] Transaction type: LegacyTransaction d46034cc4c5ace28.js:7:82267
+[Wallet] Phantom not connected, attempting to connect... d46034cc4c5ace28.js:7:82393
+[Wallet] Phantom connected d46034cc4c5ace28.js:7:82487
+[Wallet] Using signTransaction for legacy tx... d46034cc4c5ace28.js:7:82623
+[Game] 📨 Event received: round_status 
+Object { eventId: "round_status_1768959184505", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
+b7f5661ce3e407df.js:180:6702
+[Wallet] Transaction signed by Phantom d46034cc4c5ace28.js:7:82719
+[Wallet] Sent to network, signature: 4vUzfS52axYjWJhdB6CCa9TBV9teM32o79oFAF2aZAALmYJKLr71RgfpS7JQdb9hFwmkSEkyvrRdiow7eScbKWG3 d46034cc4c5ace28.js:7:82885
+[Wallet] Transaction confirmed: 4vUzfS52axYjWJhdB6CCa9TBV9teM32o79oFAF2aZAALmYJKLr71RgfpS7JQdb9hFwmkSEkyvrRdiow7eScbKWG3 d46034cc4c5ace28.js:7:83151
+[Staking] ✅ Unstake successful! Signature: 4vUzfS52axYjWJhdB6CCa9TBV9teM32o79oFAF2aZAALmYJKLr71RgfpS7JQdb9hFwmkSEkyvrRdiow7eScbKWG3 b7f5661ce3e407df.js:1:31791
+[Staking] View on Solana Explorer: https://explorer.solana.com/tx/4vUzfS52axYjWJhdB6CCa9TBV9teM32o79oFAF2aZAALmYJKLr71RgfpS7JQdb9hFwmkSEkyvrRdiow7eScbKWG3?cluster=devnet b7f5661ce3e407df.js:1:31851
+[Game] 📨 Event received: round_status 
+Object { eventId: "round_status_1768959189742", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
+b7f5661ce3e407df.js:180:6702
+[Staking] Waiting 3s for RPC to sync before refreshing wallet balance... b7f5661ce3e407df.js:1:32182
+[Staking] Backend verification pending, but on-chain tx confirmed b7f5661ce3e407df.js:1:32007
+[Staking] Refreshing wallet balance after unstake... b7f5661ce3e407df.js:1:32310
+[HolderVerification] Fetching balance for C95329YP... (force refresh) b7f5661ce3e407df.js:1:23443
+[HolderVerification] Got balance: 999,695,000 (from force refresh) b7f5661ce3e407df.js:1:23748
+[StakingPanel] Unstake successful: 4vUzfS52axYjWJhdB6CCa9TBV9teM32o79oFAF2aZAALmYJKLr71RgfpS7JQdb9hFwmkSEkyvrRdiow7eScbKWG3 b7f5661ce3e407df.js:1:35605
+[Unstake] On-chain unstake successful: 5000 Signature: 4vUzfS52axYjWJhdB6CCa9TBV9teM32o79oFAF2aZAALmYJKLr71RgfpS7JQdb9hFwmkSEkyvrRdiow7eScbKWG3

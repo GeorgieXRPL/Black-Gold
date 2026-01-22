@@ -8,6 +8,15 @@
 import { useState } from 'react';
 import { useAdminContext } from '../layout';
 import { AdminUser } from '../../../server/types';
+import { getStakeTier } from '../../lib/mines';
+
+/**
+ * Calculate effective hashrate with staking multiplier
+ */
+function getEffectiveHashrate(baseHashrate: number, stakeAmount: number): number {
+  const tier = getStakeTier(stakeAmount);
+  return Math.floor(baseHashrate * tier.hashrateMultiplier);
+}
 
 export default function UsersPage() {
   const { users, executeAction } = useAdminContext();
@@ -80,7 +89,8 @@ export default function UsersPage() {
               <th className="text-left px-6 py-4 text-coal-400 font-medium text-sm">Wallet</th>
               <th className="text-left px-6 py-4 text-coal-400 font-medium text-sm">Home Mine</th>
               <th className="text-right px-6 py-4 text-coal-400 font-medium text-sm">Stake</th>
-              <th className="text-right px-6 py-4 text-coal-400 font-medium text-sm">Hashrate</th>
+              <th className="text-center px-6 py-4 text-coal-400 font-medium text-sm">Tier</th>
+              <th className="text-right px-6 py-4 text-coal-400 font-medium text-sm">Effective HR</th>
               <th className="text-right px-6 py-4 text-coal-400 font-medium text-sm">Discoveries</th>
               <th className="text-center px-6 py-4 text-coal-400 font-medium text-sm">Status</th>
               <th className="text-right px-6 py-4 text-coal-400 font-medium text-sm">Last Active</th>
@@ -95,35 +105,59 @@ export default function UsersPage() {
                 </td>
               </tr>
             ) : (
-              filteredUsers.map((user) => (
-                <tr key={user.id} className="hover:bg-coal-800/50 transition-colors">
-                  <td className="px-6 py-4">
-                    <span className="font-mono text-white">{user.wallet}</span>
-                  </td>
-                  <td className="px-6 py-4 text-coal-300">{user.homeMine}</td>
-                  <td className="px-6 py-4 text-right text-ember-400 font-mono">
-                    {user.stakeAmount.toLocaleString()}
-                  </td>
-                  <td className="px-6 py-4 text-right text-coal-300 font-mono">
-                    {user.hashrate > 0 ? `${(user.hashrate / 1000).toFixed(0)} KH/s` : '-'}
-                  </td>
-                  <td className="px-6 py-4 text-right text-gold-400">{user.discoveryCount}</td>
-                  <td className="px-6 py-4 text-center">
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${statusColors[user.status]}`}>
-                      {user.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-right text-coal-500 text-sm">{user.lastActive}</td>
-                  <td className="px-6 py-4">
-                    <button
-                      onClick={() => setSelectedUser(user)}
-                      className="text-coal-500 hover:text-white transition-colors"
-                    >
-                      •••
-                    </button>
-                  </td>
-                </tr>
-              ))
+              filteredUsers.map((user) => {
+                const stakeTier = getStakeTier(user.stakeAmount);
+                const effectiveHashrate = getEffectiveHashrate(user.hashrate, user.stakeAmount);
+                return (
+                  <tr key={user.id} className="hover:bg-coal-800/50 transition-colors">
+                    <td className="px-6 py-4">
+                      <span className="font-mono text-white">{user.wallet}</span>
+                    </td>
+                    <td className="px-6 py-4 text-coal-300">{user.homeMine}</td>
+                    <td className="px-6 py-4 text-right text-ember-400 font-mono">
+                      {user.stakeAmount.toLocaleString()}
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${
+                        stakeTier.name === 'Diamond' ? 'bg-purple-500/20 text-purple-400' :
+                        stakeTier.name === 'Gold' ? 'bg-gold-500/20 text-gold-400' :
+                        stakeTier.name === 'Silver' ? 'bg-gray-400/20 text-gray-300' :
+                        stakeTier.name === 'Bronze' ? 'bg-orange-500/20 text-orange-400' :
+                        'bg-coal-600/20 text-coal-400'
+                      }`}>
+                        {stakeTier.name} ({stakeTier.hashrateMultiplier}x)
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right font-mono">
+                      {user.hashrate > 0 ? (
+                        <div>
+                          <span className="text-green-400">{(effectiveHashrate / 1000).toFixed(0)} KH/s</span>
+                          {stakeTier.hashrateMultiplier > 1 && (
+                            <span className="text-coal-500 text-xs ml-1">
+                              (base: {(user.hashrate / 1000).toFixed(0)})
+                            </span>
+                          )}
+                        </div>
+                      ) : '-'}
+                    </td>
+                    <td className="px-6 py-4 text-right text-gold-400">{user.discoveryCount}</td>
+                    <td className="px-6 py-4 text-center">
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${statusColors[user.status]}`}>
+                        {user.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right text-coal-500 text-sm">{user.lastActive}</td>
+                    <td className="px-6 py-4">
+                      <button
+                        onClick={() => setSelectedUser(user)}
+                        className="text-coal-500 hover:text-white transition-colors"
+                      >
+                        •••
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
@@ -168,18 +202,54 @@ export default function UsersPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-coal-500 text-sm">Stake</label>
                   <p className="text-ember-400 font-mono">{selectedUser.stakeAmount.toLocaleString()}</p>
                 </div>
                 <div>
+                  <label className="text-coal-500 text-sm">Stake Tier</label>
+                  <p className={`font-medium ${
+                    getStakeTier(selectedUser.stakeAmount).name === 'Diamond' ? 'text-purple-400' :
+                    getStakeTier(selectedUser.stakeAmount).name === 'Gold' ? 'text-gold-400' :
+                    getStakeTier(selectedUser.stakeAmount).name === 'Silver' ? 'text-gray-300' :
+                    getStakeTier(selectedUser.stakeAmount).name === 'Bronze' ? 'text-orange-400' :
+                    'text-coal-400'
+                  }`}>
+                    {getStakeTier(selectedUser.stakeAmount).name} ({getStakeTier(selectedUser.stakeAmount).hashrateMultiplier}x)
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-coal-500 text-sm">Base Hashrate</label>
+                  <p className="text-coal-300 font-mono">
+                    {selectedUser.hashrate > 0 ? `${(selectedUser.hashrate / 1000).toFixed(0)} KH/s` : '-'}
+                  </p>
+                </div>
+                <div>
+                  <label className="text-coal-500 text-sm">Effective Hashrate</label>
+                  <p className="text-green-400 font-mono">
+                    {selectedUser.hashrate > 0 
+                      ? `${(getEffectiveHashrate(selectedUser.hashrate, selectedUser.stakeAmount) / 1000).toFixed(0)} KH/s` 
+                      : '-'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div>
                   <label className="text-coal-500 text-sm">Discoveries</label>
                   <p className="text-gold-400">{selectedUser.discoveryCount}</p>
                 </div>
                 <div>
-                  <label className="text-coal-500 text-sm">Raids (W/L)</label>
-                  <p className="text-white">{selectedUser.raidWins}/{selectedUser.raidLosses}</p>
+                  <label className="text-coal-500 text-sm">Raid Wins</label>
+                  <p className="text-green-400">{selectedUser.raidWins}</p>
+                </div>
+                <div>
+                  <label className="text-coal-500 text-sm">Raid Losses</label>
+                  <p className="text-red-400">{selectedUser.raidLosses}</p>
                 </div>
               </div>
 
