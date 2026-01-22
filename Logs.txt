@@ -1,19 +1,14 @@
-[HolderVerification] Fetching balance for C95329YP... 2 8726dcd687236473.js:1:23677
-[HolderVerification] Got balance: 999,700,000 2 8726dcd687236473.js:1:23973
+[StakingPanel] Initiating stake of 500 tokens... 78f4bb87f7aa47d2.js:1:33744
+[Staking] Running pre-flight check... 78f4bb87f7aa47d2.js:1:26872
 [Game] 📨 Event received: round_status 
-Object { eventId: "round_status_1769048766079", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
-8726dcd687236473.js:180:6760
-[StakingPanel] Initiating stake of 500 tokens... 8726dcd687236473.js:1:35511
-[Staking] Running pre-flight check... 8726dcd687236473.js:1:28639
-[Game] 📨 Event received: round_status 
-Object { eventId: "round_status_1769048771178", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
-8726dcd687236473.js:180:6760
+Object { eventId: "round_status_1769049701267", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
+78f4bb87f7aa47d2.js:180:6760
 [Staking] User stake info: 
 Object { walletAddress: "C95329YPMEqVTDVu7QVW4AyPa9SqhDPWR114Bynp3uhH", stakedAmount: 0, pendingRewards: 0, lastStakeTime: null, minerPDA: "H8i3jEXge8Ju8UK8qFTGVWftaTWiWnYKu1KT1dG4f5LE" }
-8726dcd687236473.js:1:27704
-[Staking] Requesting stake transaction for 500 tokens 8726dcd687236473.js:1:28838
-[Staking] Signing and sending transaction... 8726dcd687236473.js:1:29031
-[Staking] Transaction blockhash: H7uAZFRsdfsWuShwY5UTTniaXHs61LPCeFFrDiAJMgwC 8726dcd687236473.js:1:29091
+78f4bb87f7aa47d2.js:1:25937
+[Staking] Requesting stake transaction for 500 tokens 78f4bb87f7aa47d2.js:1:27071
+[Staking] Signing and sending transaction... 78f4bb87f7aa47d2.js:1:27264
+[Staking] Transaction blockhash: HyJ2dSRXHTMskEEKKbvoDr6fpPDRDNTz821SSrz1SPv9 78f4bb87f7aa47d2.js:1:27324
 [Wallet] Starting sign and send transaction... d46034cc4c5ace28.js:7:79372
 [Wallet] Wallet address: C95329YPMEqVTDVu7QVW4AyPa9SqhDPWR114Bynp3uhH d46034cc4c5ace28.js:7:79434
 [Wallet] Solana wallet found: false d46034cc4c5ace28.js:7:79476
@@ -22,55 +17,49 @@ Object { walletAddress: "C95329YPMEqVTDVu7QVW4AyPa9SqhDPWR114Bynp3uhH", stakedAm
 [Wallet] Parsed as legacy Transaction d46034cc4c5ace28.js:7:79802
 [Wallet] Instructions count: 2 d46034cc4c5ace28.js:7:79855
 [Wallet] Fee payer: C95329YP d46034cc4c5ace28.js:7:79922
-[Wallet] Recent blockhash: H7uAZFRs d46034cc4c5ace28.js:7:79992
+[Wallet] Recent blockhash: HyJ2dSRX d46034cc4c5ace28.js:7:79992
 [Wallet] Using RPC: https://api.devnet.solana.com d46034cc4c5ace28.js:7:80438
 [Wallet] Trying window.solana fallback... d46034cc4c5ace28.js:7:82058
 [Wallet] window.solana.isPhantom: true d46034cc4c5ace28.js:7:82115
 [Wallet] window.solana.isConnected: false d46034cc4c5ace28.js:7:82189
 [Wallet] Transaction type: LegacyTransaction d46034cc4c5ace28.js:7:82267
 [Wallet] Phantom not connected, attempting to connect... d46034cc4c5ace28.js:7:82393
-[PHANTOM] Failed to send message to service worker. Retrying... Error: Attempt to postMessage on disconnected port
-    r moz-extension://718b2d2a-ef2a-46d8-a357-9ba3c01b7035/contentScript.js:9
-    postMessage <anonymous code>:3
-contentScript.js:9:171538
-WebGL warning: drawElementsInstanced: Drawing to a destination rect smaller than the viewport rect. (This warning will only be given once)
 [Wallet] Phantom connected d46034cc4c5ace28.js:7:82487
 [Wallet] Using signTransaction for legacy tx... d46034cc4c5ace28.js:7:82623
 [Game] 📨 Event received: round_status 
-Object { eventId: "round_status_1769048776027", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
-8726dcd687236473.js:180:6760
+Object { eventId: "round_status_1769049706259", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
+78f4bb87f7aa47d2.js:180:6760
 [Game] 📨 Event received: round_status 
-Object { eventId: "round_status_1769048781050", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
-8726dcd687236473.js:180:6760
-[Game] 📨 Event received: round_status 
-Object { eventId: "round_status_1769048786035", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
-8726dcd687236473.js:180:6760
+Object { eventId: "round_status_1769049711223", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
+78f4bb87f7aa47d2.js:180:6760
 [Wallet] Transaction signed by Phantom d46034cc4c5ace28.js:7:82719
+[Wallet] Sent to network, signature: 5ugzHTYK9Q5mjmGq3UMvRLqj35Bv6yjXCG5Z2F5DUAnBt1SisEpdPR5PHM72j416FZ6VRWxpEQgxC7Z1WuMEyTfw d46034cc4c5ace28.js:7:82885
+[Wallet] Transaction confirmed: 5ugzHTYK9Q5mjmGq3UMvRLqj35Bv6yjXCG5Z2F5DUAnBt1SisEpdPR5PHM72j416FZ6VRWxpEQgxC7Z1WuMEyTfw d46034cc4c5ace28.js:7:83151
+[Staking] ✅ Stake successful! Signature: 5ugzHTYK9Q5mjmGq3UMvRLqj35Bv6yjXCG5Z2F5DUAnBt1SisEpdPR5PHM72j416FZ6VRWxpEQgxC7Z1WuMEyTfw 78f4bb87f7aa47d2.js:1:28188
+[Staking] View on Solana Explorer: https://explorer.solana.com/tx/5ugzHTYK9Q5mjmGq3UMvRLqj35Bv6yjXCG5Z2F5DUAnBt1SisEpdPR5PHM72j416FZ6VRWxpEQgxC7Z1WuMEyTfw?cluster=devnet 78f4bb87f7aa47d2.js:1:28246
 [Game] 📨 Event received: round_status 
-Object { eventId: "round_status_1769048791091", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
-8726dcd687236473.js:180:6760
-[Wallet] Sent to network, signature: 3zRpwxAD9z7e7vRy4F7vyx2JzFkTJGYjBYoAV1q2EkYQVp8DivqTvu8fBF9Jhp18ujHNXy39W9S6xtumktUv8rtA d46034cc4c5ace28.js:7:82885
-[Wallet] Transaction confirmed: 3zRpwxAD9z7e7vRy4F7vyx2JzFkTJGYjBYoAV1q2EkYQVp8DivqTvu8fBF9Jhp18ujHNXy39W9S6xtumktUv8rtA d46034cc4c5ace28.js:7:83151
-[Staking] ✅ Stake successful! Signature: 3zRpwxAD9z7e7vRy4F7vyx2JzFkTJGYjBYoAV1q2EkYQVp8DivqTvu8fBF9Jhp18ujHNXy39W9S6xtumktUv8rtA 8726dcd687236473.js:1:29955
-[Staking] View on Solana Explorer: https://explorer.solana.com/tx/3zRpwxAD9z7e7vRy4F7vyx2JzFkTJGYjBYoAV1q2EkYQVp8DivqTvu8fBF9Jhp18ujHNXy39W9S6xtumktUv8rtA?cluster=devnet 8726dcd687236473.js:1:30013
-[Staking] Waiting 3s for RPC to sync before refreshing wallet balance... 8726dcd687236473.js:1:30342
-[Game] 📨 Event received: round_status 
-Object { eventId: "round_status_1769048796057", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
-8726dcd687236473.js:180:6760
-[Staking] Refreshing wallet balance after stake... 8726dcd687236473.js:1:30470
-[HolderVerification] Force refresh initiated at 1769048796417 8726dcd687236473.js:1:23279
-[HolderVerification] Fetching balance for C95329YP... (force refresh) 8726dcd687236473.js:1:23677
-[HolderVerification] Got balance: 999,699,500 (from force refresh) 8726dcd687236473.js:1:23973
-[StakingPanel] Stake successful: 3zRpwxAD9z7e7vRy4F7vyx2JzFkTJGYjBYoAV1q2EkYQVp8DivqTvu8fBF9Jhp18ujHNXy39W9S6xtumktUv8rtA 8726dcd687236473.js:1:35623
-[Stake] On-chain stake successful: 500 Signature: 3zRpwxAD9z7e7vRy4F7vyx2JzFkTJGYjBYoAV1q2EkYQVp8DivqTvu8fBF9Jhp18ujHNXy39W9S6xtumktUv8rtA
-[HolderVerification] Got balance: 999,700,000 2 8726dcd687236473.js:1:23973
-[StakingPanel] Initiating unstake of 500 tokens... 8726dcd687236473.js:1:35769
-[Staking] Requesting unstake transaction for 500 tokens 8726dcd687236473.js:1:31104
-[Game] 📨 Event received: round_status 
-Object { eventId: "round_status_1769048906042", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
-8726dcd687236473.js:180:6760
-[Staking] Signing and sending unstake transaction... 8726dcd687236473.js:1:31301
-[Staking] Transaction blockhash: 2J75FpaPUvXKKpRJMfWPZUxUQrkNetHzgbP2GMx4aFgo 8726dcd687236473.js:1:31369
+Object { eventId: "round_status_1769049716229", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
+78f4bb87f7aa47d2.js:180:6760
+[Staking] Waiting 3s for RPC to sync before refreshing wallet balance... 78f4bb87f7aa47d2.js:1:28575
+WebGL warning: drawElementsInstanced: Drawing to a destination rect smaller than the viewport rect. (This warning will only be given once)
+[Staking] Refreshing wallet balance after stake... 78f4bb87f7aa47d2.js:1:28703
+[HolderVerification] Force refresh initiated at 1769049719930 85225f7cd2357397.js:1:4305
+[HolderVerification] Fetching balance for C95329YP... (force refresh) 85225f7cd2357397.js:1:4703
+[Wallet] Available wallets from Privy: 
+Array []
+d46034cc4c5ace28.js:7:77257
+[WalletEntry] Privy wallet connected: C95329YPMEqVTDVu7QVW4AyPa9SqhDPWR114Bynp3uhH Balance: 999700000 78f4bb87f7aa47d2.js:43:2561
+[HolderVerification] Got balance: 999,699,500 (from force refresh) 85225f7cd2357397.js:1:4999
+[StakingPanel] Stake successful: 5ugzHTYK9Q5mjmGq3UMvRLqj35Bv6yjXCG5Z2F5DUAnBt1SisEpdPR5PHM72j416FZ6VRWxpEQgxC7Z1WuMEyTfw 78f4bb87f7aa47d2.js:1:33856
+[Stake] On-chain stake successful: 500 Signature: 5ugzHTYK9Q5mjmGq3UMvRLqj35Bv6yjXCG5Z2F5DUAnBt1SisEpdPR5PHM72j416FZ6VRWxpEQgxC7Z1WuMEyTfw 78f4bb87f7aa47d2.js:180:19600
+[Wallet] Available wallets from Privy: 
+Array []
+d46034cc4c5ace28.js:7:77257
+[WalletEntry] Privy wallet connected: C95329YPMEqVTDVu7QVW4AyPa9SqhDPWR114Bynp3uhH Balance: 999699500
+[StakingPanel] Initiating unstake of 500 tokens... 78f4bb87f7aa47d2.js:1:34002
+[Staking] Requesting unstake transaction for 500 tokens 78f4bb87f7aa47d2.js:1:29337
+[Staking] Signing and sending unstake transaction... 78f4bb87f7aa47d2.js:1:29534
+[Staking] Transaction blockhash: 7HmvZMveRZedw9awXXyJR5wvTEvxuGaQeM3x9VzxHMRa 78f4bb87f7aa47d2.js:1:29602
 [Wallet] Starting sign and send transaction... d46034cc4c5ace28.js:7:79372
 [Wallet] Wallet address: C95329YPMEqVTDVu7QVW4AyPa9SqhDPWR114Bynp3uhH d46034cc4c5ace28.js:7:79434
 [Wallet] Solana wallet found: false d46034cc4c5ace28.js:7:79476
@@ -79,49 +68,40 @@ Object { eventId: "round_status_1769048906042", isMining: false, homeMineId: "co
 [Wallet] Parsed as legacy Transaction d46034cc4c5ace28.js:7:79802
 [Wallet] Instructions count: 2 d46034cc4c5ace28.js:7:79855
 [Wallet] Fee payer: C95329YP d46034cc4c5ace28.js:7:79922
-[Wallet] Recent blockhash: 2J75FpaP d46034cc4c5ace28.js:7:79992
+[Wallet] Recent blockhash: 7HmvZMve d46034cc4c5ace28.js:7:79992
 [Wallet] Using RPC: https://api.devnet.solana.com d46034cc4c5ace28.js:7:80438
 [Wallet] Trying window.solana fallback... d46034cc4c5ace28.js:7:82058
 [Wallet] window.solana.isPhantom: true d46034cc4c5ace28.js:7:82115
-[Wallet] window.solana.isConnected: false d46034cc4c5ace28.js:7:82189
+[Wallet] window.solana.isConnected: true d46034cc4c5ace28.js:7:82189
 [Wallet] Transaction type: LegacyTransaction d46034cc4c5ace28.js:7:82267
-[Wallet] Phantom not connected, attempting to connect... d46034cc4c5ace28.js:7:82393
-[Wallet] Phantom connected d46034cc4c5ace28.js:7:82487
 [Wallet] Using signTransaction for legacy tx... d46034cc4c5ace28.js:7:82623
 [Game] 📨 Event received: round_status 
-Object { eventId: "round_status_1769048911046", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
-8726dcd687236473.js:180:6760
+Object { eventId: "round_status_1769049766700", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
+78f4bb87f7aa47d2.js:180:6760
 [Wallet] Transaction signed by Phantom d46034cc4c5ace28.js:7:82719
-[Wallet] Sent to network, signature: fiRzK4SqR5vazw37w3zSkUWvbwF7bsoXdMQByu74K7JxaknUBNWc5CnLuCt5SH5X84ETfrNcAPKteQzQbtkfa9S d46034cc4c5ace28.js:7:82885
 [Game] 📨 Event received: round_status 
-Object { eventId: "round_status_1769048916046", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
-8726dcd687236473.js:180:6760
-[Wallet] Transaction confirmed: fiRzK4SqR5vazw37w3zSkUWvbwF7bsoXdMQByu74K7JxaknUBNWc5CnLuCt5SH5X84ETfrNcAPKteQzQbtkfa9S d46034cc4c5ace28.js:7:83151
-[Staking] ✅ Unstake successful! Signature: fiRzK4SqR5vazw37w3zSkUWvbwF7bsoXdMQByu74K7JxaknUBNWc5CnLuCt5SH5X84ETfrNcAPKteQzQbtkfa9S 8726dcd687236473.js:1:32071
-[Staking] View on Solana Explorer: https://explorer.solana.com/tx/fiRzK4SqR5vazw37w3zSkUWvbwF7bsoXdMQByu74K7JxaknUBNWc5CnLuCt5SH5X84ETfrNcAPKteQzQbtkfa9S?cluster=devnet 8726dcd687236473.js:1:32131
-[Staking] Waiting 3s for RPC to sync before refreshing wallet balance... 8726dcd687236473.js:1:32462
-[Staking] Backend verification pending, but on-chain tx confirmed 8726dcd687236473.js:1:32287
-[Staking] Refreshing wallet balance after unstake... 8726dcd687236473.js:1:32590
-[HolderVerification] Force refresh initiated at 1769048920647 8726dcd687236473.js:1:23279
-[HolderVerification] Fetching balance for C95329YP... (force refresh) 8726dcd687236473.js:1:23677
+Object { eventId: "round_status_1769049771505", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
+78f4bb87f7aa47d2.js:180:6760
+[Wallet] Sent to network, signature: Qc3jHTTGJAdzr9Q1DaFzRohpdjppHv8B1Hyfjqq3sy8RCwG1uLwRSmEE2XP1dcwDjgvHUo3sNqVJTF6fZtXzDpF d46034cc4c5ace28.js:7:82885
+[Wallet] Transaction confirmed: Qc3jHTTGJAdzr9Q1DaFzRohpdjppHv8B1Hyfjqq3sy8RCwG1uLwRSmEE2XP1dcwDjgvHUo3sNqVJTF6fZtXzDpF d46034cc4c5ace28.js:7:83151
+[Staking] ✅ Unstake successful! Signature: Qc3jHTTGJAdzr9Q1DaFzRohpdjppHv8B1Hyfjqq3sy8RCwG1uLwRSmEE2XP1dcwDjgvHUo3sNqVJTF6fZtXzDpF 78f4bb87f7aa47d2.js:1:30304
+[Staking] View on Solana Explorer: https://explorer.solana.com/tx/Qc3jHTTGJAdzr9Q1DaFzRohpdjppHv8B1Hyfjqq3sy8RCwG1uLwRSmEE2XP1dcwDjgvHUo3sNqVJTF6fZtXzDpF?cluster=devnet 78f4bb87f7aa47d2.js:1:30364
+[Staking] Waiting 3s for RPC to sync before refreshing wallet balance... 78f4bb87f7aa47d2.js:1:30695
+[Staking] Backend verification pending, but on-chain tx confirmed 78f4bb87f7aa47d2.js:1:30520
 [Game] 📨 Event received: round_status 
-Object { eventId: "round_status_1769048921203", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
-8726dcd687236473.js:180:6760
-[HolderVerification] Got balance: 999,700,000 (from force refresh) 8726dcd687236473.js:1:23973
-[StakingPanel] Unstake successful: fiRzK4SqR5vazw37w3zSkUWvbwF7bsoXdMQByu74K7JxaknUBNWc5CnLuCt5SH5X84ETfrNcAPKteQzQbtkfa9S 8726dcd687236473.js:1:35885
-[Unstake] On-chain unstake successful: 500 Signature: fiRzK4SqR5vazw37w3zSkUWvbwF7bsoXdMQByu74K7JxaknUBNWc5CnLuCt5SH5X84ETfrNcAPKteQzQbtkfa9S 8726dcd687236473.js:180:19768
-[Game] 📨 Event received: round_status 
-Object { eventId: "round_status_1769048926032", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
-8726dcd687236473.js:180:6760
-[Game] 📨 Event received: round_status 
-Object { eventId: "round_status_1769048931041", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
-8726dcd687236473.js:180:6760
-[Game] 📨 Event received: round_status 
-Object { eventId: "round_status_1769048936050", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
-8726dcd687236473.js:180:6760
-[HolderVerification] Fetching balance for C95329YP... 2 8726dcd687236473.js:1:23677
-[Game] 📨 Event received: round_status 
-Object { eventId: "round_status_1769048941072", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
-8726dcd687236473.js:180:6760
-[HolderVerification] Got balance: 999,700,000 2 8726dcd687236473.js:1:23973
-[StakingPanel] Initiating unstake of 500 tokens...
+Object { eventId: "round_status_1769049776537", isMining: false, homeMineId: "coal-appalachian", walletAddress: "C95329YP" }
+78f4bb87f7aa47d2.js:180:6760
+[Staking] Refreshing wallet balance after unstake... 78f4bb87f7aa47d2.js:1:30823
+[HolderVerification] Force refresh initiated at 1769049777411 85225f7cd2357397.js:1:4305
+[HolderVerification] Fetching balance for C95329YP... (force refresh) 85225f7cd2357397.js:1:4703
+[Wallet] Available wallets from Privy: 
+Array []
+d46034cc4c5ace28.js:7:77257
+[WalletEntry] Privy wallet connected: C95329YPMEqVTDVu7QVW4AyPa9SqhDPWR114Bynp3uhH Balance: 999699500 78f4bb87f7aa47d2.js:43:2561
+[HolderVerification] Got balance: 999,700,000 (from force refresh) 85225f7cd2357397.js:1:4999
+[StakingPanel] Unstake successful: Qc3jHTTGJAdzr9Q1DaFzRohpdjppHv8B1Hyfjqq3sy8RCwG1uLwRSmEE2XP1dcwDjgvHUo3sNqVJTF6fZtXzDpF 78f4bb87f7aa47d2.js:1:34118
+[Unstake] On-chain unstake successful: 500 Signature: Qc3jHTTGJAdzr9Q1DaFzRohpdjppHv8B1Hyfjqq3sy8RCwG1uLwRSmEE2XP1dcwDjgvHUo3sNqVJTF6fZtXzDpF 78f4bb87f7aa47d2.js:180:19768
+[Wallet] Available wallets from Privy: 
+Array []
+d46034cc4c5ace28.js:7:77257
+[WalletEntry] Privy wallet connected: C95329YPMEqVTDVu7QVW4AyPa9SqhDPWR114Bynp3uhH Balance: 999700000

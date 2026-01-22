@@ -395,18 +395,17 @@ export function useStaking(): UseStakingReturn {
         })
         .catch(e => console.warn('[Staking] Backend verification error (non-blocking):', e));
 
-      // 4. Refresh stake info to show updated staked balance
-      await refreshStakeInfo();
-      
-      // 5. Wait for RPC to sync before refreshing wallet balance
-      // Solana RPC nodes can take a few seconds to reflect new token balances
-      console.log('[Staking] Waiting 3s for RPC to sync before refreshing wallet balance...');
+      // 4. Wait for RPC to sync before refreshing balances
+      // Solana RPC nodes can take a few seconds to reflect new state
+      console.log('[Staking] Waiting 3s for RPC to sync before refreshing balances...');
       await new Promise(resolve => setTimeout(resolve, 3000));
       
-      // 6. Refresh wallet balance (tokens moved from wallet to quarry vault)
-      // Use force=true to bypass all caching
-      console.log('[Staking] Refreshing wallet balance after stake...');
-      await wallet.holderVerification.refresh(true);
+      // 5. Refresh BOTH stake info and wallet balance after RPC sync
+      console.log('[Staking] Refreshing staked balance and wallet balance after stake...');
+      await Promise.all([
+        refreshStakeInfo(),
+        wallet.holderVerification.refresh(true),
+      ]);
 
       setState(prev => ({ 
         ...prev, 
@@ -487,18 +486,17 @@ export function useStaking(): UseStakingReturn {
         })
         .catch(e => console.warn('[Staking] Backend verification error (non-blocking):', e));
 
-      // Refresh stake info to show updated staked balance
-      await refreshStakeInfo();
-      
-      // Wait for RPC to sync before refreshing wallet balance
-      // Solana RPC nodes can take a few seconds to reflect new token balances
-      console.log('[Staking] Waiting 3s for RPC to sync before refreshing wallet balance...');
+      // 4. Wait for RPC to sync before refreshing balances
+      // Solana RPC nodes can take a few seconds to reflect new state
+      console.log('[Staking] Waiting 3s for RPC to sync before refreshing balances...');
       await new Promise(resolve => setTimeout(resolve, 3000));
       
-      // Refresh wallet balance (tokens moved from quarry vault back to wallet)
-      // Use force=true to bypass all caching
-      console.log('[Staking] Refreshing wallet balance after unstake...');
-      await wallet.holderVerification.refresh(true);
+      // 5. Refresh BOTH stake info and wallet balance after RPC sync
+      console.log('[Staking] Refreshing staked balance and wallet balance after unstake...');
+      await Promise.all([
+        refreshStakeInfo(),
+        wallet.holderVerification.refresh(true),
+      ]);
       
       setState(prev => ({ 
         ...prev, 
@@ -563,18 +561,17 @@ export function useStaking(): UseStakingReturn {
         })
         .catch(e => console.warn('[Staking] Backend verification error (non-blocking):', e));
 
-      // Refresh stake info to show updated staked balance
-      await refreshStakeInfo();
-      
-      // Wait for RPC to sync before refreshing wallet balance
-      // Solana RPC nodes can take a few seconds to reflect new token balances
-      console.log('[Staking] Waiting 3s for RPC to sync before refreshing wallet balance...');
+      // 4. Wait for RPC to sync before refreshing balances
+      // Solana RPC nodes can take a few seconds to reflect new state
+      console.log('[Staking] Waiting 3s for RPC to sync before refreshing balances...');
       await new Promise(resolve => setTimeout(resolve, 3000));
       
-      // Refresh wallet balance (claimed rewards go to wallet)
-      // Use force=true to bypass all caching
-      console.log('[Staking] Refreshing wallet balance after claim...');
-      await wallet.holderVerification.refresh(true);
+      // 5. Refresh BOTH stake info and wallet balance after RPC sync
+      console.log('[Staking] Refreshing staked balance and wallet balance after claim...');
+      await Promise.all([
+        refreshStakeInfo(),
+        wallet.holderVerification.refresh(true),
+      ]);
 
       setState(prev => ({ 
         ...prev, 
