@@ -1,14 +1,143 @@
-# Black Gold v3.3.13 - Codebase Index
+# Black Gold v3.3.14 - Codebase Index
 
 > Complete file-by-file documentation for the Black Gold Interactive Mining Globe platform
 
-**Last Updated**: January 21, 2026  
-**Version**: 3.3.13 (Cache Bypass for Balance Refresh)  
+**Last Updated**: January 22, 2026  
+**Version**: 3.3.14 (Helius RPC + Real-time Balance Updates + Admin Staking Benefits)  
 **Total Files**: 90+ TypeScript/TSX/JS files
 
 ---
 
-## 📋 Recent Changes (v3.3.13)
+## 📋 Recent Changes (v3.3.14)
+
+### Real-time Balance Updates & Admin Console Staking Benefits
+
+Fixed multiple issues with balance not updating and admin console not showing staking benefits.
+
+#### Problem
+
+1. **Balance not updating after stake/unstake** - Even with force refresh, the public Solana devnet RPC was returning stale data due to load balancer issues across multiple nodes
+2. **Race conditions** - Non-force refreshes were overwriting fresh data from force refreshes
+3. **Admin console** - Not showing effective hashrate with staking multipliers, only base hashrate
+
+#### Fix 1: Helius RPC for Reliable Balance Fetching
+
+Changed `app/api/verify-holder/route.ts` to use Helius RPC instead of unreliable public devnet:
+
+```typescript
+async function getTokenBalanceFromRPC(walletAddress: string): Promise<number | null> {
+  // Use Helius RPC if available (much more reliable than public devnet)
+  let rpcEndpoint: string;
+  if (RPC_CONFIG.HELIUS_API_KEY) {
+    rpcEndpoint = IS_DEVNET 
+      ? `https://devnet.helius-rpc.com/?api-key=${RPC_CONFIG.HELIUS_API_KEY}`
+      : `https://mainnet.helius-rpc.com/?api-key=${RPC_CONFIG.HELIUS_API_KEY}`;
+  } else {
+    // Fallback to public RPC (less reliable)
+    rpcEndpoint = IS_DEVNET 
+      ? 'https://api.devnet.solana.com'
+      : 'https://api.mainnet-beta.solana.com';
+  }
+  
+  // Use 'confirmed' commitment level for most up-to-date data
+  const response = await fetch(rpcEndpoint, {
+    method: 'POST',
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id: Date.now(), // Unique ID to prevent caching
+      method: 'getTokenAccountsByOwner',
+      params: [walletAddress, { mint: mintAddress }, { 
+        encoding: 'jsonParsed',
+        commitment: 'confirmed'
+      }]
+    })
+  });
+}
+```
+
+#### Fix 2: Improved Force Refresh Protection
+
+Updated `app/hooks/useHolderVerification.ts`:
+
+```typescript
+// IMMEDIATELY mark force refresh timestamp to prevent race conditions
+if (force) {
+  lastForceRefreshRef.current = Date.now();
+  console.log(`[HolderVerification] Force refresh initiated at ${lastForceRefreshRef.current}`);
+}
+
+// Extended protection window from 10s to 30s
+if (!force && lastForceRefreshRef.current > 0) {
+  const timeSinceForce = Date.now() - lastForceRefreshRef.current;
+  if (timeSinceForce < 30000) {
+    console.log(`[HolderVerification] Skipping non-force refresh`);
+    return;
+  }
+}
+
+// Prevent concurrent fetches - force refresh always wins
+if (fetchingRef.current && !force) {
+  console.log('[HolderVerification] Skipping - another fetch is in progress');
+  return;
+}
+```
+
+#### Fix 3: Direct Hook Usage in page.tsx
+
+Removed prop drilling through `walletState` - now uses hook directly for real-time updates:
+
+```typescript
+export default function Home() {
+  // Use wallet hook directly for real-time balance updates
+  const wallet = useWallet();
+  
+  // walletBalance - use direct hook value for real-time updates
+  const walletBalance = USE_MOCK_DATA 
+    ? DEMO_USER.walletBalance 
+    : (wallet.holderVerification.verification?.balance ?? walletState.tokenBalance);
+  
+  // Loading state also uses direct hook
+  {wallet.holderVerification.loading || walletState.verificationLoading ? (
+    <span className="animate-pulse">Loading...</span>
+  ) : (
+    <span>{walletBalance.toLocaleString()} COAL</span>
+  )}
+}
+```
+
+#### Fix 4: Admin Console Shows Staking Benefits
+
+Updated `app/admin/users/page.tsx` to show stake tiers and effective hashrate:
+
+```typescript
+import { getStakeTier } from '../../lib/mines';
+
+function getEffectiveHashrate(baseHashrate: number, stakeAmount: number): number {
+  const tier = getStakeTier(stakeAmount);
+  return Math.floor(baseHashrate * tier.hashrateMultiplier);
+}
+
+// Table now shows:
+// - Stake Tier column with color-coded badges (Diamond/Gold/Silver/Bronze/Base)
+// - Effective Hashrate (green) with base in parentheses when multiplier > 1
+// - Modal shows both base and effective hashrate
+
+<td className="text-center">
+  <span className={`px-2 py-1 rounded text-xs font-medium ${
+    stakeTier.name === 'Diamond' ? 'bg-purple-500/20 text-purple-400' :
+    stakeTier.name === 'Gold' ? 'bg-gold-500/20 text-gold-400' :
+    stakeTier.name === 'Silver' ? 'bg-gray-400/20 text-gray-300' :
+    stakeTier.name === 'Bronze' ? 'bg-orange-500/20 text-orange-400' :
+    'bg-coal-600/20 text-coal-400'
+  }`}>
+    {stakeTier.name} ({stakeTier.hashrateMultiplier}x)
+  </span>
+</td>
+```
+
+---
+
+## 📋 Previous Changes (v3.3.13)
 
 ### Cache Bypass for Balance Refresh After Transactions
 
@@ -23,45 +152,7 @@ After staking/unstaking:
 
 #### Fixes in `app/api/verify-holder/route.ts`
 
-Added `force=true` query parameter to bypass cache:
-```typescript
-export async function GET(request: NextRequest) {
-  const wallet = request.nextUrl.searchParams.get('wallet');
-  const forceRefresh = request.nextUrl.searchParams.get('force') === 'true';
-  
-  // Get cached data (needed for error fallback even if force refresh)
-  const cached = verificationCache.get(wallet);
-  
-  // Check cache first (unless force refresh is requested)
-  if (!forceRefresh && cached && Date.now() - cached.timestamp < HOLDER_CONFIG.CACHE_DURATION_MS) {
-    return NextResponse.json(cached.data);
-  }
-  
-  if (forceRefresh) {
-    console.log(`[API] Force refresh requested for ${wallet.slice(0,8)}...`);
-  }
-  // ... fetch fresh data from chain
-}
-```
-
-#### Fixes in `app/page.tsx`
-
-Updated `refreshWalletBalance()` to use `force=true`:
-```typescript
-const refreshWalletBalance = useCallback(async () => {
-  if (!walletState.walletAddress) return;
-  
-  // Use force=true to bypass the 5-minute API cache after stake/unstake
-  const response = await fetch(`/api/verify-holder?wallet=${encodeURIComponent(walletState.walletAddress)}&force=true`);
-  if (response.ok) {
-    const data = await response.json();
-    setWalletState(prev => ({
-      ...prev,
-      tokenBalance: data.balance ?? prev.tokenBalance,
-    }));
-  }
-}, [walletState.walletAddress]);
-```
+Added `force=true` query parameter to bypass cache.
 
 ---
 
