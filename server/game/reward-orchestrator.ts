@@ -277,6 +277,10 @@ export async function handleNewDiscovery(
 
 /**
  * Process a reward payout
+ * 
+ * Mock mode is used when the token mint is not configured (TBD or DEVNET_TEST_TOKEN).
+ * When a real token mint is set (even on devnet), real SPL transfers are attempted.
+ * This allows testing the full reward pipeline on devnet with real tokens.
  */
 async function processRewardPayout(
   wallet: string,
@@ -284,8 +288,9 @@ async function processRewardPayout(
   mineId: string,
   type: 'discovery_finder' | 'discovery_share' | 'vault_distribution' | 'raid_spoils'
 ): Promise<{ success: boolean; signature?: string; error?: string }> {
-  // In devnet/testing mode, just log the payout
-  if (IS_DEVNET || TOKEN_CONFIG.MINT_ADDRESS === 'TBD') {
+  // Mock mode only when token mint is not configured
+  // Real transfers work on both devnet and mainnet when a valid mint is set
+  if (TOKEN_CONFIG.MINT_ADDRESS === 'TBD' || TOKEN_CONFIG.MINT_ADDRESS === 'DEVNET_TEST_TOKEN') {
     console.log(`[RewardOrchestrator] [MOCK] Would send ${amount} ${TOKEN_CONFIG.SYMBOL} to ${wallet.slice(0, 8)}... (${type})`);
     state.totalRewardsDistributed += amount;
     return { success: true, signature: 'MOCK_SIGNATURE' };

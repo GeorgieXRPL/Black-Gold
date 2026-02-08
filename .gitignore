@@ -85,3 +85,6 @@ logs/
 # Cache
 .cache/
 .turbo/
+
+# Wallet keys (NEVER commit)
+.wallet-keys.env

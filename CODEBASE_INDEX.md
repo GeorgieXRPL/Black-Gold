@@ -55,6 +55,11 @@ Comprehensive audit of all staking contracts and backend systems. 14 issues foun
 |------|---------|
 | `server/solana/utils.ts` | Shared Solana utilities (memo instructions, keypair loading, amount conversion) |
 | `scripts/test-game-formulas.ts` | 79 unit tests for game mechanics formulas |
+| `scripts/test-game-simulation.ts` | 59 integration tests for all game systems |
+| `scripts/test-e2e-websocket.ts` | 24 E2E tests (WebSocket + REST API) |
+| `scripts/run-all-tests.ts` | Test runner for all 3 suites |
+| `scripts/setup-wallets.ts` | Generates 4 infrastructure wallets, airdrops devnet SOL |
+| `docs/MAINNET_CHECKLIST.md` | Step-by-step mainnet readiness tracker |
 
 #### Modified Files
 
