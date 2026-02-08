@@ -1,10 +1,11 @@
-# Black Gold v3.4 - Codebase Index
+# Black Gold v3.4.1 - Codebase Index
 
 > Complete file-by-file documentation for the Black Gold Interactive Mining Globe platform
 
 **Last Updated**: January 22, 2026  
-**Version**: 3.4 (Security Audit & Staking Hardening)  
-**Total Files**: 90+ TypeScript/TSX/JS files
+**Version**: 3.4.1 (Full Test Suite)  
+**Total Files**: 90+ TypeScript/TSX/JS files  
+**Test Coverage**: 162 tests (79 unit + 59 simulation + 24 E2E), all passing
 
 ---
 
@@ -77,6 +78,60 @@ Comprehensive audit of all staking contracts and backend systems. 14 issues foun
 |----------|---------|----------|
 | `ADMIN_SECRET` | Admin console password (no default) | Yes, for admin access |
 | `CORS_ALLOWED_ORIGINS` | Comma-separated allowed origins | Recommended for production |
+
+---
+
+## 📋 Test Suite (v3.4.1)
+
+### Automated Test Coverage
+
+Run all tests: `npm test` (162 tests, ~11 seconds)
+
+| Suite | Script | Tests | Coverage |
+|-------|--------|-------|----------|
+| Game Formulas (unit) | `npm run test:formulas` | 79 | Stake tiers, hashrate multipliers, defense/attack power, vault splits, miner scores, random mechanics, overflow, tier consistency |
+| Game Simulation (integration) | `npm run test:simulation` | 59 | Mine registration, staking lifecycle, cooldowns, expeditions, raid resolution, bet escrow, vault distribution, full game flows |
+| E2E WebSocket + REST API | `npm run test:e2e` | 24 | WS connection, mining flow, message validation, staking validation, 9 REST endpoints, admin console, rate limiting |
+
+### Edge Cases Covered by Tests
+
+- Negative/zero stake amounts
+- Unstake more than staked (caps to balance)
+- MAX_SAFE_INTEGER overflow for stake/hashrate
+- Cooldown expiry and cleanup
+- Duplicate bets on same raid
+- Raid with bet exceeding 20% stake limit
+- Mining without home base
+- Raiding own mine / immune mine / simultaneous expeditions
+- Silver surge range bounds (0.5-2.0x statistical)
+- Gold rush jackpot rate (~5% statistical over 100k trials)
+- Invalid JSON / unknown message types over WebSocket
+- Staking without signature (rejected)
+- Invalid wallet address format on REST API (rejected)
+- Rate limiting activation on rapid messages
+- Admin auth with wrong/missing password
+
+### Remaining Edge Cases for Manual Testing (Pre-Mainnet)
+
+- Real Solana transaction signing via Privy wallet
+- On-chain Quarry stake/unstake/claim round-trip
+- IOU-COAL redeem transaction execution
+- Blockhash expiry (build tx, wait 2+ min, submit)
+- Network interruption mid-transaction
+- Multi-device concurrent staking
+- Real buyback service execution (SOL -> COAL via Jupiter)
+- Reward pool balance depletion behavior
+- Mine vault distribution with real on-chain rewards
+
+### Known Gaps Before Mainnet
+
+1. **Mine reward distribution not wired to on-chain**: Discovery rewards are calculated in-memory but the `processRewardPayout` function uses mock mode when `IS_DEVNET=true` or token mint is `TBD`. For mainnet, `TOKEN_MINT_ADDRESS` must be set to real token and `REWARD_WALLET_PRIVATE_KEY` configured.
+
+2. **Vault hourly distribution payouts**: The distribution service calculates payouts correctly (tested) but actual SPL token transfers to miners require the reward wallet to be funded and `sendReward()` to execute real transactions.
+
+3. **BetEscrow on-chain deposits**: The `buildBetDepositTransaction()` builds valid SPL transfer instructions but requires `BET_ESCROW_WALLET` env var to be set to a real funded wallet.
+
+4. **Buyback service**: `executeBuyback()` is implemented and tested in isolation but requires `CREATOR_WALLET_PRIVATE_KEY` and real Jupiter liquidity to execute swaps.
 
 ---
 

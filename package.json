@@ -10,7 +10,11 @@
     "server": "tsx watch server/index.ts",
     "server:prod": "tsx server/index.ts",
     "buyback": "tsx watch scripts/buyback.ts",
-    "buyback:prod": "tsx scripts/buyback.ts"
+    "buyback:prod": "tsx scripts/buyback.ts",
+    "test": "tsx scripts/run-all-tests.ts",
+    "test:formulas": "tsx scripts/test-game-formulas.ts",
+    "test:simulation": "tsx scripts/test-game-simulation.ts",
+    "test:e2e": "tsx scripts/test-e2e-websocket.ts"
   },
   "dependencies": {
     "@privy-io/react-auth": "^3.10.1",

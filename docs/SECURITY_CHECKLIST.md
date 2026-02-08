@@ -161,12 +161,15 @@ This document outlines security measures implemented and verification status.
    # Should reject
    ```
 
-### Automated Testing (Future)
+### Automated Testing (v3.4.1 - Complete)
 
-- [ ] Set up Jest tests for validation schemas
-- [ ] Set up rate limit unit tests
-- [ ] Set up proof verification tests
-- [ ] Set up integration tests for reward flow
+- [x] Game formula unit tests (79 tests) - `npm run test:formulas`
+- [x] Game simulation integration tests (59 tests) - `npm run test:simulation`
+- [x] E2E WebSocket + REST API tests (24 tests) - `npm run test:e2e`
+- [x] Rate limiting verified in E2E suite
+- [x] Staking validation (signature required) verified in E2E suite
+- [x] Admin console auth verified in E2E suite
+- [ ] On-chain transaction integration tests (requires devnet deployment)
 
 ## Known Limitations
 

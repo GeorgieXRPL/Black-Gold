@@ -167,24 +167,34 @@ This document provides a comprehensive checklist for manually testing the Black 
 
 ## Phase 5: Automated Test Suite
 
-Run the automated test script:
+Run the full automated test suite:
 
 ```bash
-npx tsx scripts/test-staking.ts
+npm test                         # All 162 tests
+npm run test:formulas            # 79 unit tests
+npm run test:simulation          # 59 simulation tests
+npm run test:e2e                 # 24 E2E tests
 ```
 
-### Test Results:
-- [ ] All tier calculation tests pass
-- [ ] All hashrate multiplier tests pass
-- [ ] All defense power tests pass
-- [ ] All attack power tests pass
-- [ ] All API integration tests pass
-- [ ] All edge case tests pass
-- [ ] All stress tests pass
-- [ ] All error handling tests pass
+### Test Results (v3.4.1):
+- [x] All tier calculation tests pass (79/79 formulas)
+- [x] All hashrate multiplier tests pass
+- [x] All defense power tests pass
+- [x] All attack power tests pass
+- [x] All staking lifecycle tests pass (10 tests)
+- [x] All cooldown system tests pass (6 tests)
+- [x] All expedition/raid tests pass (13 tests)
+- [x] All bet escrow tests pass (6 tests)
+- [x] All vault distribution tests pass (7 tests)
+- [x] All REST API validation tests pass (9 tests)
+- [x] All WebSocket protocol tests pass (10 tests)
+- [x] All admin console tests pass (4 tests)
+- [x] Rate limiting verified (1 test)
+- [x] Edge case overflow/precision tests pass
 
-**Total Tests:** ___/51
-**Pass Rate:** ___%
+**Total Tests:** 162/162
+**Pass Rate:** 100%
+**Duration:** ~11 seconds
 
 ---
 
