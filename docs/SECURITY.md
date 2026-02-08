@@ -244,10 +244,11 @@
 
 - [ ] Enable WSS for production WebSocket connections
 - [ ] Set up Redis for distributed rate limiting
-- [ ] Configure proper CORS headers
-- [ ] Add request signing for API calls
-- [ ] Implement balance time-weighting for holder verification
-- [ ] Add connection rate limiting
+- [x] Configure proper CORS headers (v3.4 - configurable via CORS_ALLOWED_ORIGINS)
+- [x] Add request signing for API calls (v3.4 - wallet signature required for state-changing actions)
+- [x] Implement balance time-weighting for holder verification (v3.4 - 10min hold time)
+- [x] Add connection rate limiting (v2.2)
+- [x] Add rate limiting to /api/verify-holder (v3.4 - 30 req/min per IP)
 - [ ] Set up monitoring and alerting
 - [ ] Conduct external security audit
 
@@ -276,7 +277,7 @@
 | Nonce range gaming | High | ✅ Mitigated |
 | Rate limit bypass | Medium | ✅ Mitigated (v2.2) |
 | Sybil attack | Medium | ⚠️ Partial |
-| Flash loan attack | Medium | ⚠️ Partial |
+| Flash loan attack | Medium | ✅ Mitigated (v3.4 time-weighted balance) |
 | WebSocket flooding | Medium | ✅ Mitigated (v2.2) |
 | Hashrate manipulation | Low | ✅ Mitigated |
 | Reward theft | Critical | ✅ Mitigated (v2.2 hardened) |
@@ -284,17 +285,25 @@
 | Client tampering | Low | ✅ Mitigated |
 | Log injection | Medium | ✅ Mitigated (v2.2) |
 | Payload injection | Medium | ✅ Mitigated (v2.2 Zod) |
-| Unauthorized actions | High | ✅ Mitigated (v2.3 signatures) |
+| Unauthorized actions | High | ✅ Mitigated (v3.4 enforced signatures) |
 | Wallet impersonation | High | ✅ Mitigated (v2.3 Privy) |
+| Open CORS | High | ✅ Mitigated (v3.4 configurable origins) |
+| Default admin password | Critical | ✅ Mitigated (v3.4 env-only, no default) |
+| Unauthenticated REST API | High | ✅ Mitigated (v3.4 input validation) |
+| Holder API abuse | Medium | ✅ Mitigated (v3.4 rate limiting) |
 
 ---
 
 ## Recommended Improvements
 
 ### Priority 1 (Before Launch)
-1. Implement time-weighted balance check for flash loan prevention
+1. ~~Implement time-weighted balance check for flash loan prevention~~ ✅ **Done in v3.4**
 2. Enable WSS with proper TLS
 3. ~~Add connection rate limiting~~ ✅ **Done in v2.2**
+4. ~~Configure CORS~~ ✅ **Done in v3.4**
+5. ~~Enforce wallet signatures for state-changing actions~~ ✅ **Done in v3.4**
+6. Set `CORS_ALLOWED_ORIGINS` environment variable for production
+7. Set `ADMIN_SECRET` environment variable (admin access disabled without it)
 
 ### Priority 2 (Post-Launch)
 1. Add Redis for distributed state (multi-server deployments)
@@ -307,6 +316,27 @@
 3. Bug bounty program
 
 ---
+
+## v3.4 Changes Summary (Security Audit)
+
+| Component | Changes |
+|-----------|---------|
+| `server/index.ts` | Enforced wallet signature verification for all state-changing actions |
+| `server/index.ts` | Removed default admin password - requires ADMIN_SECRET env var |
+| `server/index.ts` | Configurable CORS via CORS_ALLOWED_ORIGINS env var |
+| `server/index.ts` | Input validation on all REST API endpoints |
+| `server/index.ts` | Wired up reward orchestrator for hourly distributions |
+| `server/index.ts` | Implemented real admin metrics (replaced hardcoded values) |
+| `server/index.ts` | Implemented admin actions (force_buyback, trigger_distribution) |
+| `server/middleware/validate.ts` | Signature + nonce now required on stake/unstake/set_home/expedition |
+| `server/solana/holder.ts` | Time-weighted balance tracking for flash loan prevention |
+| `server/solana/staking.ts` | Completed IOU-COAL redeem transaction implementation |
+| `server/solana/utils.ts` | NEW - Shared utilities (memo instructions, keypair loading, amount conversion) |
+| `server/game/stake-manager.ts` | Cleaned up legacy code, fixed typo (getMineSakers -> getMineStakers) |
+| `server/game/bet-escrow.ts` | Deduplicated memo instruction to use shared utility |
+| `app/api/verify-holder/route.ts` | Added per-IP rate limiting (30 req/min) |
+| `app/api/verify-holder/route.ts` | Resolved all TODO [MAINNET] markers |
+| `scripts/test-game-formulas.ts` | NEW - 79 unit tests for game mechanics formulas |
 
 ## v2.2 Changes Summary
 

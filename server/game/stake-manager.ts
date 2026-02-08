@@ -1,16 +1,14 @@
 /**
- * @fileoverview Stake Manager for Black Gold v2.8
+ * @fileoverview Stake Manager for Black Gold
  * 
  * Architecture (Quarry + BetEscrow):
- * - Quarry: On-chain token custody for staking (instant unstake OK)
+ * - Quarry: On-chain token custody for staking (instant unstake)
  * - BetEscrow: Separate system for raid bets (locked until raid ends)
- * - This manager: Game state tracking + power calculations
+ * - This manager: In-memory game state tracking + power calculations
  * 
- * Key changes from v2.7:
- * - Unstake queue removed (Quarry handles instant unstake)
- * - Bet locking handled by BetEscrow (not stake locking)
- * - Defense power queries Quarry for real-time on-chain balance
- * - Raid bets are separate from staking
+ * Note: On-chain staking is handled via HTTP API (/api/staking/stake) + Quarry.
+ * This manager tracks the game-side effects of staking: defense power, tier
+ * multipliers, hashrate boosts, and mine assignment.
  */
 
 import {
@@ -29,7 +27,7 @@ import { getRedisStore } from '../storage/redis-store';
 
 /**
  * Unstake result
- * Note: With Quarry architecture, unstaking is always instant.
+ * Unstaking is always instant (Quarry handles on-chain).
  * Raid bets are locked separately via BetEscrow.
  */
 export interface UnstakeResult {
@@ -288,7 +286,8 @@ export class StakeManager {
   }
 
   /**
-   * Legacy unstake method (bypasses queue, use for internal calls only)
+   * Direct unstake method for internal calls (e.g., bet burns, rally costs)
+   * For user-facing unstakes, use requestUnstake() which includes bet warnings.
    */
   unstake(walletAddress: string, mineId: string, amount: number): boolean {
     return this.processUnstake(walletAddress, mineId, amount);
@@ -491,7 +490,7 @@ export class StakeManager {
   /**
    * Get all stakers at a mine
    */
-  getMineSakers(mineId: string): StakeRecord[] {
+  getMineStakers(mineId: string): StakeRecord[] {
     const stakers: StakeRecord[] = [];
 
     for (const [, stakes] of this.stakes) {

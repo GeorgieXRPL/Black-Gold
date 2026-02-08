@@ -124,15 +124,17 @@ black-gold/
 
 | File | Purpose | Key Exports |
 |------|---------|-------------|
-| `holder.ts` | Holder balance verification | `verifyHolder` |
+| `holder.ts` | Holder balance verification + flash loan prevention | `verifyHolder` |
 | `rewards.ts` | Token reward distribution | `sendReward` |
 | `buyback.ts` | Automated token buyback | `executeBuyback` |
+| `staking.ts` | Quarry on-chain staking transactions | `buildStakeTransaction`, `getUserStakeInfo` |
+| `utils.ts` | Shared Solana utilities (v3.4) | `createMemoInstruction`, `loadKeypairFromEnv`, `sanitizeError` |
 
 ### Auth (`server/auth/`)
 
 | File | Purpose | Key Exports |
 |------|---------|-------------|
-| `verify-wallet.ts` | Solana signature verification | `verifySignature`, `verifySignedAction` |
+| `verify-wallet.ts` | Solana signature verification (enforced in v3.4) | `verifySignature`, `verifySignedAction`, `requiresSignature` |
 
 ---
 

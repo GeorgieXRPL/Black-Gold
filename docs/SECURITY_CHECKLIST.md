@@ -171,13 +171,13 @@ This document outlines security measures implemented and verification status.
 ## Known Limitations
 
 1. **No Redis** - Rate limiting is in-memory, resets on server restart
-2. **No Request Signing** - WebSocket messages aren't signed (relying on TLS)
-3. **Mock Mode** - Devnet bypasses some checks for testing
+2. ~~**No Request Signing** - WebSocket messages aren't signed~~ ✅ **Fixed in v3.4** - Wallet signatures now required for all state-changing actions
+3. **Mock Mode** - Devnet bypasses some checks for testing (gated by IS_DEVNET flag, safe for production)
 
 ## Recommendations
 
 1. Add Content Security Policy headers
-2. Implement request signing for critical operations
+2. ~~Implement request signing for critical operations~~ ✅ **Done in v3.4**
 3. Add Redis for persistent rate limiting
 4. Set up automated security scanning
 5. Consider WAF for production
@@ -188,7 +188,8 @@ This document outlines security measures implemented and verification status.
 |------|---------|-------|----------|
 | 2026-01-07 | AI Assistant | Full review | Initial checklist created |
 | 2026-01-07 | AI Assistant | SSR Security | Fixed wallet provider SSR build errors, created WalletContext architecture |
+| 2026-01-22 | AI Assistant | Full staking audit | 14 issues found and fixed: signature enforcement, flash loan prevention, CORS, admin auth, reward orchestrator, redeem implementation, rate limiting, shared utilities, dead code cleanup, admin metrics, unit tests (79 passing) |
 
 ---
 
-Last updated: 2026-01-07
+Last updated: 2026-01-22

@@ -26,6 +26,7 @@ import {
 } from '@solana/web3.js';
 import { TOKEN_CONFIG, RPC_CONFIG } from '../../config/constants';
 import { createConnection } from '../solana/holder';
+import { createMemoInstruction } from '../solana/utils';
 
 // Use require to avoid TypeScript module resolution conflicts
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -202,7 +203,7 @@ export class BetEscrowManager {
       );
       
       // Add memo for tracking
-      const memoInstruction = this.createMemoInstruction(
+      const memoInstruction = createMemoInstruction(
         `bet_deposit:${raidId}:${amount}`,
         userPubkey
       );
@@ -355,7 +356,7 @@ export class BetEscrowManager {
           );
           
           // Add memo
-          tx.add(this.createMemoInstruction(`bet_payout:${walletAddress}:${amount}`, escrowPubkey));
+          tx.add(createMemoInstruction(`bet_payout:${walletAddress}:${amount}`, escrowPubkey));
           
           const { blockhash } = await connection.getLatestBlockhash('confirmed');
           tx.recentBlockhash = blockhash;
@@ -409,7 +410,7 @@ export class BetEscrowManager {
       );
       
       // Add memo
-      tx.add(this.createMemoInstruction(`bet_burn:${burnAmount}`, escrowPubkey));
+      tx.add(createMemoInstruction(`bet_burn:${burnAmount}`, escrowPubkey));
       
       const { blockhash } = await connection.getLatestBlockhash('confirmed');
       tx.recentBlockhash = blockhash;
@@ -423,18 +424,7 @@ export class BetEscrowManager {
     }
   }
   
-  /**
-   * Create a memo instruction for transaction logging
-   */
-  private createMemoInstruction(memo: string, signer: PublicKey): TransactionInstruction {
-    const MEMO_PROGRAM_ID = new PublicKey('MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr');
-    
-    return new TransactionInstruction({
-      keys: [{ pubkey: signer, isSigner: true, isWritable: false }],
-      programId: MEMO_PROGRAM_ID,
-      data: Buffer.from(memo, 'utf-8'),
-    });
-  }
+  // Memo instruction delegated to shared utility
 
   /**
    * Get the escrow wallet address

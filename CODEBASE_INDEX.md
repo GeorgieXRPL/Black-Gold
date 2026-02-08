@@ -1,14 +1,86 @@
-# Black Gold v3.3.15 - Codebase Index
+# Black Gold v3.4 - Codebase Index
 
 > Complete file-by-file documentation for the Black Gold Interactive Mining Globe platform
 
 **Last Updated**: January 22, 2026  
-**Version**: 3.3.15 (Single Instance Holder Verification)  
+**Version**: 3.4 (Security Audit & Staking Hardening)  
 **Total Files**: 90+ TypeScript/TSX/JS files
 
 ---
 
-## 📋 Recent Changes (v3.3.15)
+## 📋 Recent Changes (v3.4) - Security Audit
+
+### Full Staking System Audit & Security Hardening
+
+Comprehensive audit of all staking contracts and backend systems. 14 issues found and fixed across security, code quality, and missing functionality.
+
+#### Critical Fixes
+
+1. **Wallet Signature Enforcement** - All state-changing WebSocket actions (stake, unstake, set_home, start_expedition) now require cryptographic wallet signature with nonce for replay prevention. Enforced via `verifySignedAction()` middleware in `server/index.ts`. Zod schemas updated to require `signature` and `nonce` fields.
+
+2. **Reward Orchestrator Initialized** - `initRewardOrchestrator()` was never called during server startup. Hourly vault distributions and reward pool monitoring are now active.
+
+3. **Admin Password Hardened** - Removed default `admin123` fallback. Admin access is now disabled entirely unless `ADMIN_SECRET` environment variable is configured.
+
+4. **Dual Staking Path Reconciled** - WebSocket stake handler now documents the dual architecture (HTTP API for on-chain Quarry, WebSocket for game state sync) and verifies on-chain state before updating game state.
+
+#### Security Fixes
+
+5. **Flash Loan Prevention** - Added time-weighted balance tracking in `server/solana/holder.ts`. New wallets must hold tokens for 10+ minutes before qualifying. Tracks consecutive verifications to detect flash loan patterns.
+
+6. **CORS Restricted** - Changed from wildcard `*` to configurable `CORS_ALLOWED_ORIGINS` env var with per-request origin validation.
+
+7. **REST API Validation** - All POST endpoints now validate wallet address format (base58 regex) and enforce amount bounds.
+
+8. **Holder API Rate Limited** - Added per-IP rate limiting (30 requests/minute) to `/api/verify-holder`.
+
+9. **IOU-COAL Redeem Completed** - The `buildRedeemTransaction()` function in `staking.ts` now builds actual SPL token transfer instructions instead of a placeholder comment.
+
+#### Code Quality
+
+10. **Shared Utilities** - Created `server/solana/utils.ts` with deduplicated `createMemoInstruction()`, `loadKeypairFromEnv()`, `sanitizeError()`, `toRawAmount()`, `fromRawAmount()`. Updated `staking.ts` and `bet-escrow.ts` to use shared code.
+
+11. **Dead Code Cleanup** - Cleaned legacy comments in `stake-manager.ts`, fixed `getMineSakers` typo to `getMineStakers`, updated architecture documentation.
+
+12. **Admin Metrics Implemented** - Replaced 12 hardcoded/zero admin metrics with real values from reward orchestrator, distribution service, and game engine. Implemented admin actions: `force_buyback`, `trigger_distribution`, `set_mine_config`.
+
+13. **TODO [MAINNET] Markers Resolved** - All 4 TODO [MAINNET] markers in `verify-holder/route.ts` resolved with production-safe comments (devnet bypasses are gated by `IS_DEVNET` flag).
+
+14. **Unit Tests** - Created `scripts/test-game-formulas.ts` with 79 passing tests covering stake tiers, hashrate multipliers, defense power, attack power, vault splits, miner scores, random mechanics, and edge cases.
+
+#### New Files
+
+| File | Purpose |
+|------|---------|
+| `server/solana/utils.ts` | Shared Solana utilities (memo instructions, keypair loading, amount conversion) |
+| `scripts/test-game-formulas.ts` | 79 unit tests for game mechanics formulas |
+
+#### Modified Files
+
+| File | Changes |
+|------|---------|
+| `server/index.ts` | Signature enforcement, reward orchestrator init, CORS, admin hardening, real metrics |
+| `server/middleware/validate.ts` | signature + nonce required on stake/unstake/set_home/expedition schemas |
+| `server/solana/staking.ts` | Completed redeem implementation, use shared memo utility |
+| `server/solana/holder.ts` | Time-weighted balance tracking for flash loan prevention |
+| `server/solana/index.ts` | Export new shared utilities |
+| `server/game/bet-escrow.ts` | Use shared memo utility |
+| `server/game/stake-manager.ts` | Legacy cleanup, typo fix, architecture docs |
+| `app/api/verify-holder/route.ts` | Rate limiting, input validation, resolved TODO markers |
+| `docs/SECURITY.md` | Updated with v3.4 findings and mitigations |
+| `docs/SECURITY_CHECKLIST.md` | Updated audit log and known limitations |
+| `docs/INDEX.md` | Added new files to index |
+
+#### New Environment Variables
+
+| Variable | Purpose | Required |
+|----------|---------|----------|
+| `ADMIN_SECRET` | Admin console password (no default) | Yes, for admin access |
+| `CORS_ALLOWED_ORIGINS` | Comma-separated allowed origins | Recommended for production |
+
+---
+
+## 📋 Previous Changes (v3.3.15)
 
 ### Single Instance Holder Verification (Critical Fix)
 

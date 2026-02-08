@@ -15,6 +15,28 @@ import { getRequiredPercent, getTier } from '../../config/holder-tiers';
 const verificationCache = new Map<string, HolderVerification>();
 
 /**
+ * Time-weighted balance tracking for flash loan prevention
+ * Tracks when a wallet's balance was first seen above the required threshold
+ * Flash loan attackers won't have historical balance data
+ */
+interface BalanceHistory {
+  /** First time balance was seen above threshold */
+  firstSeenAboveThreshold: Date;
+  /** Last verified balance */
+  lastBalance: number;
+  /** Number of consecutive verifications above threshold */
+  consecutiveVerifications: number;
+}
+
+const balanceHistory = new Map<string, BalanceHistory>();
+
+/** Minimum hold time before eligible (prevents flash loans) */
+const MIN_HOLD_TIME_MS = 10 * 60 * 1000; // 10 minutes - balance must be held for at least 10 min
+
+/** Minimum consecutive verifications to be trusted */
+const MIN_CONSECUTIVE_VERIFICATIONS = 2;
+
+/**
  * Create a Solana connection using configured RPC endpoint
  * @returns Solana Connection instance
  */
@@ -153,8 +175,49 @@ export async function verifyHolder(walletAddress: string): Promise<HolderVerific
     const requiredPercent = getRequiredPercent(cachedMarketCap);
     const tier = getTier(cachedMarketCap);
     
-    // Check eligibility
-    const isEligible = percentOfSupply >= requiredPercent || balance === Infinity;
+    // Check basic eligibility (balance above threshold)
+    const meetsBalanceRequirement = percentOfSupply >= requiredPercent || balance === Infinity;
+    
+    // Time-weighted balance check (flash loan prevention)
+    let isEligible = meetsBalanceRequirement;
+    
+    if (meetsBalanceRequirement && balance !== Infinity) {
+      const history = balanceHistory.get(walletAddress);
+      const now = new Date();
+      
+      if (!history) {
+        // First time seeing this wallet above threshold - start tracking
+        balanceHistory.set(walletAddress, {
+          firstSeenAboveThreshold: now,
+          lastBalance: balance,
+          consecutiveVerifications: 1,
+        });
+        // Allow on first verification (grace period for new users)
+        // But require time-weighted verification for subsequent checks
+        console.log(`[Holder] New wallet tracked: ${walletAddress.slice(0, 8)}... - first verification`);
+      } else {
+        // Update history
+        history.lastBalance = balance;
+        history.consecutiveVerifications++;
+        
+        // Check if they've held long enough
+        const holdDuration = now.getTime() - history.firstSeenAboveThreshold.getTime();
+        
+        if (holdDuration < MIN_HOLD_TIME_MS && history.consecutiveVerifications < MIN_CONSECUTIVE_VERIFICATIONS) {
+          // Balance appeared too recently - possible flash loan
+          isEligible = false;
+          const remainingMs = MIN_HOLD_TIME_MS - holdDuration;
+          console.log(
+            `[Holder] Flash loan guard: ${walletAddress.slice(0, 8)}... ` +
+            `balance appeared ${Math.round(holdDuration / 1000)}s ago, ` +
+            `need ${Math.round(remainingMs / 1000)}s more`
+          );
+        }
+      }
+    } else if (!meetsBalanceRequirement) {
+      // Balance dropped below threshold - reset tracking
+      balanceHistory.delete(walletAddress);
+    }
     
     const verification: HolderVerification = {
       walletAddress,

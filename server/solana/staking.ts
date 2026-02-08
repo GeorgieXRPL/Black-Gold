@@ -488,9 +488,22 @@ export async function buildRedeemTransaction(
     // Get user's IOU token account
     const { Token } = await loadQuarrySDK();
     
-    // For SPL token transfer, we need to use token program instructions
-    // Import SPL token instruction creation
+    // Build SPL token transfer from user's IOU-COAL to redeemer wallet
     const rawAmount = BigInt(Math.floor(amount * Math.pow(10, TOKEN_CONFIG.DECIMALS)));
+
+    // Dynamically import SPL token functions
+    const splToken = require('@solana/spl-token') as {
+      getAssociatedTokenAddress: (mint: PublicKey, owner: PublicKey) => Promise<PublicKey>;
+      createAssociatedTokenAccountInstruction: (payer: PublicKey, ata: PublicKey, owner: PublicKey, mint: PublicKey) => TransactionInstruction;
+      createTransferInstruction: (source: PublicKey, dest: PublicKey, owner: PublicKey, amount: bigint | number) => TransactionInstruction;
+      getAccount: (connection: Connection, address: PublicKey) => Promise<{ amount: bigint }>;
+    };
+
+    // Get user's IOU token account
+    const userATA = await splToken.getAssociatedTokenAddress(iouMintPubkey, userPubkey);
+    
+    // Get redeemer's IOU token account
+    const redeemerATA = await splToken.getAssociatedTokenAddress(iouMintPubkey, redeemerPubkey);
 
     const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
 
@@ -503,14 +516,29 @@ export async function buildRedeemTransaction(
     );
     transaction.add(memoInstruction);
 
-    // Note: In production, you would add the actual SPL token transfer instruction here:
-    // import { createTransferInstruction, getAssociatedTokenAddress } from '@solana/spl-token';
-    // const userATA = await getAssociatedTokenAddress(iouMintPubkey, userPubkey);
-    // const redeemerATA = await getAssociatedTokenAddress(iouMintPubkey, redeemerPubkey);
-    // const transferIx = createTransferInstruction(userATA, redeemerATA, userPubkey, rawAmount);
-    // transaction.add(transferIx);
+    // Check if redeemer's ATA exists, create if not (user pays)
+    try {
+      await splToken.getAccount(connection, redeemerATA);
+    } catch {
+      transaction.add(
+        splToken.createAssociatedTokenAccountInstruction(
+          userPubkey,
+          redeemerATA,
+          redeemerPubkey,
+          iouMintPubkey
+        )
+      );
+    }
 
-    // For now, log and return placeholder
+    // Transfer IOU-COAL from user to redeemer wallet
+    const transferIx = splToken.createTransferInstruction(
+      userATA,
+      redeemerATA,
+      userPubkey,
+      rawAmount
+    );
+    transaction.add(transferIx);
+
     console.log(`[Staking] Redeem request: ${amount} IOU-COAL from ${walletAddress} to ${redeemerWallet}`);
 
     transaction.recentBlockhash = blockhash;
@@ -701,18 +729,8 @@ export async function verifyStakeTransaction(
   }
 }
 
-/**
- * Create a memo instruction for transaction logging
- */
-function createMemoInstruction(memo: string, signer: PublicKey): TransactionInstruction {
-  const MEMO_PROGRAM_ID = new PublicKey('MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr');
-  
-  return new TransactionInstruction({
-    keys: [{ pubkey: signer, isSigner: true, isWritable: false }],
-    programId: MEMO_PROGRAM_ID,
-    data: Buffer.from(memo, 'utf-8'),
-  });
-}
+// Use shared memo instruction utility (deduplicated from bet-escrow.ts)
+import { createMemoInstruction } from './utils';
 
 /**
  * Staking service status

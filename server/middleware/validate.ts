@@ -67,7 +67,8 @@ export const StakeSchema = z.object({
   type: z.literal('stake'),
   mineId: MineIdSchema,
   amount: z.number().int().min(1).max(1_000_000_000), // Max 1B tokens
-  signature: z.string().min(1).optional(), // TODO [MAINNET]: Make required for production
+  signature: z.string().min(1), // Required: wallet signature for state-changing action
+  nonce: z.string().min(1), // Required: nonce for replay attack prevention
 });
 
 /** Unstake message */
@@ -75,13 +76,16 @@ export const UnstakeSchema = z.object({
   type: z.literal('unstake'),
   mineId: MineIdSchema,
   amount: z.number().int().min(1).max(1_000_000_000),
-  signature: z.string().min(1).optional(), // TODO [MAINNET]: Make required for production
+  signature: z.string().min(1), // Required: wallet signature for state-changing action
+  nonce: z.string().min(1), // Required: nonce for replay attack prevention
 });
 
 /** Set home mine message */
 export const SetHomeSchema = z.object({
   type: z.literal('set_home'),
   mineId: MineIdSchema,
+  signature: z.string().min(1), // Required: wallet signature
+  nonce: z.string().min(1), // Required: nonce for replay prevention
 });
 
 /** Start expedition (raid) message */
@@ -89,6 +93,8 @@ export const StartExpeditionSchema = z.object({
   type: z.literal('start_expedition'),
   targetMineId: MineIdSchema,
   betAmount: z.number().int().min(0).max(1_000_000_000).optional(),
+  signature: z.string().min(1), // Required: wallet signature
+  nonce: z.string().min(1), // Required: nonce for replay prevention
 });
 
 /** Rally defense message */
